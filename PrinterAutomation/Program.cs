@@ -16,8 +16,9 @@ namespace PrinterAutomation
             try
             {
                 WindowsFormsSettings.SetDPIAware();
-                WindowsFormsSettings.EnableFormSkins();
-                WindowsFormsSettings.DefaultLookAndFeel.SetSkinStyle("Office 2019 Colorful");
+                // FormSkins ve LookAndFeel kapatıldı - renk sorunlarını önlemek için
+                // WindowsFormsSettings.EnableFormSkins();
+                // WindowsFormsSettings.DefaultLookAndFeel.SetSkinStyle("Office 2019 Colorful");
             }
             catch
             {
