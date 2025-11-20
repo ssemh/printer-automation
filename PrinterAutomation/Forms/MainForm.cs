@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Windows.Forms;
 using DevExpress.XtraEditors;
 using DevExpress.XtraGrid;
@@ -28,6 +29,11 @@ namespace PrinterAutomation.Forms
         private LabelControl lblPrinters;
         private LabelControl lblOrders;
         private LabelControl lblJobs;
+        private LabelControl lblStats;
+        private LabelControl lblTotalPrinters;
+        private LabelControl lblActivePrinters;
+        private LabelControl lblTotalOrders;
+        private LabelControl lblPendingJobs;
 
         public MainForm()
         {
@@ -57,16 +63,21 @@ namespace PrinterAutomation.Forms
         private void InitializeComponent()
         {
             this.Text = "3D Yazıcı Otomasyon Sistemi";
-            this.Size = new System.Drawing.Size(1500, 900);
+            this.Size = new System.Drawing.Size(1500, 650);
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.BackColor = System.Drawing.Color.FromArgb(245, 247, 250);
-            this.MinimumSize = new System.Drawing.Size(1200, 700);
+            this.MinimumSize = new System.Drawing.Size(1200, 650);
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
+            this.WindowState = System.Windows.Forms.FormWindowState.Normal;
+            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.Sizable;
+            this.Resize += MainForm_Resize;
 
             // Başlık Panel (Gradient efekti için)
             var titlePanel = new System.Windows.Forms.Panel
             {
                 Location = new System.Drawing.Point(0, 0),
-                Size = new System.Drawing.Size(1500, 80),
+                Size = new System.Drawing.Size(this.ClientSize.Width, 80),
+                Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right,
                 BackColor = System.Drawing.Color.FromArgb(30, 136, 229)
             };
             this.Controls.Add(titlePanel);
@@ -97,8 +108,9 @@ namespace PrinterAutomation.Forms
             btnSimulateOrder = new SimpleButton
             {
                 Text = "➕ Yeni Sipariş Simüle Et",
-                Location = new System.Drawing.Point(1200, 20),
+                Location = new System.Drawing.Point(titlePanel.Width - 290, 20),
                 Size = new System.Drawing.Size(270, 45),
+                Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right,
                 Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold)
             };
             btnSimulateOrder.Appearance.BackColor = System.Drawing.Color.FromArgb(76, 175, 80);
@@ -121,6 +133,7 @@ namespace PrinterAutomation.Forms
             {
                 Location = new System.Drawing.Point(20, 100),
                 Size = new System.Drawing.Size(450, 35),
+                Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left,
                 BackColor = System.Drawing.Color.FromArgb(63, 81, 181)
             };
             this.Controls.Add(printersHeaderPanel);
@@ -142,6 +155,7 @@ namespace PrinterAutomation.Forms
                 {
                     Location = new System.Drawing.Point(20, 135),
                     Size = new System.Drawing.Size(450, 345),
+                    Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left,
                     Visible = false
                 };
                 gridViewPrinters = new GridView(gridControlPrinters);
@@ -182,6 +196,7 @@ namespace PrinterAutomation.Forms
             {
                 Location = new System.Drawing.Point(490, 100),
                 Size = new System.Drawing.Size(450, 35),
+                Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left,
                 BackColor = System.Drawing.Color.FromArgb(255, 152, 0)
             };
             this.Controls.Add(ordersHeaderPanel);
@@ -203,6 +218,7 @@ namespace PrinterAutomation.Forms
                 {
                     Location = new System.Drawing.Point(490, 135),
                     Size = new System.Drawing.Size(450, 345),
+                    Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left,
                     Visible = false
                 };
                 gridViewOrders = new GridView(gridControlOrders);
@@ -243,6 +259,7 @@ namespace PrinterAutomation.Forms
             {
                 Location = new System.Drawing.Point(960, 100),
                 Size = new System.Drawing.Size(450, 35),
+                Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right,
                 BackColor = System.Drawing.Color.FromArgb(156, 39, 176)
             };
             this.Controls.Add(jobsHeaderPanel);
@@ -264,6 +281,7 @@ namespace PrinterAutomation.Forms
                 {
                     Location = new System.Drawing.Point(960, 135),
                     Size = new System.Drawing.Size(450, 345),
+                    Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right,
                     Visible = false
                 };
                 gridViewJobs = new GridView(gridControlJobs);
@@ -299,7 +317,139 @@ namespace PrinterAutomation.Forms
                 System.Diagnostics.Debug.WriteLine($"Jobs grid init error: {ex.Message}");
             }
 
+            SetupStatisticsPanel();
             SetupGridColumns();
+        }
+
+        private void SetupStatisticsPanel()
+        {
+            // İstatistikler Paneli
+            var statsPanel = new System.Windows.Forms.Panel
+            {
+                Location = new System.Drawing.Point(20, 490),
+                Size = new System.Drawing.Size(this.ClientSize.Width - 40, 100),
+                Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right,
+                BackColor = System.Drawing.Color.White,
+                BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+            };
+            this.Controls.Add(statsPanel);
+
+            lblStats = new LabelControl
+            {
+                Text = "📊 İSTATİSTİKLER",
+                Location = new System.Drawing.Point(10, 5),
+                Size = new System.Drawing.Size(200, 25),
+                Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold),
+                ForeColor = System.Drawing.Color.FromArgb(63, 81, 181)
+            };
+            statsPanel.Controls.Add(lblStats);
+
+            // Toplam Yazıcı
+            var lblTotalPrintersLabel = new LabelControl
+            {
+                Text = "Toplam Yazıcı:",
+                Location = new System.Drawing.Point(20, 35),
+                Size = new System.Drawing.Size(100, 20),
+                Font = new System.Drawing.Font("Segoe UI", 9F),
+                ForeColor = System.Drawing.Color.FromArgb(100, 100, 100)
+            };
+            statsPanel.Controls.Add(lblTotalPrintersLabel);
+
+            lblTotalPrinters = new LabelControl
+            {
+                Text = "10",
+                Location = new System.Drawing.Point(130, 35),
+                Size = new System.Drawing.Size(50, 25),
+                Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Bold),
+                ForeColor = System.Drawing.Color.FromArgb(63, 81, 181)
+            };
+            statsPanel.Controls.Add(lblTotalPrinters);
+
+            // Aktif Yazıcı
+            var lblActivePrintersLabel = new LabelControl
+            {
+                Text = "Aktif Yazıcı:",
+                Location = new System.Drawing.Point(220, 35),
+                Size = new System.Drawing.Size(100, 20),
+                Font = new System.Drawing.Font("Segoe UI", 9F),
+                ForeColor = System.Drawing.Color.FromArgb(100, 100, 100)
+            };
+            statsPanel.Controls.Add(lblActivePrintersLabel);
+
+            lblActivePrinters = new LabelControl
+            {
+                Text = "0",
+                Location = new System.Drawing.Point(330, 35),
+                Size = new System.Drawing.Size(50, 25),
+                Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Bold),
+                ForeColor = System.Drawing.Color.FromArgb(76, 175, 80)
+            };
+            statsPanel.Controls.Add(lblActivePrinters);
+
+            // Toplam Sipariş
+            var lblTotalOrdersLabel = new LabelControl
+            {
+                Text = "Toplam Sipariş:",
+                Location = new System.Drawing.Point(420, 35),
+                Size = new System.Drawing.Size(100, 20),
+                Font = new System.Drawing.Font("Segoe UI", 9F),
+                ForeColor = System.Drawing.Color.FromArgb(100, 100, 100)
+            };
+            statsPanel.Controls.Add(lblTotalOrdersLabel);
+
+            lblTotalOrders = new LabelControl
+            {
+                Text = "0",
+                Location = new System.Drawing.Point(530, 35),
+                Size = new System.Drawing.Size(50, 25),
+                Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Bold),
+                ForeColor = System.Drawing.Color.FromArgb(255, 152, 0)
+            };
+            statsPanel.Controls.Add(lblTotalOrders);
+
+            // Bekleyen İşler
+            var lblPendingJobsLabel = new LabelControl
+            {
+                Text = "Bekleyen İşler:",
+                Location = new System.Drawing.Point(620, 35),
+                Size = new System.Drawing.Size(100, 20),
+                Font = new System.Drawing.Font("Segoe UI", 9F),
+                ForeColor = System.Drawing.Color.FromArgb(100, 100, 100)
+            };
+            statsPanel.Controls.Add(lblPendingJobsLabel);
+
+            lblPendingJobs = new LabelControl
+            {
+                Text = "0",
+                Location = new System.Drawing.Point(730, 35),
+                Size = new System.Drawing.Size(50, 25),
+                Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Bold),
+                ForeColor = System.Drawing.Color.FromArgb(156, 39, 176)
+            };
+            statsPanel.Controls.Add(lblPendingJobs);
+
+            // Toplam Tamamlanan İş
+            var lblCompletedJobsLabel = new LabelControl
+            {
+                Text = "Tamamlanan İş:",
+                Location = new System.Drawing.Point(20, 65),
+                Size = new System.Drawing.Size(120, 20),
+                Font = new System.Drawing.Font("Segoe UI", 9F),
+                ForeColor = System.Drawing.Color.FromArgb(100, 100, 100),
+                Name = "lblCompletedJobsLabel"
+            };
+            statsPanel.Controls.Add(lblCompletedJobsLabel);
+
+            var lblCompletedJobs = new LabelControl
+            {
+                Text = "0",
+                Location = new System.Drawing.Point(150, 65),
+                Size = new System.Drawing.Size(50, 25),
+                Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Bold),
+                ForeColor = System.Drawing.Color.FromArgb(76, 175, 80),
+                Name = "lblCompletedJobs"
+            };
+            statsPanel.Controls.Add(lblCompletedJobs);
         }
 
         private void SetupGridColumns()
@@ -336,17 +486,36 @@ namespace PrinterAutomation.Forms
             var colProgress = gridViewPrinters.Columns.AddField("Progress");
             colProgress.Caption = "İlerleme %";
             colProgress.VisibleIndex = 4;
-            colProgress.Width = 100;
+            colProgress.Width = 90;
             colProgress.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
             colProgress.DisplayFormat.FormatString = "F1";
             colProgress.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colProgress.AppearanceCell.Options.UseForeColor = true;
+
+            var colFilament = gridViewPrinters.Columns.AddField("FilamentRemaining");
+            colFilament.Caption = "Filament %";
+            colFilament.VisibleIndex = 5;
+            colFilament.Width = 90;
+            colFilament.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
+            colFilament.DisplayFormat.FormatString = "F1";
+            colFilament.AppearanceCell.ForeColor = System.Drawing.Color.Black;
+            colFilament.AppearanceCell.Options.UseForeColor = true;
+
+            var colFilamentType = gridViewPrinters.Columns.AddField("FilamentType");
+            colFilamentType.Caption = "Filament Tipi";
+            colFilamentType.VisibleIndex = 6;
+            colFilamentType.Width = 100;
+            colFilamentType.AppearanceCell.ForeColor = System.Drawing.Color.Black;
+            colFilamentType.AppearanceCell.Options.UseForeColor = true;
 
             gridViewPrinters.OptionsView.ShowGroupPanel = false;
             gridViewPrinters.OptionsView.ShowIndicator = true;
             gridViewPrinters.OptionsView.ColumnAutoWidth = false;
             gridViewPrinters.OptionsView.ShowVerticalLines = DevExpress.Utils.DefaultBoolean.False;
             gridViewPrinters.OptionsView.ShowHorizontalLines = DevExpress.Utils.DefaultBoolean.True;
+            
+            // Grid genişliğini ayarla
+            gridControlPrinters.Size = new System.Drawing.Size(450, 320);
 
             // Orders Grid Columns
             var colOrderId = gridViewOrders.Columns.AddField("Id");
@@ -524,6 +693,38 @@ namespace PrinterAutomation.Forms
             {
                 System.Diagnostics.Debug.WriteLine($"Jobs grid error: {ex.Message}");
             }
+
+            // İstatistikleri güncelle
+            UpdateStatistics();
+        }
+
+        private void UpdateStatistics()
+        {
+            if (lblTotalPrinters == null || lblActivePrinters == null || lblTotalOrders == null || lblPendingJobs == null)
+                return;
+
+            var printers = _printerService.GetAllPrinters();
+            var orders = _orderService.GetAllOrders();
+            var jobs = _jobAssignmentService.GetAllJobs();
+
+            lblTotalPrinters.Text = printers.Count.ToString();
+            lblActivePrinters.Text = printers.Count(p => p.Status == PrinterStatus.Printing).ToString();
+            lblTotalOrders.Text = orders.Count.ToString();
+            lblPendingJobs.Text = jobs.Count(j => j.Status == JobStatus.Queued).ToString();
+            
+            // Tamamlanan iş sayısını güncelle
+            var completedJobsCount = jobs.Count(j => j.Status == JobStatus.Completed);
+            var statsPanel = this.Controls.OfType<System.Windows.Forms.Panel>()
+                .FirstOrDefault(p => p.Controls.OfType<LabelControl>().Any(l => l.Text.Contains("İSTATİSTİKLER")));
+            if (statsPanel != null)
+            {
+                var completedLabel = statsPanel.Controls.OfType<LabelControl>()
+                    .FirstOrDefault(l => l.Name == "lblCompletedJobs");
+                if (completedLabel != null)
+                {
+                    completedLabel.Text = completedJobsCount.ToString();
+                }
+            }
         }
 
         private void StartRefreshTimer()
@@ -558,6 +759,29 @@ namespace PrinterAutomation.Forms
             e.Appearance.ForeColor = System.Drawing.Color.FromArgb(33, 33, 33);
             e.Appearance.BackColor = e.RowHandle % 2 == 0 ? System.Drawing.Color.White : System.Drawing.Color.FromArgb(249, 250, 252);
             e.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F);
+            
+            // Filament durumuna göre renk değiştir
+            if (e.Column != null && e.Column.FieldName == "FilamentRemaining")
+            {
+                var printer = gridViewPrinters.GetRow(e.RowHandle) as Printer;
+                if (printer != null)
+                {
+                    if (printer.FilamentRemaining < 20)
+                    {
+                        e.Appearance.ForeColor = System.Drawing.Color.FromArgb(244, 67, 54); // Kırmızı - Düşük
+                        e.Appearance.BackColor = System.Drawing.Color.FromArgb(255, 235, 238);
+                    }
+                    else if (printer.FilamentRemaining < 40)
+                    {
+                        e.Appearance.ForeColor = System.Drawing.Color.FromArgb(255, 152, 0); // Turuncu - Orta
+                        e.Appearance.BackColor = System.Drawing.Color.FromArgb(255, 243, 224);
+                    }
+                    else
+                    {
+                        e.Appearance.ForeColor = System.Drawing.Color.FromArgb(76, 175, 80); // Yeşil - İyi
+                    }
+                }
+            }
         }
 
         private void GridViewOrders_RowCellStyle(object sender, DevExpress.XtraGrid.Views.Grid.RowCellStyleEventArgs e)
@@ -572,6 +796,84 @@ namespace PrinterAutomation.Forms
             e.Appearance.ForeColor = System.Drawing.Color.FromArgb(33, 33, 33);
             e.Appearance.BackColor = e.RowHandle % 2 == 0 ? System.Drawing.Color.White : System.Drawing.Color.FromArgb(249, 250, 252);
             e.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F);
+        }
+
+        private void MainForm_Resize(object sender, EventArgs e)
+        {
+            // Başlık panelini güncelle
+            var titlePanel = this.Controls.OfType<System.Windows.Forms.Panel>()
+                .FirstOrDefault(p => p.BackColor == System.Drawing.Color.FromArgb(30, 136, 229));
+            if (titlePanel != null)
+            {
+                titlePanel.Width = this.ClientSize.Width;
+            }
+
+            // Buton konumunu güncelle
+            if (btnSimulateOrder != null && titlePanel != null)
+            {
+                btnSimulateOrder.Left = titlePanel.Width - btnSimulateOrder.Width - 20;
+            }
+
+            // Grid'lerin genişliğini ayarla
+            if (gridControlPrinters != null && gridControlOrders != null && gridControlJobs != null)
+            {
+                int availableWidth = this.ClientSize.Width - 60; // 20px margin her iki tarafta
+                int gridWidth = availableWidth / 3;
+                int spacing = 20;
+
+                gridControlPrinters.Width = gridWidth;
+                gridControlOrders.Left = gridControlPrinters.Right + spacing;
+                gridControlOrders.Width = gridWidth;
+                gridControlJobs.Left = gridControlOrders.Right + spacing;
+                gridControlJobs.Width = this.ClientSize.Width - gridControlJobs.Left - 20;
+
+                // Header panellerini güncelle
+                var printersHeader = this.Controls.OfType<System.Windows.Forms.Panel>()
+                    .FirstOrDefault(p => p.BackColor == System.Drawing.Color.FromArgb(63, 81, 181));
+                if (printersHeader != null)
+                {
+                    printersHeader.Width = gridControlPrinters.Width;
+                }
+
+                var ordersHeader = this.Controls.OfType<System.Windows.Forms.Panel>()
+                    .FirstOrDefault(p => p.BackColor == System.Drawing.Color.FromArgb(255, 152, 0));
+                if (ordersHeader != null)
+                {
+                    ordersHeader.Left = gridControlOrders.Left;
+                    ordersHeader.Width = gridControlOrders.Width;
+                }
+
+                var jobsHeader = this.Controls.OfType<System.Windows.Forms.Panel>()
+                    .FirstOrDefault(p => p.BackColor == System.Drawing.Color.FromArgb(156, 39, 176));
+                if (jobsHeader != null)
+                {
+                    jobsHeader.Left = gridControlJobs.Left;
+                    jobsHeader.Width = gridControlJobs.Width;
+                }
+            }
+
+            // İstatistikler panelini güncelle
+            var statsPanel = this.Controls.OfType<System.Windows.Forms.Panel>()
+                .FirstOrDefault(p => p.Controls.OfType<LabelControl>().Any(l => l.Text.Contains("İSTATİSTİKLER")));
+            if (statsPanel != null)
+            {
+                statsPanel.Width = this.ClientSize.Width - 40;
+            }
+
+            // Grid yüksekliklerini ayarla
+            if (gridControlPrinters != null)
+            {
+                int gridTop = 135;
+                int statsPanelTop = statsPanel != null ? statsPanel.Top : this.ClientSize.Height - 120;
+                int gridHeight = statsPanelTop - gridTop - 20;
+                
+                if (gridHeight > 100)
+                {
+                    gridControlPrinters.Height = gridHeight;
+                    if (gridControlOrders != null) gridControlOrders.Height = gridHeight;
+                    if (gridControlJobs != null) gridControlJobs.Height = gridHeight;
+                }
+            }
         }
 
         protected override void OnFormClosing(System.Windows.Forms.FormClosingEventArgs e)

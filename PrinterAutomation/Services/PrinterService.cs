@@ -17,6 +17,9 @@ namespace PrinterAutomation.Services
 
         private void InitializePrinters()
         {
+            var random = new Random();
+            var filamentTypes = new[] { "PLA", "ABS", "PETG", "TPU" };
+            
             // 10 adet 3D yazıcı oluştur
             for (int i = 1; i <= 10; i++)
             {
@@ -24,7 +27,11 @@ namespace PrinterAutomation.Services
                 {
                     Id = i,
                     Name = $"3D Yazıcı {i}",
-                    Status = PrinterStatus.Idle
+                    Status = PrinterStatus.Idle,
+                    FilamentRemaining = random.Next(20, 100), // %20-100 arası rastgele
+                    FilamentType = filamentTypes[random.Next(filamentTypes.Length)],
+                    TotalJobsCompleted = random.Next(0, 50),
+                    TotalPrintTime = random.Next(0, 200)
                 });
             }
         }
@@ -55,6 +62,11 @@ namespace PrinterAutomation.Services
                 printer.JobStartTime = DateTime.Now;
                 printer.JobEndTime = DateTime.Now.AddMinutes(estimatedTime);
                 printer.Progress = 0;
+                
+                // Filament tüketimi simülasyonu (iş başladığında %1-3 arası azalır)
+                var random = new Random();
+                var filamentUsage = random.Next(1, 4);
+                printer.FilamentRemaining = Math.Max(0, printer.FilamentRemaining - filamentUsage);
             }
         }
 
@@ -77,6 +89,14 @@ namespace PrinterAutomation.Services
                 printer.JobStartTime = null;
                 printer.JobEndTime = null;
                 printer.Progress = 0;
+                printer.TotalJobsCompleted++;
+                
+                // Yazdırma süresini hesapla ve ekle
+                if (printer.JobStartTime.HasValue && printer.JobEndTime.HasValue)
+                {
+                    var duration = (printer.JobEndTime.Value - printer.JobStartTime.Value).TotalHours;
+                    printer.TotalPrintTime += duration;
+                }
             }
         }
     }
