@@ -4,18 +4,26 @@ using System.Windows.Forms;
 using DevExpress.XtraEditors;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.Grid;
+using DevExpress.XtraGrid.Columns;
 using DevExpress.Utils;
 using PrinterAutomation.Models;
 using PrinterAutomation.Services;
 
 namespace PrinterAutomation.Forms
 {
+    public enum ThemeMode
+    {
+        Light,
+        Dark
+    }
+
     public class MainForm : System.Windows.Forms.Form
     {
         private readonly PrinterService _printerService;
         private readonly OrderService _orderService;
         private readonly JobAssignmentService _jobAssignmentService;
         private System.Windows.Forms.Timer _refreshTimer;
+        private ThemeMode _currentTheme = ThemeMode.Light;
 
         private GridControl gridControlPrinters;
         private GridView gridViewPrinters;
@@ -24,6 +32,7 @@ namespace PrinterAutomation.Forms
         private GridControl gridControlJobs;
         private GridView gridViewJobs;
         private SimpleButton btnSimulateOrder;
+        private SimpleButton btnToggleTheme;
         private LabelControl lblStatus;
         private LabelControl lblTitle;
         private LabelControl lblPrinters;
@@ -34,6 +43,11 @@ namespace PrinterAutomation.Forms
         private LabelControl lblActivePrinters;
         private LabelControl lblTotalOrders;
         private LabelControl lblPendingJobs;
+        private System.Windows.Forms.Panel titlePanel;
+        private System.Windows.Forms.Panel printersHeaderPanel;
+        private System.Windows.Forms.Panel ordersHeaderPanel;
+        private System.Windows.Forms.Panel jobsHeaderPanel;
+        private System.Windows.Forms.Panel statsPanel;
 
         public MainForm()
         {
@@ -45,6 +59,8 @@ namespace PrinterAutomation.Forms
             this.Shown += MainForm_Shown;
             SetupEventHandlers();
             StartRefreshTimer();
+            // İlk temayı uygula
+            ApplyTheme();
         }
 
         private void MainForm_Shown(object sender, EventArgs e)
@@ -73,7 +89,7 @@ namespace PrinterAutomation.Forms
             this.Resize += MainForm_Resize;
 
             // Başlık Panel (Gradient efekti için)
-            var titlePanel = new System.Windows.Forms.Panel
+            titlePanel = new System.Windows.Forms.Panel
             {
                 Location = new System.Drawing.Point(0, 0),
                 Size = new System.Drawing.Size(this.ClientSize.Width, 80),
@@ -104,11 +120,34 @@ namespace PrinterAutomation.Forms
             };
             titlePanel.Controls.Add(lblStatus);
 
-            // Simulate Order Button (Başlık panelinde)
+            // Tema Değiştirme Butonu (önce ekleniyor, sağda olacak)
+            btnToggleTheme = new SimpleButton
+            {
+                Text = "🌙 Koyu Tema",
+                Size = new System.Drawing.Size(140, 45),
+                Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right,
+                Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold)
+            };
+            btnToggleTheme.Appearance.BackColor = System.Drawing.Color.FromArgb(33, 33, 33);
+            btnToggleTheme.Appearance.ForeColor = System.Drawing.Color.White;
+            btnToggleTheme.Appearance.BorderColor = System.Drawing.Color.FromArgb(66, 66, 66);
+            btnToggleTheme.Appearance.Options.UseBackColor = true;
+            btnToggleTheme.Appearance.Options.UseForeColor = true;
+            btnToggleTheme.Appearance.Options.UseBorderColor = true;
+            btnToggleTheme.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(66, 66, 66);
+            btnToggleTheme.AppearanceHovered.Options.UseBackColor = true;
+            btnToggleTheme.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(20, 20, 20);
+            btnToggleTheme.AppearancePressed.Options.UseBackColor = true;
+            btnToggleTheme.LookAndFeel.UseDefaultLookAndFeel = false;
+            btnToggleTheme.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+            btnToggleTheme.Click += BtnToggleTheme_Click;
+            titlePanel.Controls.Add(btnToggleTheme);
+            btnToggleTheme.Location = new System.Drawing.Point(titlePanel.Width - btnToggleTheme.Width - 20, 20);
+
+            // Simulate Order Button (tema butonunun solunda)
             btnSimulateOrder = new SimpleButton
             {
                 Text = "➕ Yeni Sipariş Simüle Et",
-                Location = new System.Drawing.Point(titlePanel.Width - 290, 20),
                 Size = new System.Drawing.Size(270, 45),
                 Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right,
                 Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold)
@@ -127,9 +166,10 @@ namespace PrinterAutomation.Forms
             btnSimulateOrder.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
             btnSimulateOrder.Click += BtnSimulateOrder_Click;
             titlePanel.Controls.Add(btnSimulateOrder);
+            btnSimulateOrder.Location = new System.Drawing.Point(btnToggleTheme.Left - btnSimulateOrder.Width - 10, 20);
 
             // Printers Grid Başlık Panel
-            var printersHeaderPanel = new System.Windows.Forms.Panel
+            printersHeaderPanel = new System.Windows.Forms.Panel
             {
                 Location = new System.Drawing.Point(20, 100),
                 Size = new System.Drawing.Size(450, 35),
@@ -183,6 +223,8 @@ namespace PrinterAutomation.Forms
                 
                 // CustomDrawCell event'i ile renkleri zorla uygula
                 gridViewPrinters.RowCellStyle += GridViewPrinters_RowCellStyle;
+                // Filtre paneli için paint event'i
+                gridControlPrinters.Paint += GridControl_Paint;
                 
                 this.Controls.Add(gridControlPrinters);
             }
@@ -192,7 +234,7 @@ namespace PrinterAutomation.Forms
             }
 
             // Orders Grid Başlık Panel
-            var ordersHeaderPanel = new System.Windows.Forms.Panel
+            ordersHeaderPanel = new System.Windows.Forms.Panel
             {
                 Location = new System.Drawing.Point(490, 100),
                 Size = new System.Drawing.Size(450, 35),
@@ -246,6 +288,8 @@ namespace PrinterAutomation.Forms
                 
                 // CustomDrawCell event'i ile renkleri zorla uygula
                 gridViewOrders.RowCellStyle += GridViewOrders_RowCellStyle;
+                // Filtre paneli için paint event'i
+                gridControlOrders.Paint += GridControl_Paint;
                 
                 this.Controls.Add(gridControlOrders);
             }
@@ -255,7 +299,7 @@ namespace PrinterAutomation.Forms
             }
 
             // Jobs Grid Başlık Panel
-            var jobsHeaderPanel = new System.Windows.Forms.Panel
+            jobsHeaderPanel = new System.Windows.Forms.Panel
             {
                 Location = new System.Drawing.Point(960, 100),
                 Size = new System.Drawing.Size(450, 35),
@@ -309,6 +353,8 @@ namespace PrinterAutomation.Forms
                 
                 // CustomDrawCell event'i ile renkleri zorla uygula
                 gridViewJobs.RowCellStyle += GridViewJobs_RowCellStyle;
+                // Filtre paneli için paint event'i
+                gridControlJobs.Paint += GridControl_Paint;
                 
                 this.Controls.Add(gridControlJobs);
             }
@@ -324,7 +370,7 @@ namespace PrinterAutomation.Forms
         private void SetupStatisticsPanel()
         {
             // İstatistikler Paneli
-            var statsPanel = new System.Windows.Forms.Panel
+            statsPanel = new System.Windows.Forms.Panel
             {
                 Location = new System.Drawing.Point(20, 490),
                 Size = new System.Drawing.Size(this.ClientSize.Width - 40, 100),
@@ -455,35 +501,35 @@ namespace PrinterAutomation.Forms
         private void SetupGridColumns()
         {
             // Printers Grid Columns
-            var colId = gridViewPrinters.Columns.AddField("Id");
+            GridColumn colId = gridViewPrinters.Columns.AddField("Id");
             colId.Caption = "ID";
             colId.VisibleIndex = 0;
             colId.Width = 50;
             colId.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colId.AppearanceCell.Options.UseForeColor = true;
 
-            var colName = gridViewPrinters.Columns.AddField("Name");
+            GridColumn colName = gridViewPrinters.Columns.AddField("Name");
             colName.Caption = "Yazıcı Adı";
             colName.VisibleIndex = 1;
             colName.Width = 120;
             colName.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colName.AppearanceCell.Options.UseForeColor = true;
 
-            var colStatus = gridViewPrinters.Columns.AddField("Status");
+            GridColumn colStatus = gridViewPrinters.Columns.AddField("Status");
             colStatus.Caption = "Durum";
             colStatus.VisibleIndex = 2;
             colStatus.Width = 100;
             colStatus.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colStatus.AppearanceCell.Options.UseForeColor = true;
 
-            var colJob = gridViewPrinters.Columns.AddField("CurrentJobName");
+            GridColumn colJob = gridViewPrinters.Columns.AddField("CurrentJobName");
             colJob.Caption = "Mevcut İş";
             colJob.VisibleIndex = 3;
             colJob.Width = 150;
             colJob.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colJob.AppearanceCell.Options.UseForeColor = true;
 
-            var colProgress = gridViewPrinters.Columns.AddField("Progress");
+            GridColumn colProgress = gridViewPrinters.Columns.AddField("Progress");
             colProgress.Caption = "İlerleme %";
             colProgress.VisibleIndex = 4;
             colProgress.Width = 90;
@@ -492,7 +538,7 @@ namespace PrinterAutomation.Forms
             colProgress.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colProgress.AppearanceCell.Options.UseForeColor = true;
 
-            var colFilament = gridViewPrinters.Columns.AddField("FilamentRemaining");
+            GridColumn colFilament = gridViewPrinters.Columns.AddField("FilamentRemaining");
             colFilament.Caption = "Filament %";
             colFilament.VisibleIndex = 5;
             colFilament.Width = 90;
@@ -501,7 +547,7 @@ namespace PrinterAutomation.Forms
             colFilament.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colFilament.AppearanceCell.Options.UseForeColor = true;
 
-            var colFilamentType = gridViewPrinters.Columns.AddField("FilamentType");
+            GridColumn colFilamentType = gridViewPrinters.Columns.AddField("FilamentType");
             colFilamentType.Caption = "Filament Tipi";
             colFilamentType.VisibleIndex = 6;
             colFilamentType.Width = 100;
@@ -518,28 +564,28 @@ namespace PrinterAutomation.Forms
             gridControlPrinters.Size = new System.Drawing.Size(450, 320);
 
             // Orders Grid Columns
-            var colOrderId = gridViewOrders.Columns.AddField("Id");
+            GridColumn colOrderId = gridViewOrders.Columns.AddField("Id");
             colOrderId.Caption = "ID";
             colOrderId.VisibleIndex = 0;
             colOrderId.Width = 50;
             colOrderId.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colOrderId.AppearanceCell.Options.UseForeColor = true;
 
-            var colOrderNo = gridViewOrders.Columns.AddField("OrderNumber");
+            GridColumn colOrderNo = gridViewOrders.Columns.AddField("OrderNumber");
             colOrderNo.Caption = "Sipariş No";
             colOrderNo.VisibleIndex = 1;
             colOrderNo.Width = 150;
             colOrderNo.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colOrderNo.AppearanceCell.Options.UseForeColor = true;
 
-            var colCustomer = gridViewOrders.Columns.AddField("CustomerName");
+            GridColumn colCustomer = gridViewOrders.Columns.AddField("CustomerName");
             colCustomer.Caption = "Müşteri";
             colCustomer.VisibleIndex = 2;
             colCustomer.Width = 120;
             colCustomer.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colCustomer.AppearanceCell.Options.UseForeColor = true;
 
-            var colDate = gridViewOrders.Columns.AddField("OrderDate");
+            GridColumn colDate = gridViewOrders.Columns.AddField("OrderDate");
             colDate.Caption = "Tarih";
             colDate.VisibleIndex = 3;
             colDate.Width = 120;
@@ -548,7 +594,7 @@ namespace PrinterAutomation.Forms
             colDate.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colDate.AppearanceCell.Options.UseForeColor = true;
 
-            var colOrderStatus = gridViewOrders.Columns.AddField("Status");
+            GridColumn colOrderStatus = gridViewOrders.Columns.AddField("Status");
             colOrderStatus.Caption = "Durum";
             colOrderStatus.VisibleIndex = 4;
             colOrderStatus.Width = 100;
@@ -562,35 +608,35 @@ namespace PrinterAutomation.Forms
             gridViewOrders.OptionsView.ShowHorizontalLines = DevExpress.Utils.DefaultBoolean.True;
 
             // Jobs Grid Columns
-            var colJobId = gridViewJobs.Columns.AddField("Id");
+            GridColumn colJobId = gridViewJobs.Columns.AddField("Id");
             colJobId.Caption = "İş ID";
             colJobId.VisibleIndex = 0;
             colJobId.Width = 60;
             colJobId.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colJobId.AppearanceCell.Options.UseForeColor = true;
 
-            var colModel = gridViewJobs.Columns.AddField("ModelFileName");
+            GridColumn colModel = gridViewJobs.Columns.AddField("ModelFileName");
             colModel.Caption = "Model Dosyası";
             colModel.VisibleIndex = 1;
             colModel.Width = 150;
             colModel.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colModel.AppearanceCell.Options.UseForeColor = true;
 
-            var colPrinterId = gridViewJobs.Columns.AddField("PrinterId");
+            GridColumn colPrinterId = gridViewJobs.Columns.AddField("PrinterId");
             colPrinterId.Caption = "Yazıcı ID";
             colPrinterId.VisibleIndex = 2;
             colPrinterId.Width = 80;
             colPrinterId.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colPrinterId.AppearanceCell.Options.UseForeColor = true;
 
-            var colJobStatus = gridViewJobs.Columns.AddField("Status");
+            GridColumn colJobStatus = gridViewJobs.Columns.AddField("Status");
             colJobStatus.Caption = "Durum";
             colJobStatus.VisibleIndex = 3;
             colJobStatus.Width = 100;
             colJobStatus.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colJobStatus.AppearanceCell.Options.UseForeColor = true;
 
-            var colJobProgress = gridViewJobs.Columns.AddField("Progress");
+            GridColumn colJobProgress = gridViewJobs.Columns.AddField("Progress");
             colJobProgress.Caption = "İlerleme %";
             colJobProgress.VisibleIndex = 4;
             colJobProgress.Width = 100;
@@ -599,7 +645,7 @@ namespace PrinterAutomation.Forms
             colJobProgress.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colJobProgress.AppearanceCell.Options.UseForeColor = true;
 
-            var colMaterial = gridViewJobs.Columns.AddField("Material");
+            GridColumn colMaterial = gridViewJobs.Columns.AddField("Material");
             colMaterial.Caption = "Malzeme";
             colMaterial.VisibleIndex = 5;
             colMaterial.Width = 80;
@@ -643,6 +689,9 @@ namespace PrinterAutomation.Forms
             if (gridControlOrders != null) gridControlOrders.Visible = true;
             if (gridControlJobs != null) gridControlJobs.Visible = true;
             
+            // Tema uygulamasını yenile
+            ApplyTheme();
+            
             RefreshData();
         }
 
@@ -656,8 +705,25 @@ namespace PrinterAutomation.Forms
             {
                 gridViewPrinters.BeginUpdate();
                 gridControlPrinters.DataSource = _printerService.GetAllPrinters();
-                // Renk ayarlarını zorla uygula
-                gridViewPrinters.Appearance.Row.ForeColor = System.Drawing.Color.Black;
+                // Tema renklerini uygula
+                if (_currentTheme == ThemeMode.Dark)
+                {
+                    gridViewPrinters.Appearance.Row.ForeColor = System.Drawing.Color.FromArgb(230, 230, 230);
+                    gridViewPrinters.Appearance.Row.BackColor = System.Drawing.Color.FromArgb(35, 35, 35);
+                    gridViewPrinters.Appearance.Row.Options.UseBackColor = true;
+                    if (gridControlPrinters != null)
+                        gridControlPrinters.BackColor = System.Drawing.Color.FromArgb(30, 30, 30);
+                }
+                else
+                {
+                    gridViewPrinters.Appearance.Row.ForeColor = System.Drawing.Color.Black;
+                    gridViewPrinters.Appearance.Row.BackColor = System.Drawing.Color.White;
+                    gridViewPrinters.Appearance.Row.Options.UseBackColor = true;
+                    gridViewPrinters.Appearance.Empty.BackColor = System.Drawing.Color.FromArgb(245, 247, 250);
+                    gridViewPrinters.Appearance.Empty.Options.UseBackColor = true;
+                    if (gridControlPrinters != null)
+                        gridControlPrinters.BackColor = System.Drawing.Color.FromArgb(245, 247, 250);
+                }
                 gridViewPrinters.Appearance.Row.Options.UseForeColor = true;
                 gridViewPrinters.EndUpdate();
             }
@@ -670,8 +736,25 @@ namespace PrinterAutomation.Forms
             {
                 gridViewOrders.BeginUpdate();
                 gridControlOrders.DataSource = _orderService.GetAllOrders();
-                // Renk ayarlarını zorla uygula
-                gridViewOrders.Appearance.Row.ForeColor = System.Drawing.Color.Black;
+                // Tema renklerini uygula
+                if (_currentTheme == ThemeMode.Dark)
+                {
+                    gridViewOrders.Appearance.Row.ForeColor = System.Drawing.Color.FromArgb(230, 230, 230);
+                    gridViewOrders.Appearance.Row.BackColor = System.Drawing.Color.FromArgb(35, 35, 35);
+                    gridViewOrders.Appearance.Row.Options.UseBackColor = true;
+                    if (gridControlOrders != null)
+                        gridControlOrders.BackColor = System.Drawing.Color.FromArgb(30, 30, 30);
+                }
+                else
+                {
+                    gridViewOrders.Appearance.Row.ForeColor = System.Drawing.Color.Black;
+                    gridViewOrders.Appearance.Row.BackColor = System.Drawing.Color.White;
+                    gridViewOrders.Appearance.Row.Options.UseBackColor = true;
+                    gridViewOrders.Appearance.Empty.BackColor = System.Drawing.Color.FromArgb(245, 247, 250);
+                    gridViewOrders.Appearance.Empty.Options.UseBackColor = true;
+                    if (gridControlOrders != null)
+                        gridControlOrders.BackColor = System.Drawing.Color.FromArgb(245, 247, 250);
+                }
                 gridViewOrders.Appearance.Row.Options.UseForeColor = true;
                 gridViewOrders.EndUpdate();
             }
@@ -684,8 +767,25 @@ namespace PrinterAutomation.Forms
             {
                 gridViewJobs.BeginUpdate();
                 gridControlJobs.DataSource = _jobAssignmentService.GetAllJobs();
-                // Renk ayarlarını zorla uygula
-                gridViewJobs.Appearance.Row.ForeColor = System.Drawing.Color.Black;
+                // Tema renklerini uygula
+                if (_currentTheme == ThemeMode.Dark)
+                {
+                    gridViewJobs.Appearance.Row.ForeColor = System.Drawing.Color.FromArgb(230, 230, 230);
+                    gridViewJobs.Appearance.Row.BackColor = System.Drawing.Color.FromArgb(35, 35, 35);
+                    gridViewJobs.Appearance.Row.Options.UseBackColor = true;
+                    if (gridControlJobs != null)
+                        gridControlJobs.BackColor = System.Drawing.Color.FromArgb(30, 30, 30);
+                }
+                else
+                {
+                    gridViewJobs.Appearance.Row.ForeColor = System.Drawing.Color.Black;
+                    gridViewJobs.Appearance.Row.BackColor = System.Drawing.Color.White;
+                    gridViewJobs.Appearance.Row.Options.UseBackColor = true;
+                    gridViewJobs.Appearance.Empty.BackColor = System.Drawing.Color.FromArgb(245, 247, 250);
+                    gridViewJobs.Appearance.Empty.Options.UseBackColor = true;
+                    if (gridControlJobs != null)
+                        gridControlJobs.BackColor = System.Drawing.Color.FromArgb(245, 247, 250);
+                }
                 gridViewJobs.Appearance.Row.Options.UseForeColor = true;
                 gridViewJobs.EndUpdate();
             }
@@ -754,10 +854,349 @@ namespace PrinterAutomation.Forms
                 System.Windows.Forms.MessageBoxIcon.Information);
         }
 
+        private void BtnToggleTheme_Click(object sender, EventArgs e)
+        {
+            _currentTheme = _currentTheme == ThemeMode.Light ? ThemeMode.Dark : ThemeMode.Light;
+            ApplyTheme();
+        }
+
+        private void ApplyTheme()
+        {
+            if (_currentTheme == ThemeMode.Dark)
+            {
+                ApplyDarkTheme();
+            }
+            else
+            {
+                ApplyLightTheme();
+            }
+            // Grid verilerini yenile (tema renklerinin uygulanması için)
+            RefreshData();
+        }
+
+        private void ApplyDarkTheme()
+        {
+            // Form arka planı
+            this.BackColor = System.Drawing.Color.FromArgb(30, 30, 30);
+
+            // Başlık paneli
+            if (titlePanel != null)
+            {
+                titlePanel.BackColor = System.Drawing.Color.FromArgb(25, 25, 25);
+            }
+
+            // Tema butonu
+            if (btnToggleTheme != null)
+            {
+                btnToggleTheme.Text = "☀️ Açık Tema";
+                btnToggleTheme.Appearance.BackColor = System.Drawing.Color.FromArgb(66, 66, 66);
+                btnToggleTheme.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(80, 80, 80);
+            }
+
+            // Header panelleri (daha koyu tonlar)
+            if (printersHeaderPanel != null)
+                printersHeaderPanel.BackColor = System.Drawing.Color.FromArgb(40, 50, 120);
+            if (ordersHeaderPanel != null)
+                ordersHeaderPanel.BackColor = System.Drawing.Color.FromArgb(150, 90, 0);
+            if (jobsHeaderPanel != null)
+                jobsHeaderPanel.BackColor = System.Drawing.Color.FromArgb(100, 20, 120);
+
+            // İstatistikler paneli
+            if (statsPanel != null)
+            {
+                statsPanel.BackColor = System.Drawing.Color.FromArgb(40, 40, 40);
+            }
+
+            // Grid'ler
+            ApplyDarkThemeToGrid(gridViewPrinters, System.Drawing.Color.FromArgb(35, 35, 35), System.Drawing.Color.FromArgb(45, 45, 45));
+            ApplyDarkThemeToGrid(gridViewOrders, System.Drawing.Color.FromArgb(35, 35, 35), System.Drawing.Color.FromArgb(45, 45, 45));
+            ApplyDarkThemeToGrid(gridViewJobs, System.Drawing.Color.FromArgb(35, 35, 35), System.Drawing.Color.FromArgb(45, 45, 45));
+
+            // Filtre panellerini güncelle
+            UpdateFilterPanelsForDarkTheme();
+
+            // Grid'leri yenile
+            if (gridControlPrinters != null) gridControlPrinters.Refresh();
+            if (gridControlOrders != null) gridControlOrders.Refresh();
+            if (gridControlJobs != null) gridControlJobs.Refresh();
+
+            // Label'lar
+            if (lblStats != null)
+                lblStats.ForeColor = System.Drawing.Color.FromArgb(200, 200, 200);
+
+            // İstatistik label'ları
+            UpdateStatisticsLabelsForDarkTheme();
+        }
+
+        private void ApplyLightTheme()
+        {
+            // Form arka planı
+            this.BackColor = System.Drawing.Color.FromArgb(245, 247, 250);
+
+            // Başlık paneli
+            if (titlePanel != null)
+            {
+                titlePanel.BackColor = System.Drawing.Color.FromArgb(30, 136, 229);
+            }
+
+            // Tema butonu
+            if (btnToggleTheme != null)
+            {
+                btnToggleTheme.Text = "🌙 Koyu Tema";
+                btnToggleTheme.Appearance.BackColor = System.Drawing.Color.FromArgb(33, 33, 33);
+                btnToggleTheme.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(66, 66, 66);
+            }
+
+            // Header panelleri
+            if (printersHeaderPanel != null)
+                printersHeaderPanel.BackColor = System.Drawing.Color.FromArgb(63, 81, 181);
+            if (ordersHeaderPanel != null)
+                ordersHeaderPanel.BackColor = System.Drawing.Color.FromArgb(255, 152, 0);
+            if (jobsHeaderPanel != null)
+                jobsHeaderPanel.BackColor = System.Drawing.Color.FromArgb(156, 39, 176);
+
+            // İstatistikler paneli
+            if (statsPanel != null)
+            {
+                statsPanel.BackColor = System.Drawing.Color.White;
+            }
+
+            // Grid'ler
+            ApplyLightThemeToGrid(gridViewPrinters, System.Drawing.Color.White, System.Drawing.Color.FromArgb(249, 250, 252));
+            ApplyLightThemeToGrid(gridViewOrders, System.Drawing.Color.White, System.Drawing.Color.FromArgb(249, 250, 252));
+            ApplyLightThemeToGrid(gridViewJobs, System.Drawing.Color.White, System.Drawing.Color.FromArgb(249, 250, 252));
+
+            // Filtre panellerini güncelle
+            UpdateFilterPanelsForLightTheme();
+
+            // Grid'leri yenile
+            if (gridControlPrinters != null) gridControlPrinters.Refresh();
+            if (gridControlOrders != null) gridControlOrders.Refresh();
+            if (gridControlJobs != null) gridControlJobs.Refresh();
+
+            // Label'lar
+            if (lblStats != null)
+                lblStats.ForeColor = System.Drawing.Color.FromArgb(63, 81, 181);
+
+            // İstatistik label'ları
+            UpdateStatisticsLabelsForLightTheme();
+        }
+
+        private void ApplyDarkThemeToGrid(GridView gridView, System.Drawing.Color evenRowColor, System.Drawing.Color oddRowColor)
+        {
+            if (gridView == null) return;
+
+            // Grid kontrol arka planı (öncelikle)
+            if (gridView.GridControl != null)
+            {
+                gridView.GridControl.BackColor = System.Drawing.Color.FromArgb(30, 30, 30);
+                gridView.GridControl.LookAndFeel.UseDefaultLookAndFeel = false;
+                gridView.GridControl.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+            }
+
+            // Empty area (boş alan) arka planı
+            gridView.Appearance.Empty.BackColor = System.Drawing.Color.FromArgb(30, 30, 30);
+            gridView.Appearance.Empty.Options.UseBackColor = true;
+
+            // Satır renkleri
+            gridView.Appearance.Row.ForeColor = System.Drawing.Color.FromArgb(230, 230, 230);
+            gridView.Appearance.Row.BackColor = evenRowColor;
+            gridView.Appearance.Row.Options.UseForeColor = true;
+            gridView.Appearance.Row.Options.UseBackColor = true;
+
+            // Grid görünüm ayarları - Even/Odd satırları aktif et
+            gridView.OptionsView.EnableAppearanceEvenRow = true;
+            gridView.OptionsView.EnableAppearanceOddRow = true;
+            gridView.Appearance.EvenRow.BackColor = evenRowColor;
+            gridView.Appearance.EvenRow.ForeColor = System.Drawing.Color.FromArgb(230, 230, 230);
+            gridView.Appearance.EvenRow.Options.UseBackColor = true;
+            gridView.Appearance.EvenRow.Options.UseForeColor = true;
+            gridView.Appearance.OddRow.BackColor = oddRowColor;
+            gridView.Appearance.OddRow.ForeColor = System.Drawing.Color.FromArgb(230, 230, 230);
+            gridView.Appearance.OddRow.Options.UseBackColor = true;
+            gridView.Appearance.OddRow.Options.UseForeColor = true;
+
+            // Başlık paneli (koyu tema için özel renkler)
+            if (gridView == gridViewPrinters)
+                gridView.Appearance.HeaderPanel.BackColor = System.Drawing.Color.FromArgb(35, 45, 110);
+            else if (gridView == gridViewOrders)
+                gridView.Appearance.HeaderPanel.BackColor = System.Drawing.Color.FromArgb(140, 85, 0);
+            else if (gridView == gridViewJobs)
+                gridView.Appearance.HeaderPanel.BackColor = System.Drawing.Color.FromArgb(90, 20, 110);
+            
+            gridView.Appearance.HeaderPanel.ForeColor = System.Drawing.Color.White;
+            gridView.Appearance.HeaderPanel.Options.UseBackColor = true;
+            gridView.Appearance.HeaderPanel.Options.UseForeColor = true;
+
+            // Hücre renkleri
+            foreach (GridColumn column in gridView.Columns)
+            {
+                column.AppearanceCell.ForeColor = System.Drawing.Color.FromArgb(230, 230, 230);
+                column.AppearanceCell.BackColor = System.Drawing.Color.Transparent;
+                column.AppearanceCell.Options.UseForeColor = true;
+                column.AppearanceCell.Options.UseBackColor = true;
+            }
+
+            // Filtre paneli görünümü (koyu tema) - Daha agresif ayarlama
+            try
+            {
+                var filterPanelAppearance = gridView.Appearance.FilterPanel;
+                filterPanelAppearance.BackColor = System.Drawing.Color.FromArgb(40, 40, 40);
+                filterPanelAppearance.ForeColor = System.Drawing.Color.FromArgb(230, 230, 230);
+                filterPanelAppearance.Options.UseBackColor = true;
+                filterPanelAppearance.Options.UseForeColor = true;
+                filterPanelAppearance.Options.UseTextOptions = true;
+            }
+            catch { }
+
+            // Grid'in genel görünümü
+            gridView.PaintStyleName = "Flat";
+        }
+
+        private void ApplyLightThemeToGrid(GridView gridView, System.Drawing.Color evenRowColor, System.Drawing.Color oddRowColor)
+        {
+            if (gridView == null) return;
+
+            // Grid kontrol arka planı (öncelikle)
+            if (gridView.GridControl != null)
+            {
+                gridView.GridControl.BackColor = System.Drawing.Color.FromArgb(245, 247, 250);
+                gridView.GridControl.LookAndFeel.UseDefaultLookAndFeel = false;
+                gridView.GridControl.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+            }
+
+            // Empty area (boş alan) arka planı
+            gridView.Appearance.Empty.BackColor = System.Drawing.Color.FromArgb(245, 247, 250);
+            gridView.Appearance.Empty.Options.UseBackColor = true;
+
+            // Satır renkleri
+            gridView.Appearance.Row.ForeColor = System.Drawing.Color.Black;
+            gridView.Appearance.Row.BackColor = evenRowColor;
+            gridView.Appearance.Row.Options.UseForeColor = true;
+            gridView.Appearance.Row.Options.UseBackColor = true;
+
+            // Grid görünüm ayarları - Even/Odd satırları aktif et
+            gridView.OptionsView.EnableAppearanceEvenRow = true;
+            gridView.OptionsView.EnableAppearanceOddRow = true;
+            gridView.Appearance.EvenRow.BackColor = evenRowColor;
+            gridView.Appearance.EvenRow.ForeColor = System.Drawing.Color.Black;
+            gridView.Appearance.EvenRow.Options.UseBackColor = true;
+            gridView.Appearance.EvenRow.Options.UseForeColor = true;
+            gridView.Appearance.OddRow.BackColor = oddRowColor;
+            gridView.Appearance.OddRow.ForeColor = System.Drawing.Color.Black;
+            gridView.Appearance.OddRow.Options.UseBackColor = true;
+            gridView.Appearance.OddRow.Options.UseForeColor = true;
+
+            // Başlık paneli
+            if (gridView == gridViewPrinters)
+                gridView.Appearance.HeaderPanel.BackColor = System.Drawing.Color.FromArgb(48, 63, 159);
+            else if (gridView == gridViewOrders)
+                gridView.Appearance.HeaderPanel.BackColor = System.Drawing.Color.FromArgb(230, 126, 34);
+            else if (gridView == gridViewJobs)
+                gridView.Appearance.HeaderPanel.BackColor = System.Drawing.Color.FromArgb(123, 31, 162);
+
+            gridView.Appearance.HeaderPanel.ForeColor = System.Drawing.Color.White;
+            gridView.Appearance.HeaderPanel.Options.UseBackColor = true;
+            gridView.Appearance.HeaderPanel.Options.UseForeColor = true;
+
+            // Hücre renkleri
+            foreach (GridColumn column in gridView.Columns)
+            {
+                column.AppearanceCell.ForeColor = System.Drawing.Color.Black;
+                column.AppearanceCell.BackColor = System.Drawing.Color.Transparent;
+                column.AppearanceCell.Options.UseForeColor = true;
+                column.AppearanceCell.Options.UseBackColor = true;
+            }
+
+            // Filtre paneli görünümü (açık tema)
+            try
+            {
+                gridView.Appearance.FilterPanel.BackColor = System.Drawing.Color.FromArgb(249, 250, 252);
+                gridView.Appearance.FilterPanel.ForeColor = System.Drawing.Color.Black;
+                gridView.Appearance.FilterPanel.Options.UseBackColor = true;
+                gridView.Appearance.FilterPanel.Options.UseForeColor = true;
+            }
+            catch { }
+
+            // Grid'in genel görünümü
+            gridView.PaintStyleName = "Flat";
+        }
+
+        private System.Drawing.Color DarkenColor(System.Drawing.Color color)
+        {
+            // Renkleri koyulaştır
+            int r = Math.Max(0, color.R - 30);
+            int g = Math.Max(0, color.G - 30);
+            int b = Math.Max(0, color.B - 30);
+            return System.Drawing.Color.FromArgb(r, g, b);
+        }
+
+        private void UpdateStatisticsLabelsForDarkTheme()
+        {
+            if (lblTotalPrinters != null)
+                lblTotalPrinters.ForeColor = System.Drawing.Color.FromArgb(100, 181, 246);
+            if (lblActivePrinters != null)
+                lblActivePrinters.ForeColor = System.Drawing.Color.FromArgb(129, 199, 132);
+            if (lblTotalOrders != null)
+                lblTotalOrders.ForeColor = System.Drawing.Color.FromArgb(255, 183, 77);
+            if (lblPendingJobs != null)
+                lblPendingJobs.ForeColor = System.Drawing.Color.FromArgb(186, 104, 200);
+
+            // Label'ları güncelle
+            foreach (var label in statsPanel?.Controls.OfType<LabelControl>())
+            {
+                if (label != lblStats && label != lblTotalPrinters && label != lblActivePrinters && 
+                    label != lblTotalOrders && label != lblPendingJobs && label.Name != "lblCompletedJobs")
+                {
+                    label.ForeColor = System.Drawing.Color.FromArgb(180, 180, 180);
+                }
+            }
+
+            var completedLabel = statsPanel?.Controls.OfType<LabelControl>()
+                .FirstOrDefault(l => l.Name == "lblCompletedJobs");
+            if (completedLabel != null)
+                completedLabel.ForeColor = System.Drawing.Color.FromArgb(129, 199, 132);
+        }
+
+        private void UpdateStatisticsLabelsForLightTheme()
+        {
+            if (lblTotalPrinters != null)
+                lblTotalPrinters.ForeColor = System.Drawing.Color.FromArgb(63, 81, 181);
+            if (lblActivePrinters != null)
+                lblActivePrinters.ForeColor = System.Drawing.Color.FromArgb(76, 175, 80);
+            if (lblTotalOrders != null)
+                lblTotalOrders.ForeColor = System.Drawing.Color.FromArgb(255, 152, 0);
+            if (lblPendingJobs != null)
+                lblPendingJobs.ForeColor = System.Drawing.Color.FromArgb(156, 39, 176);
+
+            // Label'ları güncelle
+            foreach (var label in statsPanel?.Controls.OfType<LabelControl>())
+            {
+                if (label != lblStats && label != lblTotalPrinters && label != lblActivePrinters && 
+                    label != lblTotalOrders && label != lblPendingJobs && label.Name != "lblCompletedJobs")
+                {
+                    label.ForeColor = System.Drawing.Color.FromArgb(100, 100, 100);
+                }
+            }
+
+            var completedLabel = statsPanel?.Controls.OfType<LabelControl>()
+                .FirstOrDefault(l => l.Name == "lblCompletedJobs");
+            if (completedLabel != null)
+                completedLabel.ForeColor = System.Drawing.Color.FromArgb(76, 175, 80);
+        }
+
         private void GridViewPrinters_RowCellStyle(object sender, DevExpress.XtraGrid.Views.Grid.RowCellStyleEventArgs e)
         {
-            e.Appearance.ForeColor = System.Drawing.Color.FromArgb(33, 33, 33);
-            e.Appearance.BackColor = e.RowHandle % 2 == 0 ? System.Drawing.Color.White : System.Drawing.Color.FromArgb(249, 250, 252);
+            if (_currentTheme == ThemeMode.Dark)
+            {
+                e.Appearance.ForeColor = System.Drawing.Color.FromArgb(230, 230, 230);
+                e.Appearance.BackColor = e.RowHandle % 2 == 0 ? System.Drawing.Color.FromArgb(35, 35, 35) : System.Drawing.Color.FromArgb(45, 45, 45);
+            }
+            else
+            {
+                e.Appearance.ForeColor = System.Drawing.Color.FromArgb(33, 33, 33);
+                e.Appearance.BackColor = e.RowHandle % 2 == 0 ? System.Drawing.Color.White : System.Drawing.Color.FromArgb(249, 250, 252);
+            }
             e.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F);
             
             // Filament durumuna göre renk değiştir
@@ -768,17 +1207,40 @@ namespace PrinterAutomation.Forms
                 {
                     if (printer.FilamentRemaining < 20)
                     {
-                        e.Appearance.ForeColor = System.Drawing.Color.FromArgb(244, 67, 54); // Kırmızı - Düşük
-                        e.Appearance.BackColor = System.Drawing.Color.FromArgb(255, 235, 238);
+                        if (_currentTheme == ThemeMode.Dark)
+                        {
+                            e.Appearance.ForeColor = System.Drawing.Color.FromArgb(255, 138, 128); // Açık kırmızı
+                            e.Appearance.BackColor = System.Drawing.Color.FromArgb(60, 30, 30);
+                        }
+                        else
+                        {
+                            e.Appearance.ForeColor = System.Drawing.Color.FromArgb(244, 67, 54);
+                            e.Appearance.BackColor = System.Drawing.Color.FromArgb(255, 235, 238);
+                        }
                     }
                     else if (printer.FilamentRemaining < 40)
                     {
-                        e.Appearance.ForeColor = System.Drawing.Color.FromArgb(255, 152, 0); // Turuncu - Orta
-                        e.Appearance.BackColor = System.Drawing.Color.FromArgb(255, 243, 224);
+                        if (_currentTheme == ThemeMode.Dark)
+                        {
+                            e.Appearance.ForeColor = System.Drawing.Color.FromArgb(255, 183, 77); // Açık turuncu
+                            e.Appearance.BackColor = System.Drawing.Color.FromArgb(60, 50, 30);
+                        }
+                        else
+                        {
+                            e.Appearance.ForeColor = System.Drawing.Color.FromArgb(255, 152, 0);
+                            e.Appearance.BackColor = System.Drawing.Color.FromArgb(255, 243, 224);
+                        }
                     }
                     else
                     {
-                        e.Appearance.ForeColor = System.Drawing.Color.FromArgb(76, 175, 80); // Yeşil - İyi
+                        if (_currentTheme == ThemeMode.Dark)
+                        {
+                            e.Appearance.ForeColor = System.Drawing.Color.FromArgb(129, 199, 132); // Açık yeşil
+                        }
+                        else
+                        {
+                            e.Appearance.ForeColor = System.Drawing.Color.FromArgb(76, 175, 80);
+                        }
                     }
                 }
             }
@@ -786,16 +1248,109 @@ namespace PrinterAutomation.Forms
 
         private void GridViewOrders_RowCellStyle(object sender, DevExpress.XtraGrid.Views.Grid.RowCellStyleEventArgs e)
         {
-            e.Appearance.ForeColor = System.Drawing.Color.FromArgb(33, 33, 33);
-            e.Appearance.BackColor = e.RowHandle % 2 == 0 ? System.Drawing.Color.White : System.Drawing.Color.FromArgb(249, 250, 252);
+            if (_currentTheme == ThemeMode.Dark)
+            {
+                e.Appearance.ForeColor = System.Drawing.Color.FromArgb(230, 230, 230);
+                e.Appearance.BackColor = e.RowHandle % 2 == 0 ? System.Drawing.Color.FromArgb(35, 35, 35) : System.Drawing.Color.FromArgb(45, 45, 45);
+            }
+            else
+            {
+                e.Appearance.ForeColor = System.Drawing.Color.FromArgb(33, 33, 33);
+                e.Appearance.BackColor = e.RowHandle % 2 == 0 ? System.Drawing.Color.White : System.Drawing.Color.FromArgb(249, 250, 252);
+            }
             e.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F);
         }
 
         private void GridViewJobs_RowCellStyle(object sender, DevExpress.XtraGrid.Views.Grid.RowCellStyleEventArgs e)
         {
-            e.Appearance.ForeColor = System.Drawing.Color.FromArgb(33, 33, 33);
-            e.Appearance.BackColor = e.RowHandle % 2 == 0 ? System.Drawing.Color.White : System.Drawing.Color.FromArgb(249, 250, 252);
+            if (_currentTheme == ThemeMode.Dark)
+            {
+                e.Appearance.ForeColor = System.Drawing.Color.FromArgb(230, 230, 230);
+                e.Appearance.BackColor = e.RowHandle % 2 == 0 ? System.Drawing.Color.FromArgb(35, 35, 35) : System.Drawing.Color.FromArgb(45, 45, 45);
+            }
+            else
+            {
+                e.Appearance.ForeColor = System.Drawing.Color.FromArgb(33, 33, 33);
+                e.Appearance.BackColor = e.RowHandle % 2 == 0 ? System.Drawing.Color.White : System.Drawing.Color.FromArgb(249, 250, 252);
+            }
             e.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F);
+        }
+
+        private void GridControl_Paint(object sender, PaintEventArgs e)
+        {
+            // GridControl'un paint event'i - filtre paneli görünümünü güncellemek için
+            var gridControl = sender as GridControl;
+            if (gridControl == null) return;
+
+            var gridView = gridControl.MainView as GridView;
+            if (gridView == null) return;
+
+            // Filtre paneli görünümünü tema değişikliğinde güncelle
+            try
+            {
+                if (_currentTheme == ThemeMode.Dark)
+                {
+                    gridView.Appearance.FilterPanel.BackColor = System.Drawing.Color.FromArgb(40, 40, 40);
+                    gridView.Appearance.FilterPanel.ForeColor = System.Drawing.Color.FromArgb(230, 230, 230);
+                    gridView.Appearance.FilterPanel.Options.UseBackColor = true;
+                    gridView.Appearance.FilterPanel.Options.UseForeColor = true;
+                }
+                else
+                {
+                    gridView.Appearance.FilterPanel.BackColor = System.Drawing.Color.FromArgb(249, 250, 252);
+                    gridView.Appearance.FilterPanel.ForeColor = System.Drawing.Color.Black;
+                    gridView.Appearance.FilterPanel.Options.UseBackColor = true;
+                    gridView.Appearance.FilterPanel.Options.UseForeColor = true;
+                }
+            }
+            catch { }
+        }
+
+        private void UpdateFilterPanelsForDarkTheme()
+        {
+            // Tüm grid'lerin filtre panellerini koyu temaya uygun hale getir
+            UpdateFilterPanelTheme(gridViewPrinters, true);
+            UpdateFilterPanelTheme(gridViewOrders, true);
+            UpdateFilterPanelTheme(gridViewJobs, true);
+        }
+
+        private void UpdateFilterPanelsForLightTheme()
+        {
+            // Tüm grid'lerin filtre panellerini açık temaya uygun hale getir
+            UpdateFilterPanelTheme(gridViewPrinters, false);
+            UpdateFilterPanelTheme(gridViewOrders, false);
+            UpdateFilterPanelTheme(gridViewJobs, false);
+        }
+
+        private void UpdateFilterPanelTheme(GridView gridView, bool isDark)
+        {
+            if (gridView == null) return;
+
+            try
+            {
+                if (isDark)
+                {
+                    gridView.Appearance.FilterPanel.BackColor = System.Drawing.Color.FromArgb(40, 40, 40);
+                    gridView.Appearance.FilterPanel.ForeColor = System.Drawing.Color.FromArgb(230, 230, 230);
+                    gridView.Appearance.FilterPanel.Options.UseBackColor = true;
+                    gridView.Appearance.FilterPanel.Options.UseForeColor = true;
+                    gridView.Appearance.FilterPanel.Options.UseTextOptions = true;
+                }
+                else
+                {
+                    gridView.Appearance.FilterPanel.BackColor = System.Drawing.Color.FromArgb(249, 250, 252);
+                    gridView.Appearance.FilterPanel.ForeColor = System.Drawing.Color.Black;
+                    gridView.Appearance.FilterPanel.Options.UseBackColor = true;
+                    gridView.Appearance.FilterPanel.Options.UseForeColor = true;
+                    gridView.Appearance.FilterPanel.Options.UseTextOptions = true;
+                }
+                // Grid'i yenile
+                if (gridView.GridControl != null)
+                {
+                    gridView.GridControl.Invalidate();
+                }
+            }
+            catch { }
         }
 
         private void MainForm_Resize(object sender, EventArgs e)
@@ -808,10 +1363,11 @@ namespace PrinterAutomation.Forms
                 titlePanel.Width = this.ClientSize.Width;
             }
 
-            // Buton konumunu güncelle
-            if (btnSimulateOrder != null && titlePanel != null)
+            // Buton konumlarını güncelle
+            if (btnSimulateOrder != null && btnToggleTheme != null && titlePanel != null)
             {
-                btnSimulateOrder.Left = titlePanel.Width - btnSimulateOrder.Width - 20;
+                btnToggleTheme.Left = titlePanel.Width - btnToggleTheme.Width - 20;
+                btnSimulateOrder.Left = btnToggleTheme.Left - btnSimulateOrder.Width - 10;
             }
 
             // Grid'lerin genişliğini ayarla
