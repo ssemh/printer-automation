@@ -48,6 +48,8 @@ namespace PrinterAutomation.Forms
         private System.Windows.Forms.Panel ordersHeaderPanel;
         private System.Windows.Forms.Panel jobsHeaderPanel;
         private System.Windows.Forms.Panel statsPanel;
+        private System.Windows.Forms.FlowLayoutPanel printersIconPanel;
+        private System.Collections.Generic.Dictionary<int, System.Windows.Forms.Panel> printerIconPanels;
 
         public MainForm()
         {
@@ -194,7 +196,7 @@ namespace PrinterAutomation.Forms
                 gridControlPrinters = new GridControl
                 {
                     Location = new System.Drawing.Point(20, 135),
-                    Size = new System.Drawing.Size(450, 345),
+                    Size = new System.Drawing.Size(450, 280),
                     Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left,
                     Visible = false
                 };
@@ -223,6 +225,8 @@ namespace PrinterAutomation.Forms
                 
                 // CustomDrawCell event'i ile renkleri zorla uygula
                 gridViewPrinters.RowCellStyle += GridViewPrinters_RowCellStyle;
+                // Durum kolonuna sembol eklemek için custom display text event'i
+                gridViewPrinters.CustomColumnDisplayText += GridViewPrinters_CustomColumnDisplayText;
                 // Filtre paneli için paint event'i
                 gridControlPrinters.Paint += GridControl_Paint;
                 
@@ -232,6 +236,22 @@ namespace PrinterAutomation.Forms
             {
                 System.Diagnostics.Debug.WriteLine($"Printers grid init error: {ex.Message}");
             }
+            
+            // Yazıcı Icon Paneli (Altta geniş bir satır - daha büyük ve kalın)
+            printersIconPanel = new System.Windows.Forms.FlowLayoutPanel
+            {
+                Location = new System.Drawing.Point(20, 410),
+                Size = new System.Drawing.Size(this.ClientSize.Width - 40, 110),
+                Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right,
+                AutoScroll = true,
+                FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight,
+                WrapContents = false,
+                BackColor = System.Drawing.Color.White,
+                BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle,
+                Padding = new System.Windows.Forms.Padding(10, 10, 10, 10)
+            };
+            this.Controls.Add(printersIconPanel);
+            printerIconPanels = new System.Collections.Generic.Dictionary<int, System.Windows.Forms.Panel>();
 
             // Orders Grid Başlık Panel
             ordersHeaderPanel = new System.Windows.Forms.Panel
@@ -259,7 +279,7 @@ namespace PrinterAutomation.Forms
                 gridControlOrders = new GridControl
                 {
                     Location = new System.Drawing.Point(490, 135),
-                    Size = new System.Drawing.Size(450, 345),
+                    Size = new System.Drawing.Size(450, 280),
                     Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left,
                     Visible = false
                 };
@@ -324,7 +344,7 @@ namespace PrinterAutomation.Forms
                 gridControlJobs = new GridControl
                 {
                     Location = new System.Drawing.Point(960, 135),
-                    Size = new System.Drawing.Size(450, 345),
+                    Size = new System.Drawing.Size(450, 280),
                     Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right,
                     Visible = false
                 };
@@ -372,7 +392,7 @@ namespace PrinterAutomation.Forms
             // İstatistikler Paneli
             statsPanel = new System.Windows.Forms.Panel
             {
-                Location = new System.Drawing.Point(20, 490),
+                Location = new System.Drawing.Point(20, 495),
                 Size = new System.Drawing.Size(this.ClientSize.Width - 40, 100),
                 Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right,
                 BackColor = System.Drawing.Color.White,
@@ -518,7 +538,7 @@ namespace PrinterAutomation.Forms
             GridColumn colStatus = gridViewPrinters.Columns.AddField("Status");
             colStatus.Caption = "Durum";
             colStatus.VisibleIndex = 2;
-            colStatus.Width = 100;
+            colStatus.Width = 120;
             colStatus.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colStatus.AppearanceCell.Options.UseForeColor = true;
 
@@ -705,27 +725,10 @@ namespace PrinterAutomation.Forms
             {
                 gridViewPrinters.BeginUpdate();
                 gridControlPrinters.DataSource = _printerService.GetAllPrinters();
-                // Tema renklerini uygula
-                if (_currentTheme == ThemeMode.Dark)
-                {
-                    gridViewPrinters.Appearance.Row.ForeColor = System.Drawing.Color.FromArgb(230, 230, 230);
-                    gridViewPrinters.Appearance.Row.BackColor = System.Drawing.Color.FromArgb(35, 35, 35);
-                    gridViewPrinters.Appearance.Row.Options.UseBackColor = true;
-                    if (gridControlPrinters != null)
-                        gridControlPrinters.BackColor = System.Drawing.Color.FromArgb(30, 30, 30);
-                }
-                else
-                {
-                    gridViewPrinters.Appearance.Row.ForeColor = System.Drawing.Color.Black;
-                    gridViewPrinters.Appearance.Row.BackColor = System.Drawing.Color.White;
-                    gridViewPrinters.Appearance.Row.Options.UseBackColor = true;
-                    gridViewPrinters.Appearance.Empty.BackColor = System.Drawing.Color.FromArgb(245, 247, 250);
-                    gridViewPrinters.Appearance.Empty.Options.UseBackColor = true;
-                    if (gridControlPrinters != null)
-                        gridControlPrinters.BackColor = System.Drawing.Color.FromArgb(245, 247, 250);
-                }
-                gridViewPrinters.Appearance.Row.Options.UseForeColor = true;
                 gridViewPrinters.EndUpdate();
+                
+                // Yazıcı iconlarını güncelle
+                UpdatePrinterIcons();
             }
             catch (Exception ex)
             {
@@ -907,6 +910,17 @@ namespace PrinterAutomation.Forms
                 statsPanel.BackColor = System.Drawing.Color.FromArgb(40, 40, 40);
             }
 
+            // Yazıcı icon paneli arka planı
+            if (printersIconPanel != null)
+            {
+                printersIconPanel.BackColor = System.Drawing.Color.FromArgb(30, 30, 30);
+            }
+            
+            // Grid'leri görünür yap
+            if (gridControlPrinters != null) gridControlPrinters.Visible = true;
+            if (gridControlOrders != null) gridControlOrders.Visible = true;
+            if (gridControlJobs != null) gridControlJobs.Visible = true;
+
             // Grid'ler
             ApplyDarkThemeToGrid(gridViewPrinters, System.Drawing.Color.FromArgb(35, 35, 35), System.Drawing.Color.FromArgb(45, 45, 45));
             ApplyDarkThemeToGrid(gridViewOrders, System.Drawing.Color.FromArgb(35, 35, 35), System.Drawing.Color.FromArgb(45, 45, 45));
@@ -914,6 +928,9 @@ namespace PrinterAutomation.Forms
 
             // Filtre panellerini güncelle
             UpdateFilterPanelsForDarkTheme();
+
+            // Yazıcı iconlarını güncelle
+            UpdatePrinterIcons();
 
             // Grid'leri yenile
             if (gridControlPrinters != null) gridControlPrinters.Refresh();
@@ -961,6 +978,17 @@ namespace PrinterAutomation.Forms
                 statsPanel.BackColor = System.Drawing.Color.White;
             }
 
+            // Yazıcı icon paneli arka planı
+            if (printersIconPanel != null)
+            {
+                printersIconPanel.BackColor = System.Drawing.Color.White;
+            }
+            
+            // Grid'leri görünür yap
+            if (gridControlPrinters != null) gridControlPrinters.Visible = true;
+            if (gridControlOrders != null) gridControlOrders.Visible = true;
+            if (gridControlJobs != null) gridControlJobs.Visible = true;
+
             // Grid'ler
             ApplyLightThemeToGrid(gridViewPrinters, System.Drawing.Color.White, System.Drawing.Color.FromArgb(249, 250, 252));
             ApplyLightThemeToGrid(gridViewOrders, System.Drawing.Color.White, System.Drawing.Color.FromArgb(249, 250, 252));
@@ -968,6 +996,9 @@ namespace PrinterAutomation.Forms
 
             // Filtre panellerini güncelle
             UpdateFilterPanelsForLightTheme();
+
+            // Yazıcı iconlarını güncelle
+            UpdatePrinterIcons();
 
             // Grid'leri yenile
             if (gridControlPrinters != null) gridControlPrinters.Refresh();
@@ -1199,6 +1230,85 @@ namespace PrinterAutomation.Forms
             }
             e.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F);
             
+            // Yazıcı durumuna göre renk ve sembol ekle
+            if (e.Column != null && e.Column.FieldName == "Status")
+            {
+                var printer = gridViewPrinters.GetRow(e.RowHandle) as Printer;
+                if (printer != null)
+                {
+                    switch (printer.Status)
+                    {
+                        case PrinterStatus.Printing:
+                            // Çalışır durumda - Yeşil
+                            if (_currentTheme == ThemeMode.Dark)
+                            {
+                                e.Appearance.ForeColor = System.Drawing.Color.FromArgb(129, 199, 132);
+                                e.Appearance.BackColor = System.Drawing.Color.FromArgb(30, 60, 30);
+                            }
+                            else
+                            {
+                                e.Appearance.ForeColor = System.Drawing.Color.FromArgb(76, 175, 80);
+                                e.Appearance.BackColor = System.Drawing.Color.FromArgb(232, 245, 233);
+                            }
+                            e.Appearance.Options.UseBackColor = true;
+                            break;
+                        case PrinterStatus.Error:
+                            // Hata durumunda - Kırmızı
+                            if (_currentTheme == ThemeMode.Dark)
+                            {
+                                e.Appearance.ForeColor = System.Drawing.Color.FromArgb(255, 138, 128);
+                                e.Appearance.BackColor = System.Drawing.Color.FromArgb(60, 30, 30);
+                            }
+                            else
+                            {
+                                e.Appearance.ForeColor = System.Drawing.Color.FromArgb(244, 67, 54);
+                                e.Appearance.BackColor = System.Drawing.Color.FromArgb(255, 235, 238);
+                            }
+                            e.Appearance.Options.UseBackColor = true;
+                            break;
+                        case PrinterStatus.Idle:
+                            // Boşta - Gri
+                            if (_currentTheme == ThemeMode.Dark)
+                            {
+                                e.Appearance.ForeColor = System.Drawing.Color.FromArgb(180, 180, 180);
+                            }
+                            else
+                            {
+                                e.Appearance.ForeColor = System.Drawing.Color.FromArgb(158, 158, 158);
+                            }
+                            break;
+                        case PrinterStatus.Paused:
+                            // Duraklatıldı - Sarı/Turuncu
+                            if (_currentTheme == ThemeMode.Dark)
+                            {
+                                e.Appearance.ForeColor = System.Drawing.Color.FromArgb(255, 183, 77);
+                                e.Appearance.BackColor = System.Drawing.Color.FromArgb(60, 50, 30);
+                            }
+                            else
+                            {
+                                e.Appearance.ForeColor = System.Drawing.Color.FromArgb(255, 152, 0);
+                                e.Appearance.BackColor = System.Drawing.Color.FromArgb(255, 243, 224);
+                            }
+                            e.Appearance.Options.UseBackColor = true;
+                            break;
+                        case PrinterStatus.Maintenance:
+                            // Bakımda - Turuncu
+                            if (_currentTheme == ThemeMode.Dark)
+                            {
+                                e.Appearance.ForeColor = System.Drawing.Color.FromArgb(255, 183, 77);
+                                e.Appearance.BackColor = System.Drawing.Color.FromArgb(60, 50, 30);
+                            }
+                            else
+                            {
+                                e.Appearance.ForeColor = System.Drawing.Color.FromArgb(255, 152, 0);
+                                e.Appearance.BackColor = System.Drawing.Color.FromArgb(255, 243, 224);
+                            }
+                            e.Appearance.Options.UseBackColor = true;
+                            break;
+                    }
+                }
+            }
+            
             // Filament durumuna göre renk değiştir
             if (e.Column != null && e.Column.FieldName == "FilamentRemaining")
             {
@@ -1242,6 +1352,275 @@ namespace PrinterAutomation.Forms
                             e.Appearance.ForeColor = System.Drawing.Color.FromArgb(76, 175, 80);
                         }
                     }
+                }
+            }
+        }
+
+        private void UpdatePrinterIcons()
+        {
+            if (printersIconPanel == null) return;
+
+            var printers = _printerService.GetAllPrinters();
+            
+            // Performans için layout'u askıya al
+            printersIconPanel.SuspendLayout();
+
+            // Mevcut yazıcı ID'lerini topla
+            var existingPrinterIds = new System.Collections.Generic.HashSet<int>(printerIconPanels.Keys);
+            var currentPrinterIds = new System.Collections.Generic.HashSet<int>(printers.Select(p => p.Id));
+
+            // Artık olmayan yazıcıları kaldır
+            var printersToRemove = existingPrinterIds.Except(currentPrinterIds).ToList();
+            foreach (var printerId in printersToRemove)
+            {
+                if (printerIconPanels.ContainsKey(printerId))
+                {
+                    var panelToRemove = printerIconPanels[printerId];
+                    printersIconPanel.Controls.Remove(panelToRemove);
+                    panelToRemove.Dispose();
+                    printerIconPanels.Remove(printerId);
+                }
+            }
+
+            // Her yazıcı için icon panelini güncelle veya oluştur
+            foreach (var printer in printers)
+            {
+                System.Windows.Forms.Panel iconPanel;
+                bool isNew = false;
+
+                if (printerIconPanels.ContainsKey(printer.Id))
+                {
+                    // Mevcut paneli kullan
+                    iconPanel = printerIconPanels[printer.Id];
+                }
+                else
+                {
+                    // Yeni panel oluştur (daha yüksek ve geniş - yazıların tam görünmesi için)
+                    isNew = true;
+                    iconPanel = new System.Windows.Forms.Panel
+                    {
+                        Size = new System.Drawing.Size(140, 90),
+                        Margin = new System.Windows.Forms.Padding(8, 5, 8, 5),
+                        BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle,
+                        BackColor = _currentTheme == ThemeMode.Dark ? 
+                            System.Drawing.Color.FromArgb(40, 40, 40) : 
+                            System.Drawing.Color.White
+                    };
+                    printerIconPanels[printer.Id] = iconPanel;
+                }
+
+                // Duruma göre renk belirle
+                System.Drawing.Color iconColor;
+                switch (printer.Status)
+                {
+                    case PrinterStatus.Printing:
+                        iconColor = System.Drawing.Color.FromArgb(76, 175, 80); // Yeşil
+                        break;
+                    case PrinterStatus.Error:
+                        iconColor = System.Drawing.Color.FromArgb(244, 67, 54); // Kırmızı
+                        break;
+                    case PrinterStatus.Idle:
+                    default:
+                        iconColor = System.Drawing.Color.FromArgb(158, 158, 158); // Gri
+                        break;
+                }
+
+                // Durum bilgisi metni
+                string statusText = "";
+                switch (printer.Status)
+                {
+                    case PrinterStatus.Printing:
+                        statusText = $"Yazdırıyor %{printer.Progress:F0}";
+                        break;
+                    case PrinterStatus.Error:
+                        statusText = "Hata";
+                        break;
+                    case PrinterStatus.Idle:
+                        statusText = "Boşta";
+                        break;
+                    case PrinterStatus.Paused:
+                        statusText = "Duraklatıldı";
+                        break;
+                    case PrinterStatus.Maintenance:
+                        statusText = "Bakımda";
+                        break;
+                }
+
+                if (isNew)
+                {
+                    // Yeni panel için kontrolleri oluştur (ikon üstte, yazılar altta - dikey yerleşim)
+                    var iconLabel = new LabelControl
+                    {
+                        Text = "🖨️",
+                        Location = new System.Drawing.Point(50, 5),
+                        Size = new System.Drawing.Size(40, 40),
+                        Font = new System.Drawing.Font("Segoe UI", 28F),
+                        ForeColor = iconColor,
+                        Name = "iconLabel"
+                    };
+                    iconLabel.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+                    iconLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+                    iconPanel.Controls.Add(iconLabel);
+
+                    var nameLabel = new LabelControl
+                    {
+                        Text = printer.Name,
+                        Location = new System.Drawing.Point(5, 50),
+                        Size = new System.Drawing.Size(130, 18),
+                        Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold),
+                        ForeColor = _currentTheme == ThemeMode.Dark ? 
+                            System.Drawing.Color.FromArgb(230, 230, 230) : 
+                            System.Drawing.Color.Black,
+                        Name = "nameLabel"
+                    };
+                    nameLabel.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+                    iconPanel.Controls.Add(nameLabel);
+
+                    var statusLabel = new LabelControl
+                    {
+                        Text = statusText,
+                        Location = new System.Drawing.Point(5, 70),
+                        Size = new System.Drawing.Size(130, 18),
+                        Font = new System.Drawing.Font("Segoe UI", 8F),
+                        ForeColor = iconColor,
+                        Name = "statusLabel"
+                    };
+                    statusLabel.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+                    statusLabel.Appearance.TextOptions.WordWrap = DevExpress.Utils.WordWrap.Wrap;
+                    iconPanel.Controls.Add(statusLabel);
+
+                    printersIconPanel.Controls.Add(iconPanel);
+                }
+                else
+                {
+                    // Mevcut panelin boyutunu güncelle (yazıların tam görünmesi için)
+                    if (iconPanel.Height < 90 || iconPanel.Width < 140)
+                    {
+                        iconPanel.Size = new System.Drawing.Size(140, 90);
+                        
+                        // Mevcut kontrollerin konumlarını güncelle (ikon üstte, yazılar altta)
+                        var iconLabel = iconPanel.Controls.OfType<LabelControl>().FirstOrDefault(c => c.Name == "iconLabel");
+                        if (iconLabel != null)
+                        {
+                            iconLabel.Location = new System.Drawing.Point(50, 5);
+                            iconLabel.ForeColor = iconColor;
+                        }
+
+                        var nameLabel = iconPanel.Controls.OfType<LabelControl>().FirstOrDefault(c => c.Name == "nameLabel");
+                        if (nameLabel != null)
+                        {
+                            nameLabel.Location = new System.Drawing.Point(5, 50);
+                            nameLabel.Size = new System.Drawing.Size(130, 18);
+                            nameLabel.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+                            nameLabel.Text = printer.Name;
+                            nameLabel.ForeColor = _currentTheme == ThemeMode.Dark ? 
+                                System.Drawing.Color.FromArgb(230, 230, 230) : 
+                                System.Drawing.Color.Black;
+                        }
+
+                        var statusLabel = iconPanel.Controls.OfType<LabelControl>().FirstOrDefault(c => c.Name == "statusLabel");
+                        if (statusLabel != null)
+                        {
+                            statusLabel.Location = new System.Drawing.Point(5, 70);
+                            statusLabel.Size = new System.Drawing.Size(130, 18);
+                            statusLabel.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+                            statusLabel.Appearance.TextOptions.WordWrap = DevExpress.Utils.WordWrap.Wrap;
+                            statusLabel.Text = statusText;
+                            statusLabel.ForeColor = iconColor;
+                        }
+                    }
+                    else
+                    {
+                        // Mevcut kontrolleri güncelle (yanıp sönmeyi önlemek için)
+                        var iconLabel = iconPanel.Controls.OfType<LabelControl>().FirstOrDefault(c => c.Name == "iconLabel");
+                        if (iconLabel != null)
+                        {
+                            iconLabel.ForeColor = iconColor;
+                        }
+
+                        var nameLabel = iconPanel.Controls.OfType<LabelControl>().FirstOrDefault(c => c.Name == "nameLabel");
+                        if (nameLabel != null)
+                        {
+                            nameLabel.Text = printer.Name;
+                            nameLabel.ForeColor = _currentTheme == ThemeMode.Dark ? 
+                                System.Drawing.Color.FromArgb(230, 230, 230) : 
+                                System.Drawing.Color.Black;
+                            nameLabel.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+                        }
+
+                        var statusLabel = iconPanel.Controls.OfType<LabelControl>().FirstOrDefault(c => c.Name == "statusLabel");
+                        if (statusLabel != null)
+                        {
+                            statusLabel.Text = statusText;
+                            statusLabel.ForeColor = iconColor;
+                            statusLabel.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+                        }
+                    }
+
+                    // Panel arka plan rengini güncelle
+                    iconPanel.BackColor = _currentTheme == ThemeMode.Dark ? 
+                        System.Drawing.Color.FromArgb(40, 40, 40) : 
+                        System.Drawing.Color.White;
+                }
+            }
+
+            // Layout'u devam ettir
+            printersIconPanel.ResumeLayout(true);
+        }
+
+        private void GridViewPrinters_CustomColumnDisplayText(object sender, DevExpress.XtraGrid.Views.Base.CustomColumnDisplayTextEventArgs e)
+        {
+            // Durum kolonuna sembol ekle
+            if (e.Column != null && e.Column.FieldName == "Status")
+            {
+                var printer = e.Value as PrinterStatus?;
+                if (printer.HasValue)
+                {
+                    var printerStatus = printer.Value;
+                    string statusSymbol = "";
+                    switch (printerStatus)
+                    {
+                        case PrinterStatus.Printing:
+                            statusSymbol = "🟢 "; // Yeşil daire
+                            break;
+                        case PrinterStatus.Error:
+                            statusSymbol = "🔴 "; // Kırmızı daire
+                            break;
+                        case PrinterStatus.Idle:
+                            statusSymbol = "⚫ "; // Siyah daire (gri görünecek)
+                            break;
+                        case PrinterStatus.Paused:
+                            statusSymbol = "🟡 "; // Sarı daire
+                            break;
+                        case PrinterStatus.Maintenance:
+                            statusSymbol = "🟠 "; // Turuncu daire
+                            break;
+                    }
+                    
+                    // Durum metnini al
+                    string statusText = "";
+                    // Türkçe çeviri
+                    switch (printerStatus)
+                    {
+                        case PrinterStatus.Printing:
+                            statusText = "Yazdırıyor";
+                            break;
+                        case PrinterStatus.Error:
+                            statusText = "Hata";
+                            break;
+                        case PrinterStatus.Idle:
+                            statusText = "Boşta";
+                            break;
+                        case PrinterStatus.Paused:
+                            statusText = "Duraklatıldı";
+                            break;
+                        case PrinterStatus.Maintenance:
+                            statusText = "Bakımda";
+                            break;
+                    }
+                    
+                    // Sembol ve metni birleştir
+                    e.DisplayText = statusSymbol + statusText;
                 }
             }
         }
@@ -1370,6 +1749,10 @@ namespace PrinterAutomation.Forms
                 btnSimulateOrder.Left = btnToggleTheme.Left - btnSimulateOrder.Width - 10;
             }
 
+            // İstatistikler panelini bul
+            var statsPanel = this.Controls.OfType<System.Windows.Forms.Panel>()
+                .FirstOrDefault(p => p.Controls.OfType<LabelControl>().Any(l => l.Text.Contains("İSTATİSTİKLER")));
+            
             // Grid'lerin genişliğini ayarla
             if (gridControlPrinters != null && gridControlOrders != null && gridControlJobs != null)
             {
@@ -1384,44 +1767,40 @@ namespace PrinterAutomation.Forms
                 gridControlJobs.Width = this.ClientSize.Width - gridControlJobs.Left - 20;
 
                 // Header panellerini güncelle
-                var printersHeader = this.Controls.OfType<System.Windows.Forms.Panel>()
-                    .FirstOrDefault(p => p.BackColor == System.Drawing.Color.FromArgb(63, 81, 181));
-                if (printersHeader != null)
+                if (printersHeaderPanel != null)
                 {
-                    printersHeader.Width = gridControlPrinters.Width;
+                    printersHeaderPanel.Width = gridControlPrinters.Width;
                 }
 
-                var ordersHeader = this.Controls.OfType<System.Windows.Forms.Panel>()
-                    .FirstOrDefault(p => p.BackColor == System.Drawing.Color.FromArgb(255, 152, 0));
-                if (ordersHeader != null)
+                if (ordersHeaderPanel != null)
                 {
-                    ordersHeader.Left = gridControlOrders.Left;
-                    ordersHeader.Width = gridControlOrders.Width;
+                    ordersHeaderPanel.Left = gridControlOrders.Left;
+                    ordersHeaderPanel.Width = gridControlOrders.Width;
                 }
 
-                var jobsHeader = this.Controls.OfType<System.Windows.Forms.Panel>()
-                    .FirstOrDefault(p => p.BackColor == System.Drawing.Color.FromArgb(156, 39, 176));
-                if (jobsHeader != null)
+                if (jobsHeaderPanel != null)
                 {
-                    jobsHeader.Left = gridControlJobs.Left;
-                    jobsHeader.Width = gridControlJobs.Width;
+                    jobsHeaderPanel.Left = gridControlJobs.Left;
+                    jobsHeaderPanel.Width = gridControlJobs.Width;
                 }
             }
 
-            // İstatistikler panelini güncelle
-            var statsPanel = this.Controls.OfType<System.Windows.Forms.Panel>()
-                .FirstOrDefault(p => p.Controls.OfType<LabelControl>().Any(l => l.Text.Contains("İSTATİSTİKLER")));
-            if (statsPanel != null)
+            // Yazıcı icon paneli (altta geniş satır - daha büyük)
+            if (printersIconPanel != null)
             {
-                statsPanel.Width = this.ClientSize.Width - 40;
+                int iconPanelTop = statsPanel != null ? statsPanel.Top - 120 : this.ClientSize.Height - 220;
+                printersIconPanel.Left = 20;
+                printersIconPanel.Width = this.ClientSize.Width - 40;
+                printersIconPanel.Top = iconPanelTop;
+                printersIconPanel.Height = 110;
             }
 
             // Grid yüksekliklerini ayarla
             if (gridControlPrinters != null)
             {
                 int gridTop = 135;
-                int statsPanelTop = statsPanel != null ? statsPanel.Top : this.ClientSize.Height - 120;
-                int gridHeight = statsPanelTop - gridTop - 20;
+                int iconPanelTop = printersIconPanel != null ? printersIconPanel.Top : this.ClientSize.Height - 220;
+                int gridHeight = iconPanelTop - gridTop - 20;
                 
                 if (gridHeight > 100)
                 {
@@ -1429,6 +1808,12 @@ namespace PrinterAutomation.Forms
                     if (gridControlOrders != null) gridControlOrders.Height = gridHeight;
                     if (gridControlJobs != null) gridControlJobs.Height = gridHeight;
                 }
+            }
+
+            // İstatistikler panelini güncelle
+            if (statsPanel != null)
+            {
+                statsPanel.Width = this.ClientSize.Width - 40;
             }
         }
 
