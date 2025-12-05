@@ -33,6 +33,7 @@ namespace PrinterAutomation.Forms
         private GridView gridViewJobs;
         private SimpleButton btnSimulateOrder;
         private SimpleButton btnToggleTheme;
+        private SimpleButton btnAddPrinter;
         private LabelControl lblStatus;
         private LabelControl lblTitle;
         private LabelControl lblPrinters;
@@ -146,7 +147,30 @@ namespace PrinterAutomation.Forms
             titlePanel.Controls.Add(btnToggleTheme);
             btnToggleTheme.Location = new System.Drawing.Point(titlePanel.Width - btnToggleTheme.Width - 20, 20);
 
-            // Simulate Order Button (tema butonunun solunda)
+            // Yeni Yazıcı Ekle Button
+            btnAddPrinter = new SimpleButton
+            {
+                Text = "🖨️ Yeni Yazıcı Ekle",
+                Size = new System.Drawing.Size(200, 45),
+                Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right,
+                Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold)
+            };
+            btnAddPrinter.Appearance.BackColor = System.Drawing.Color.FromArgb(33, 150, 243);
+            btnAddPrinter.Appearance.ForeColor = System.Drawing.Color.White;
+            btnAddPrinter.Appearance.BorderColor = System.Drawing.Color.FromArgb(25, 118, 210);
+            btnAddPrinter.Appearance.Options.UseBackColor = true;
+            btnAddPrinter.Appearance.Options.UseForeColor = true;
+            btnAddPrinter.Appearance.Options.UseBorderColor = true;
+            btnAddPrinter.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(30, 136, 229);
+            btnAddPrinter.AppearanceHovered.Options.UseBackColor = true;
+            btnAddPrinter.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(25, 118, 210);
+            btnAddPrinter.AppearancePressed.Options.UseBackColor = true;
+            btnAddPrinter.LookAndFeel.UseDefaultLookAndFeel = false;
+            btnAddPrinter.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+            btnAddPrinter.Click += BtnAddPrinter_Click;
+            titlePanel.Controls.Add(btnAddPrinter);
+
+            // Simulate Order Button (yeni yazıcı butonunun solunda)
             btnSimulateOrder = new SimpleButton
             {
                 Text = "➕ Yeni Sipariş Simüle Et",
@@ -168,7 +192,8 @@ namespace PrinterAutomation.Forms
             btnSimulateOrder.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
             btnSimulateOrder.Click += BtnSimulateOrder_Click;
             titlePanel.Controls.Add(btnSimulateOrder);
-            btnSimulateOrder.Location = new System.Drawing.Point(btnToggleTheme.Left - btnSimulateOrder.Width - 10, 20);
+            btnAddPrinter.Location = new System.Drawing.Point(btnToggleTheme.Left - btnAddPrinter.Width - 10, 20);
+            btnSimulateOrder.Location = new System.Drawing.Point(btnAddPrinter.Left - btnSimulateOrder.Width - 10, 20);
 
             // Printers Grid Başlık Panel
             printersHeaderPanel = new System.Windows.Forms.Panel
@@ -857,6 +882,134 @@ namespace PrinterAutomation.Forms
                 System.Windows.Forms.MessageBoxIcon.Information);
         }
 
+        private void BtnAddPrinter_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Yazıcı modeli seçim dialog'u oluştur
+                using (var dialog = new System.Windows.Forms.Form())
+                {
+                    dialog.Text = "Yeni Yazıcı Ekle";
+                    dialog.Size = new System.Drawing.Size(500, 200);
+                    dialog.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
+                    dialog.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
+                    dialog.MaximizeBox = false;
+                    dialog.MinimizeBox = false;
+                    dialog.ShowInTaskbar = false;
+                    dialog.BackColor = _currentTheme == ThemeMode.Dark ? 
+                        System.Drawing.Color.FromArgb(40, 40, 40) : 
+                        System.Drawing.Color.White;
+
+                    // Label
+                    var lblModel = new LabelControl
+                    {
+                        Text = "Yazıcı Modeli:",
+                        Location = new System.Drawing.Point(20, 30),
+                        Size = new System.Drawing.Size(120, 20),
+                        Font = new System.Drawing.Font("Segoe UI", 10F),
+                        ForeColor = _currentTheme == ThemeMode.Dark ? 
+                            System.Drawing.Color.FromArgb(230, 230, 230) : 
+                            System.Drawing.Color.Black
+                    };
+                    dialog.Controls.Add(lblModel);
+
+                    // ComboBox
+                    var comboModel = new ComboBoxEdit
+                    {
+                        Location = new System.Drawing.Point(150, 27),
+                        Size = new System.Drawing.Size(300, 25),
+                        Font = new System.Drawing.Font("Segoe UI", 10F)
+                    };
+                    
+                    // Yazıcı modellerini yükle
+                    var models = PrinterService.GetAvailablePrinterModels();
+                    comboModel.Properties.Items.AddRange(models);
+                    comboModel.SelectedIndex = 0;
+                    
+                    // Tema renkleri
+                    if (_currentTheme == ThemeMode.Dark)
+                    {
+                        comboModel.BackColor = System.Drawing.Color.FromArgb(50, 50, 50);
+                        comboModel.ForeColor = System.Drawing.Color.FromArgb(230, 230, 230);
+                    }
+                    
+                    dialog.Controls.Add(comboModel);
+
+                    // Butonlar
+                    var btnOK = new SimpleButton
+                    {
+                        Text = "Ekle",
+                        Location = new System.Drawing.Point(280, 80),
+                        Size = new System.Drawing.Size(80, 35),
+                        DialogResult = System.Windows.Forms.DialogResult.OK,
+                        Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold)
+                    };
+                    btnOK.Appearance.BackColor = System.Drawing.Color.FromArgb(33, 150, 243);
+                    btnOK.Appearance.ForeColor = System.Drawing.Color.White;
+                    btnOK.Appearance.Options.UseBackColor = true;
+                    btnOK.Appearance.Options.UseForeColor = true;
+                    btnOK.LookAndFeel.UseDefaultLookAndFeel = false;
+                    btnOK.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+                    dialog.Controls.Add(btnOK);
+                    dialog.AcceptButton = btnOK;
+
+                    var btnCancel = new SimpleButton
+                    {
+                        Text = "İptal",
+                        Location = new System.Drawing.Point(370, 80),
+                        Size = new System.Drawing.Size(80, 35),
+                        DialogResult = System.Windows.Forms.DialogResult.Cancel,
+                        Font = new System.Drawing.Font("Segoe UI", 10F)
+                    };
+                    btnCancel.Appearance.BackColor = System.Drawing.Color.FromArgb(158, 158, 158);
+                    btnCancel.Appearance.ForeColor = System.Drawing.Color.White;
+                    btnCancel.Appearance.Options.UseBackColor = true;
+                    btnCancel.Appearance.Options.UseForeColor = true;
+                    btnCancel.LookAndFeel.UseDefaultLookAndFeel = false;
+                    btnCancel.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+                    dialog.Controls.Add(btnCancel);
+                    dialog.CancelButton = btnCancel;
+
+                    if (dialog.ShowDialog(this) == System.Windows.Forms.DialogResult.OK)
+                    {
+                        string selectedModel = comboModel.Text;
+                        if (string.IsNullOrWhiteSpace(selectedModel))
+                        {
+                            XtraMessageBox.Show(
+                                "Lütfen bir yazıcı modeli seçin!",
+                                "Uyarı",
+                                System.Windows.Forms.MessageBoxButtons.OK,
+                                System.Windows.Forms.MessageBoxIcon.Warning);
+                            return;
+                        }
+
+                        var newPrinter = _printerService.AddNewPrinter(selectedModel);
+                        RefreshData();
+                        lblStatus.Text = $"✓ Yeni yazıcı eklendi: {newPrinter.Name}";
+                        lblStatus.ForeColor = System.Drawing.Color.FromArgb(129, 199, 132);
+                        
+                        XtraMessageBox.Show(
+                            $"Yeni yazıcı başarıyla eklendi!\n\n" +
+                            $"Yazıcı Adı: {newPrinter.Name}\n" +
+                            $"Yazıcı ID: {newPrinter.Id}\n" +
+                            $"Durum: Boşta\n" +
+                            $"Filament Tipi: {newPrinter.FilamentType}",
+                            "Yazıcı Eklendi",
+                            System.Windows.Forms.MessageBoxButtons.OK,
+                            System.Windows.Forms.MessageBoxIcon.Information);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show(
+                    $"Yazıcı eklenirken hata oluştu:\n{ex.Message}",
+                    "Hata",
+                    System.Windows.Forms.MessageBoxButtons.OK,
+                    System.Windows.Forms.MessageBoxIcon.Error);
+            }
+        }
+
         private void BtnToggleTheme_Click(object sender, EventArgs e)
         {
             _currentTheme = _currentTheme == ThemeMode.Light ? ThemeMode.Dark : ThemeMode.Light;
@@ -894,6 +1047,13 @@ namespace PrinterAutomation.Forms
                 btnToggleTheme.Text = "☀️ Açık Tema";
                 btnToggleTheme.Appearance.BackColor = System.Drawing.Color.FromArgb(66, 66, 66);
                 btnToggleTheme.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(80, 80, 80);
+            }
+
+            // Yeni yazıcı ekle butonu (koyu tema)
+            if (btnAddPrinter != null)
+            {
+                btnAddPrinter.Appearance.BackColor = System.Drawing.Color.FromArgb(40, 120, 200);
+                btnAddPrinter.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(50, 130, 210);
             }
 
             // Header panelleri (daha koyu tonlar)
@@ -962,6 +1122,13 @@ namespace PrinterAutomation.Forms
                 btnToggleTheme.Text = "🌙 Koyu Tema";
                 btnToggleTheme.Appearance.BackColor = System.Drawing.Color.FromArgb(33, 33, 33);
                 btnToggleTheme.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(66, 66, 66);
+            }
+
+            // Yeni yazıcı ekle butonu (açık tema)
+            if (btnAddPrinter != null)
+            {
+                btnAddPrinter.Appearance.BackColor = System.Drawing.Color.FromArgb(33, 150, 243);
+                btnAddPrinter.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(30, 136, 229);
             }
 
             // Header panelleri
@@ -1743,10 +1910,11 @@ namespace PrinterAutomation.Forms
             }
 
             // Buton konumlarını güncelle
-            if (btnSimulateOrder != null && btnToggleTheme != null && titlePanel != null)
+            if (btnSimulateOrder != null && btnAddPrinter != null && btnToggleTheme != null && titlePanel != null)
             {
                 btnToggleTheme.Left = titlePanel.Width - btnToggleTheme.Width - 20;
-                btnSimulateOrder.Left = btnToggleTheme.Left - btnSimulateOrder.Width - 10;
+                btnAddPrinter.Left = btnToggleTheme.Left - btnAddPrinter.Width - 10;
+                btnSimulateOrder.Left = btnAddPrinter.Left - btnSimulateOrder.Width - 10;
             }
 
             // İstatistikler panelini bul
