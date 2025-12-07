@@ -2,6 +2,8 @@ using System;
 using System.Windows.Forms;
 using PrinterAutomation.Forms;
 using DevExpress.XtraEditors;
+using DevExpress.LookAndFeel;
+using DevExpress.Utils;
 
 namespace PrinterAutomation
 {

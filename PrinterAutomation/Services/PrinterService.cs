@@ -19,36 +19,33 @@ namespace PrinterAutomation.Services
         {
             var random = new Random();
             var filamentTypes = new[] { "PLA", "ABS", "PETG", "TPU" };
+            const string printerModel = "Creality Ender 3";
+            int printerId = 1;
             
-            // Gerçek yazıcı markaları listesi
-            var printerBrands = new[] 
-            { 
-                "Ender 3", 
-                "Prusa i3 MK3S+", 
-                "Ultimaker 3", 
-                "Creality CR-10", 
-                "Anycubic i3 Mega", 
-                "FlashForge Creator Pro", 
-                "Monoprice Maker Select", 
-                "Qidi Tech X-One", 
-                "Artillery Sidewinder", 
-                "Voxelab Aquila" 
-            };
+            // Her zaman 10 tane Creality Ender 3 yazıcı oluştur
+            const int printerCount = 10;
             
-            // 10 adet 3D yazıcı oluştur - hepsi aynı marka (Ender 3)
-            for (int i = 1; i <= 10; i++)
+            for (int i = 0; i < printerCount; i++)
             {
                 _printers.Add(new Printer
                 {
-                    Id = i,
-                    Name = $"Ender 3 #{i}",
+                    Id = printerId++,
+                    Name = $"{printerModel} #{i + 1}",
                     Status = PrinterStatus.Idle,
-                    FilamentRemaining = random.Next(20, 100), // %20-100 arası rastgele
+                    FilamentRemaining = random.Next(20, 100),
                     FilamentType = filamentTypes[random.Next(filamentTypes.Length)],
                     TotalJobsCompleted = random.Next(0, 50),
                     TotalPrintTime = random.Next(0, 200)
                 });
             }
+            
+            System.Diagnostics.Debug.WriteLine($"Toplam oluşturulan yazıcı sayısı: {_printers.Count}");
+        }
+
+        public void ClearAndReinitializePrinters()
+        {
+            _printers.Clear();
+            InitializePrinters();
         }
 
         public BindingList<Printer> GetAllPrinters() => _printers;
@@ -99,37 +96,70 @@ namespace PrinterAutomation.Services
             var printer = GetPrinter(printerId);
             if (printer != null)
             {
+                // Yazdırma süresini hesapla ve ekle (null yapmadan önce)
+                if (printer.JobStartTime.HasValue && printer.JobEndTime.HasValue)
+                {
+                    var duration = (printer.JobEndTime.Value - printer.JobStartTime.Value).TotalHours;
+                    printer.TotalPrintTime += duration;
+                }
+                
                 printer.Status = PrinterStatus.Idle;
                 printer.CurrentJobName = null;
                 printer.JobStartTime = null;
                 printer.JobEndTime = null;
                 printer.Progress = 0;
                 printer.TotalJobsCompleted++;
-                
-                // Yazdırma süresini hesapla ve ekle
-                if (printer.JobStartTime.HasValue && printer.JobEndTime.HasValue)
-                {
-                    var duration = (printer.JobEndTime.Value - printer.JobStartTime.Value).TotalHours;
-                    printer.TotalPrintTime += duration;
-                }
             }
         }
 
-        public Printer AddNewPrinter(string printerModel)
+        public static List<string> GetAvailablePrinterModels()
+        {
+            // Yazıcı modelleri listesini döndür (3D modeller değil)
+            return new List<string>
+            {
+                "Creality Ender 3",
+                "Prusa i3 MK3S+",
+                "Anycubic Kobra",
+                "Bambu Lab X1 Carbon",
+                "Ultimaker S5",
+                "Artillery Sidewinder X2",
+                "Elegoo Neptune 3",
+                "Sovol SV06",
+                "FlashForge Adventurer 4",
+                "Qidi Tech X-Max 3"
+            };
+        }
+
+        public Printer AddNewPrinter(string printerModelName)
         {
             var random = new Random();
             var filamentTypes = new[] { "PLA", "ABS", "PETG", "TPU" };
+            var availableModels = GetAvailablePrinterModels();
             
-            // Yeni ID'yi belirle
+            // Yeni ID oluştur
             int newId = _printers.Count > 0 ? _printers.Max(p => p.Id) + 1 : 1;
             
+            // Yazıcı modeli adını belirle
+            // Eğer printerModelName boşsa veya yazıcı modeli listesinde yoksa, ilk modeli kullan
+            string printerModel;
+            if (string.IsNullOrEmpty(printerModelName) || !availableModels.Contains(printerModelName))
+            {
+                // İlk yazıcı modelini varsayılan olarak kullan
+                printerModel = availableModels.FirstOrDefault() ?? "Creality Ender 3";
+            }
+            else
+            {
+                // printerModelName bir yazıcı modeli adı, onu kullan
+                printerModel = printerModelName;
+            }
+            
             // Aynı modelden kaç tane var say
-            int modelCount = _printers.Count(p => p.Name.StartsWith(printerModel));
+            int sameModelCount = _printers.Count(p => p.Name.StartsWith(printerModel));
             
             var newPrinter = new Printer
             {
                 Id = newId,
-                Name = modelCount > 0 ? $"{printerModel} #{modelCount + 1}" : $"{printerModel} #1",
+                Name = $"{printerModel} #{sameModelCount + 1}",
                 Status = PrinterStatus.Idle,
                 FilamentRemaining = random.Next(20, 100),
                 FilamentType = filamentTypes[random.Next(filamentTypes.Length)],
@@ -140,102 +170,5 @@ namespace PrinterAutomation.Services
             _printers.Add(newPrinter);
             return newPrinter;
         }
-
-        public static string[] GetAvailablePrinterModels()
-        {
-            return new[]
-            {
-                "Ender 3",
-                "Ender 3 Pro",
-                "Ender 3 V2",
-                "Ender 3 S1",
-                "Ender 5",
-                "Ender 5 Plus",
-                "Ender 6",
-                "Prusa i3 MK3S+",
-                "Prusa i3 MK3S",
-                "Prusa MINI+",
-                "Prusa XL",
-                "Ultimaker 3",
-                "Ultimaker 3 Extended",
-                "Ultimaker S3",
-                "Ultimaker S5",
-                "Creality CR-10",
-                "Creality CR-10 V3",
-                "Creality CR-10S",
-                "Creality CR-10S Pro",
-                "Creality CR-6 SE",
-                "Creality CR-20 Pro",
-                "Anycubic i3 Mega",
-                "Anycubic i3 Mega S",
-                "Anycubic Kobra",
-                "Anycubic Kobra Max",
-                "Anycubic Vyper",
-                "Anycubic Photon",
-                "FlashForge Creator Pro",
-                "FlashForge Creator Pro 2",
-                "FlashForge Adventurer 3",
-                "FlashForge Guider 2",
-                "Monoprice Maker Select",
-                "Monoprice Maker Select Plus",
-                "Monoprice Voxel",
-                "Qidi Tech X-One",
-                "Qidi Tech X-Plus",
-                "Qidi Tech X-Max",
-                "Qidi Tech X-Pro",
-                "Artillery Sidewinder X1",
-                "Artillery Sidewinder X2",
-                "Artillery Genius",
-                "Artillery Hornet",
-                "Voxelab Aquila",
-                "Voxelab Aquila X2",
-                "Voxelab Aquila S2",
-                "Bambu Lab X1 Carbon",
-                "Bambu Lab P1P",
-                "Bambu Lab P1S",
-                "Elegoo Neptune 3",
-                "Elegoo Neptune 3 Pro",
-                "Elegoo Neptune 4",
-                "Sovol SV01",
-                "Sovol SV04",
-                "Sovol SV06",
-                "Kingroon KP3S",
-                "Kingroon KP3S Pro",
-                "Flsun Q5",
-                "Flsun Super Racer",
-                "Flsun V400",
-                "Ratrig V-Core 3",
-                "Ratrig V-Minion",
-                "Voron 2.4",
-                "Voron Trident",
-                "Voron Switchwire",
-                "RatOS",
-                "HevORT",
-                "BLV Cube",
-                "Hypercube Evolution",
-                "Tevo Tarantula",
-                "Tevo Tornado",
-                "Anet A8",
-                "Anet ET4",
-                "Geeetech A10",
-                "Geeetech A20",
-                "Geeetech A30",
-                "Wanhao Duplicator i3",
-                "Wanhao Duplicator 6",
-                "Tronxy X5SA",
-                "Tronxy XY-2 Pro",
-                "Ender 3 Max",
-                "Ender 3 S1 Pro",
-                "Ender 3 S1 Plus",
-                "Ender 7",
-                "Kossel",
-                "Delta 3D Printer",
-                "Rostock Max",
-                "SeeMeCNC Orion",
-                "SeeMeCNC Rostock MAX V3"
-            };
-        }
     }
 }
-
-
