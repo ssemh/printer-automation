@@ -875,11 +875,26 @@ namespace PrinterAutomation.Forms
             lblStatus.Text = $"✓ Yeni sipariş alındı: {order.OrderNumber}";
             lblStatus.ForeColor = System.Drawing.Color.FromArgb(129, 199, 132);
             
+            // Model setini belirle (ilk item'ın klasör adından)
+            string modelSet = "Bilinmeyen";
+            if (order.Items.Count > 0)
+            {
+                var firstItem = order.Items[0].ModelFileName;
+                if (firstItem.Contains("/"))
+                {
+                    modelSet = firstItem.Split('/')[0];
+                }
+            }
+
+            int totalQuantity = order.Items.Sum(item => item.Quantity);
+
             XtraMessageBox.Show(
                 $"Yeni sipariş oluşturuldu!\n\n" +
                 $"Sipariş No: {order.OrderNumber}\n" +
                 $"Müşteri: {order.CustomerName}\n" +
-                $"Ürün Sayısı: {order.Items.Count}",
+                $"Model Seti: {modelSet}\n" +
+                $"Model Dosyası Sayısı: {order.Items.Count}\n" +
+                $"Toplam Adet: {totalQuantity}",
                 "Sipariş Alındı",
                 System.Windows.Forms.MessageBoxButtons.OK,
                 System.Windows.Forms.MessageBoxIcon.Information);
