@@ -255,6 +255,8 @@ namespace PrinterAutomation.Forms
                 gridViewPrinters.RowCellStyle += GridViewPrinters_RowCellStyle;
                 // Durum kolonuna sembol eklemek için custom display text event'i
                 gridViewPrinters.CustomColumnDisplayText += GridViewPrinters_CustomColumnDisplayText;
+                // Çift tıklama ile filament değiştirme
+                gridViewPrinters.DoubleClick += GridViewPrinters_DoubleClick;
                 // Filtre paneli için paint event'i
                 gridControlPrinters.Paint += GridControl_Paint;
                 
@@ -904,11 +906,11 @@ namespace PrinterAutomation.Forms
         {
             try
             {
-                // Yazıcı modeli seçim dialog'u oluştur
+                // Yazıcı modeli ve filament seçim dialog'u oluştur
                 using (var dialog = new System.Windows.Forms.Form())
                 {
                     dialog.Text = "Yeni Yazıcı Ekle";
-                    dialog.Size = new System.Drawing.Size(500, 200);
+                    dialog.Size = new System.Drawing.Size(500, 250);
                     dialog.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
                     dialog.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
                     dialog.MaximizeBox = false;
@@ -918,7 +920,7 @@ namespace PrinterAutomation.Forms
                         System.Drawing.Color.FromArgb(40, 40, 40) : 
                         System.Drawing.Color.White;
 
-                    // Label
+                    // Yazıcı Modeli Label
                     var lblModel = new LabelControl
                     {
                         Text = "Yazıcı Modeli:",
@@ -931,7 +933,7 @@ namespace PrinterAutomation.Forms
                     };
                     dialog.Controls.Add(lblModel);
 
-                    // ComboBox
+                    // Yazıcı Modeli ComboBox
                     var comboModel = new ComboBoxEdit
                     {
                         Location = new System.Drawing.Point(150, 27),
@@ -942,7 +944,8 @@ namespace PrinterAutomation.Forms
                     // Yazıcı modellerini yükle
                     var models = PrinterService.GetAvailablePrinterModels();
                     comboModel.Properties.Items.AddRange(models);
-                    comboModel.SelectedIndex = 0;
+                    if (comboModel.Properties.Items.Count > 0)
+                        comboModel.SelectedIndex = 0;
                     
                     // Tema renkleri
                     if (_currentTheme == ThemeMode.Dark)
@@ -953,11 +956,47 @@ namespace PrinterAutomation.Forms
                     
                     dialog.Controls.Add(comboModel);
 
+                    // Filament Label
+                    var lblFilament = new LabelControl
+                    {
+                        Text = "Filament Tipi:",
+                        Location = new System.Drawing.Point(20, 80),
+                        Size = new System.Drawing.Size(120, 20),
+                        Font = new System.Drawing.Font("Segoe UI", 10F),
+                        ForeColor = _currentTheme == ThemeMode.Dark ? 
+                            System.Drawing.Color.FromArgb(230, 230, 230) : 
+                            System.Drawing.Color.Black
+                    };
+                    dialog.Controls.Add(lblFilament);
+
+                    // Filament ComboBox
+                    var comboFilament = new ComboBoxEdit
+                    {
+                        Location = new System.Drawing.Point(150, 77),
+                        Size = new System.Drawing.Size(300, 25),
+                        Font = new System.Drawing.Font("Segoe UI", 10F)
+                    };
+                    
+                    // Filament çeşitlerini yükle
+                    var filamentTypes = PrinterService.GetAvailableFilamentTypes();
+                    comboFilament.Properties.Items.AddRange(filamentTypes);
+                    if (comboFilament.Properties.Items.Count > 0)
+                        comboFilament.SelectedIndex = 0;
+                    
+                    // Tema renkleri
+                    if (_currentTheme == ThemeMode.Dark)
+                    {
+                        comboFilament.BackColor = System.Drawing.Color.FromArgb(50, 50, 50);
+                        comboFilament.ForeColor = System.Drawing.Color.FromArgb(230, 230, 230);
+                    }
+                    
+                    dialog.Controls.Add(comboFilament);
+
                     // Butonlar
                     var btnOK = new SimpleButton
                     {
                         Text = "Ekle",
-                        Location = new System.Drawing.Point(280, 80),
+                        Location = new System.Drawing.Point(280, 130),
                         Size = new System.Drawing.Size(80, 35),
                         DialogResult = System.Windows.Forms.DialogResult.OK,
                         Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold)
@@ -974,7 +1013,7 @@ namespace PrinterAutomation.Forms
                     var btnCancel = new SimpleButton
                     {
                         Text = "İptal",
-                        Location = new System.Drawing.Point(370, 80),
+                        Location = new System.Drawing.Point(370, 130),
                         Size = new System.Drawing.Size(80, 35),
                         DialogResult = System.Windows.Forms.DialogResult.Cancel,
                         Font = new System.Drawing.Font("Segoe UI", 10F)
@@ -991,17 +1030,19 @@ namespace PrinterAutomation.Forms
                     if (dialog.ShowDialog(this) == System.Windows.Forms.DialogResult.OK)
                     {
                         string selectedModel = comboModel.Text;
-                        if (string.IsNullOrWhiteSpace(selectedModel))
+                        string selectedFilament = comboFilament.Text;
+
+                        if (string.IsNullOrWhiteSpace(selectedModel) || string.IsNullOrWhiteSpace(selectedFilament))
                         {
                             XtraMessageBox.Show(
-                                "Lütfen bir yazıcı modeli seçin!",
+                                "Lütfen bir yazıcı modeli ve filament tipi seçin!",
                                 "Uyarı",
                                 System.Windows.Forms.MessageBoxButtons.OK,
                                 System.Windows.Forms.MessageBoxIcon.Warning);
                             return;
                         }
 
-                        var newPrinter = _printerService.AddNewPrinter(selectedModel);
+                        var newPrinter = _printerService.AddNewPrinter(selectedModel, selectedFilament);
                         RefreshData();
                         lblStatus.Text = $"✓ Yeni yazıcı eklendi: {newPrinter.Name}";
                         lblStatus.ForeColor = System.Drawing.Color.FromArgb(129, 199, 132);
@@ -1838,6 +1879,194 @@ namespace PrinterAutomation.Forms
                 e.Appearance.BackColor = e.RowHandle % 2 == 0 ? System.Drawing.Color.White : System.Drawing.Color.FromArgb(249, 250, 252);
             }
             e.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F);
+        }
+
+        private void GridViewPrinters_DoubleClick(object sender, EventArgs e)
+        {
+            var view = sender as GridView;
+            if (view == null) return;
+
+            var focusedRowHandle = view.FocusedRowHandle;
+            if (focusedRowHandle < 0) return;
+
+            var printer = view.GetRow(focusedRowHandle) as Printer;
+            if (printer == null) return;
+
+            // Filament değiştirme dialog'unu aç
+            OpenFilamentChangeDialog(printer);
+        }
+
+        private void OpenFilamentChangeDialog(Printer printer)
+        {
+            try
+            {
+                using (var dialog = new System.Windows.Forms.Form())
+                {
+                    dialog.Text = "Filament Değiştir";
+                    dialog.Size = new System.Drawing.Size(450, 200);
+                    dialog.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
+                    dialog.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
+                    dialog.MaximizeBox = false;
+                    dialog.MinimizeBox = false;
+                    dialog.ShowInTaskbar = false;
+                    dialog.BackColor = _currentTheme == ThemeMode.Dark ? 
+                        System.Drawing.Color.FromArgb(40, 40, 40) : 
+                        System.Drawing.Color.White;
+
+                    // Yazıcı Bilgisi Label
+                    var lblPrinterInfo = new LabelControl
+                    {
+                        Text = $"Yazıcı: {printer.Name}\nMevcut Filament: {printer.FilamentType}",
+                        Location = new System.Drawing.Point(20, 20),
+                        Size = new System.Drawing.Size(400, 40),
+                        Font = new System.Drawing.Font("Segoe UI", 10F),
+                        ForeColor = _currentTheme == ThemeMode.Dark ? 
+                            System.Drawing.Color.FromArgb(230, 230, 230) : 
+                            System.Drawing.Color.Black
+                    };
+                    dialog.Controls.Add(lblPrinterInfo);
+
+                    // Filament Label
+                    var lblFilament = new LabelControl
+                    {
+                        Text = "Yeni Filament Tipi:",
+                        Location = new System.Drawing.Point(20, 70),
+                        Size = new System.Drawing.Size(120, 20),
+                        Font = new System.Drawing.Font("Segoe UI", 10F),
+                        ForeColor = _currentTheme == ThemeMode.Dark ? 
+                            System.Drawing.Color.FromArgb(230, 230, 230) : 
+                            System.Drawing.Color.Black
+                    };
+                    dialog.Controls.Add(lblFilament);
+
+                    // Filament ComboBox
+                    var comboFilament = new ComboBoxEdit
+                    {
+                        Location = new System.Drawing.Point(150, 67),
+                        Size = new System.Drawing.Size(250, 25),
+                        Font = new System.Drawing.Font("Segoe UI", 10F)
+                    };
+                    
+                    // Filament çeşitlerini yükle
+                    var filamentTypes = PrinterService.GetAvailableFilamentTypes();
+                    comboFilament.Properties.Items.AddRange(filamentTypes);
+                    
+                    // Mevcut filament tipini seçili yap
+                    int currentIndex = filamentTypes.IndexOf(printer.FilamentType);
+                    if (currentIndex >= 0)
+                        comboFilament.SelectedIndex = currentIndex;
+                    else if (comboFilament.Properties.Items.Count > 0)
+                        comboFilament.SelectedIndex = 0;
+                    
+                    // Tema renkleri
+                    if (_currentTheme == ThemeMode.Dark)
+                    {
+                        comboFilament.BackColor = System.Drawing.Color.FromArgb(50, 50, 50);
+                        comboFilament.ForeColor = System.Drawing.Color.FromArgb(230, 230, 230);
+                    }
+                    
+                    dialog.Controls.Add(comboFilament);
+
+                    // Butonlar
+                    var btnOK = new SimpleButton
+                    {
+                        Text = "Değiştir",
+                        Location = new System.Drawing.Point(230, 110),
+                        Size = new System.Drawing.Size(80, 35),
+                        DialogResult = System.Windows.Forms.DialogResult.OK,
+                        Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold)
+                    };
+                    btnOK.Appearance.BackColor = System.Drawing.Color.FromArgb(33, 150, 243);
+                    btnOK.Appearance.ForeColor = System.Drawing.Color.White;
+                    btnOK.Appearance.Options.UseBackColor = true;
+                    btnOK.Appearance.Options.UseForeColor = true;
+                    btnOK.LookAndFeel.UseDefaultLookAndFeel = false;
+                    btnOK.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+                    dialog.Controls.Add(btnOK);
+                    dialog.AcceptButton = btnOK;
+
+                    var btnCancel = new SimpleButton
+                    {
+                        Text = "İptal",
+                        Location = new System.Drawing.Point(320, 110),
+                        Size = new System.Drawing.Size(80, 35),
+                        DialogResult = System.Windows.Forms.DialogResult.Cancel,
+                        Font = new System.Drawing.Font("Segoe UI", 10F)
+                    };
+                    btnCancel.Appearance.BackColor = System.Drawing.Color.FromArgb(158, 158, 158);
+                    btnCancel.Appearance.ForeColor = System.Drawing.Color.White;
+                    btnCancel.Appearance.Options.UseBackColor = true;
+                    btnCancel.Appearance.Options.UseForeColor = true;
+                    btnCancel.LookAndFeel.UseDefaultLookAndFeel = false;
+                    btnCancel.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+                    dialog.Controls.Add(btnCancel);
+                    dialog.CancelButton = btnCancel;
+
+                    if (dialog.ShowDialog(this) == System.Windows.Forms.DialogResult.OK)
+                    {
+                        if (comboFilament.SelectedIndex < 0)
+                        {
+                            XtraMessageBox.Show(
+                                "Lütfen bir filament tipi seçin!",
+                                "Uyarı",
+                                System.Windows.Forms.MessageBoxButtons.OK,
+                                System.Windows.Forms.MessageBoxIcon.Warning);
+                            return;
+                        }
+
+                        string newFilamentType = comboFilament.Text;
+
+                        // Yazıcı yazdırma yapıyorsa uyarı ver
+                        if (printer.Status == PrinterStatus.Printing)
+                        {
+                            XtraMessageBox.Show(
+                                $"Yazıcı şu anda yazdırma yapıyor!\n\n" +
+                                $"Yazıcı: {printer.Name}\n" +
+                                $"Mevcut İş: {printer.CurrentJobName}\n\n" +
+                                $"Filament değiştirmek için yazdırmanın tamamlanmasını bekleyin.",
+                                "Uyarı",
+                                System.Windows.Forms.MessageBoxButtons.OK,
+                                System.Windows.Forms.MessageBoxIcon.Warning);
+                            return;
+                        }
+
+                        // Filament değiştir
+                        string oldFilamentType = printer.FilamentType;
+                        bool success = _printerService.ChangeFilamentType(printer.Id, newFilamentType);
+                        if (success)
+                        {
+                            RefreshData();
+                            lblStatus.Text = $"✓ Filament değiştirildi: {printer.Name} -> {newFilamentType}";
+                            lblStatus.ForeColor = System.Drawing.Color.FromArgb(129, 199, 132);
+                            
+                            XtraMessageBox.Show(
+                                $"Filament başarıyla değiştirildi!\n\n" +
+                                $"Yazıcı: {printer.Name}\n" +
+                                $"Eski Filament: {oldFilamentType}\n" +
+                                $"Yeni Filament: {newFilamentType}",
+                                "Filament Değiştirildi",
+                                System.Windows.Forms.MessageBoxButtons.OK,
+                                System.Windows.Forms.MessageBoxIcon.Information);
+                        }
+                        else
+                        {
+                            XtraMessageBox.Show(
+                                "Filament değiştirilemedi!",
+                                "Hata",
+                                System.Windows.Forms.MessageBoxButtons.OK,
+                                System.Windows.Forms.MessageBoxIcon.Error);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show(
+                    $"Filament değiştirilirken hata oluştu:\n{ex.Message}",
+                    "Hata",
+                    System.Windows.Forms.MessageBoxButtons.OK,
+                    System.Windows.Forms.MessageBoxIcon.Error);
+            }
         }
 
         private void GridControl_Paint(object sender, PaintEventArgs e)

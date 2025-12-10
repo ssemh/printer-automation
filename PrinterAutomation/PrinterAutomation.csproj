@@ -5,6 +5,8 @@
     <TargetFramework>net48</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <LangVersion>latest</LangVersion>
+    <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
+    <GenerateLicxFile>false</GenerateLicxFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -12,10 +14,4 @@
     <PackageReference Include="DevExpress.Win" Version="25.1.5" />
   </ItemGroup>
 
-
-  <ItemGroup>
-    <EmbeddedResource Include="Properties\licenses.licx" />
-  </ItemGroup>
-
 </Project>
-

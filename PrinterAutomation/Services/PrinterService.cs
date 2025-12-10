@@ -130,10 +130,30 @@ namespace PrinterAutomation.Services
             };
         }
 
-        public Printer AddNewPrinter(string printerModelName)
+        public static List<string> GetAvailableFilamentTypes()
+        {
+            return new List<string> { "PLA", "ABS", "PETG", "TPU", "NYLON", "WOOD", "METAL", "CARBON" };
+        }
+
+        public bool ChangeFilamentType(int printerId, string newFilamentType)
+        {
+            var printer = GetPrinter(printerId);
+            if (printer != null)
+            {
+                // Yazıcı yazdırma yapıyorsa filament değiştirilemez
+                if (printer.Status == PrinterStatus.Printing)
+                {
+                    return false;
+                }
+                printer.FilamentType = newFilamentType;
+                return true;
+            }
+            return false;
+        }
+
+        public Printer AddNewPrinter(string printerModelName, string filamentType = null)
         {
             var random = new Random();
-            var filamentTypes = new[] { "PLA", "ABS", "PETG", "TPU" };
             var availableModels = GetAvailablePrinterModels();
             
             // Yeni ID oluştur
@@ -156,13 +176,26 @@ namespace PrinterAutomation.Services
             // Aynı modelden kaç tane var say
             int sameModelCount = _printers.Count(p => p.Name.StartsWith(printerModel));
             
+            // Filament tipini belirle
+            string selectedFilamentType;
+            if (!string.IsNullOrEmpty(filamentType) && GetAvailableFilamentTypes().Contains(filamentType))
+            {
+                selectedFilamentType = filamentType;
+            }
+            else
+            {
+                // Varsayılan filament tipi
+                var defaultFilamentTypes = GetAvailableFilamentTypes();
+                selectedFilamentType = defaultFilamentTypes.FirstOrDefault() ?? "PLA";
+            }
+            
             var newPrinter = new Printer
             {
                 Id = newId,
                 Name = $"{printerModel} #{sameModelCount + 1}",
                 Status = PrinterStatus.Idle,
                 FilamentRemaining = random.Next(20, 100),
-                FilamentType = filamentTypes[random.Next(filamentTypes.Length)],
+                FilamentType = selectedFilamentType,
                 TotalJobsCompleted = 0,
                 TotalPrintTime = 0
             };
