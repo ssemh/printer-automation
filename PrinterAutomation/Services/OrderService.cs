@@ -21,6 +21,18 @@ namespace PrinterAutomation.Services
 
         public Order CreateOrder(string orderNumber, string customerName, List<OrderItem> items)
         {
+            // Fiyatlandırma: Model setine göre fiyat belirle
+            decimal totalPrice = 0;
+            if (items.Count > 0)
+            {
+                // İlk item'ın klasör adından model setini belirle
+                var firstItem = items[0].ModelFileName;
+                string modelSet = firstItem.Contains("/") ? firstItem.Split('/')[0].ToLower() : "";
+                
+                // Octo için 100 TL, diğerleri için 150 TL
+                totalPrice = modelSet == "octo" ? 100 : 150;
+            }
+
             var order = new Order
             {
                 Id = _nextOrderId++,
@@ -28,7 +40,8 @@ namespace PrinterAutomation.Services
                 CustomerName = customerName,
                 Items = items,
                 OrderDate = DateTime.Now,
-                Status = OrderStatus.Pending
+                Status = OrderStatus.Pending,
+                TotalPrice = totalPrice
             };
 
             _orders.Add(order);

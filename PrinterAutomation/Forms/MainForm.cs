@@ -651,6 +651,15 @@ namespace PrinterAutomation.Forms
             colOrderStatus.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colOrderStatus.AppearanceCell.Options.UseForeColor = true;
 
+            GridColumn colTotalPrice = gridViewOrders.Columns.AddField("TotalPrice");
+            colTotalPrice.Caption = "Toplam Fiyat";
+            colTotalPrice.VisibleIndex = 5;
+            colTotalPrice.Width = 100;
+            colTotalPrice.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
+            colTotalPrice.DisplayFormat.FormatString = "C2";
+            colTotalPrice.AppearanceCell.ForeColor = System.Drawing.Color.Black;
+            colTotalPrice.AppearanceCell.Options.UseForeColor = true;
+
             gridViewOrders.OptionsView.ShowGroupPanel = false;
             gridViewOrders.OptionsView.ShowIndicator = true;
             gridViewOrders.OptionsView.ColumnAutoWidth = false;
@@ -896,7 +905,8 @@ namespace PrinterAutomation.Forms
                 $"Müşteri: {order.CustomerName}\n" +
                 $"Model Seti: {modelSet}\n" +
                 $"Model Dosyası Sayısı: {order.Items.Count}\n" +
-                $"Toplam Adet: {totalQuantity}",
+                $"Toplam Adet: {totalQuantity}\n" +
+                $"Toplam Fiyat: {order.TotalPrice:C2}",
                 "Sipariş Alındı",
                 System.Windows.Forms.MessageBoxButtons.OK,
                 System.Windows.Forms.MessageBoxIcon.Information);

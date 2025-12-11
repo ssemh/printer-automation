@@ -19,6 +19,7 @@ namespace PrinterAutomation.Models
         public OrderStatus Status { get; set; } = OrderStatus.Pending;
         public List<OrderItem> Items { get; set; } = new List<OrderItem>();
         public string CustomerName { get; set; } = string.Empty;
+        public decimal TotalPrice { get; set; } = 0; // Toplam fiyat (TL)
     }
 
     public class OrderItem
