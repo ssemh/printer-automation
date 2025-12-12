@@ -1,6 +1,7 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Windows.Forms;
+using System.Configuration;
 using DevExpress.XtraEditors;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.Grid;
@@ -27,6 +28,7 @@ namespace PrinterAutomation.Forms
         private readonly JobAssignmentService _jobAssignmentService;
         private System.Windows.Forms.Timer _refreshTimer;
         private ThemeMode _currentTheme = ThemeMode.Light;
+        private bool _mongoDbConnected = false;
 
         private GridControl gridControlPrinters;
         private GridView gridViewPrinters;
@@ -57,11 +59,39 @@ namespace PrinterAutomation.Forms
 
         public MainForm()
         {
-            _printerService = new PrinterService();
-            _orderService = new OrderService();
-            _jobAssignmentService = new JobAssignmentService(_printerService, _orderService);
-            
+            // ÖNCE InitializeComponent çağrılmalı ki MessageBox çalışsın
             InitializeComponent();
+            
+            // MongoDB servisini başlat - BASIT TEST
+            MongoDbService mongoDbService = null;
+            bool mongoDbConnected = false;
+            
+            try { mongoDbService = new MongoDbService(); mongoDbConnected = mongoDbService.IsConnected(); } catch (Exception ex) { mongoDbConnected = false; System.Diagnostics.Debug.WriteLine($"[MainForm] MongoDB bağlantı hatası: {ex.Message}"); }
+            try
+            {
+                mongoDbService = new MongoDbService();
+                mongoDbConnected = mongoDbService.IsConnected();
+            }
+            catch (Exception ex)
+            {
+                mongoDbConnected = false;
+                System.Diagnostics.Debug.WriteLine($"[MainForm] MongoDB bağlantı hatası: {ex.Message}");
+            }
+            
+            // MongoDB durumunu sakla (status label'da göstermek için)
+            _mongoDbConnected = mongoDbConnected;
+            
+            System.Diagnostics.Debug.WriteLine($"[MainForm] MongoDB servisi durumu: {(mongoDbService != null ? "MEVCUT" : "NULL")}");
+            System.Diagnostics.Debug.WriteLine($"[MainForm] MongoDB bağlantı durumu: {(mongoDbConnected ? "BAĞLI" : "BAĞLI DEĞİL")}");
+            
+            _printerService = new PrinterService(mongoDbService);
+            System.Diagnostics.Debug.WriteLine("[MainForm] PrinterService oluşturuldu");
+            
+            _orderService = new OrderService(mongoDbService);
+            System.Diagnostics.Debug.WriteLine("[MainForm] OrderService oluşturuldu");
+            
+            _jobAssignmentService = new JobAssignmentService(_printerService, _orderService, mongoDbService);
+            System.Diagnostics.Debug.WriteLine("[MainForm] JobAssignmentService oluşturuldu");
             this.Shown += MainForm_Shown;
             SetupEventHandlers();
             StartRefreshTimer();
@@ -883,8 +913,11 @@ namespace PrinterAutomation.Forms
             _jobAssignmentService.ProcessNewOrder(order);
             
             RefreshData();
-            lblStatus.Text = $"✓ Yeni sipariş alındı: {order.OrderNumber}";
-            lblStatus.ForeColor = System.Drawing.Color.FromArgb(129, 199, 132);
+            
+            // MongoDB durumunu göster
+            string mongoStatus = _mongoDbConnected ? "✓ MongoDB'ye kaydedildi" : "⚠ MongoDB'ye kaydedilemedi (sadece bellek)";
+            lblStatus.Text = $"✓ Yeni sipariş alındı: {order.OrderNumber} - {mongoStatus}";
+            lblStatus.ForeColor = _mongoDbConnected ? System.Drawing.Color.FromArgb(129, 199, 132) : System.Drawing.Color.FromArgb(255, 193, 7);
             
             // Model setini belirle (ilk item'ın klasör adından)
             string modelSet = "Bilinmeyen";
@@ -899,17 +932,20 @@ namespace PrinterAutomation.Forms
 
             int totalQuantity = order.Items.Sum(item => item.Quantity);
 
-            XtraMessageBox.Show(
-                $"Yeni sipariş oluşturuldu!\n\n" +
+            string message = $"Yeni sipariş oluşturuldu!\n\n" +
                 $"Sipariş No: {order.OrderNumber}\n" +
                 $"Müşteri: {order.CustomerName}\n" +
                 $"Model Seti: {modelSet}\n" +
                 $"Model Dosyası Sayısı: {order.Items.Count}\n" +
                 $"Toplam Adet: {totalQuantity}\n" +
-                $"Toplam Fiyat: {order.TotalPrice:C2}",
+                $"Toplam Fiyat: {order.TotalPrice:C2}\n\n" +
+                $"{mongoStatus}";
+
+            XtraMessageBox.Show(
+                message,
                 "Sipariş Alındı",
                 System.Windows.Forms.MessageBoxButtons.OK,
-                System.Windows.Forms.MessageBoxIcon.Information);
+                _mongoDbConnected ? System.Windows.Forms.MessageBoxIcon.Information : System.Windows.Forms.MessageBoxIcon.Warning);
         }
 
         private void BtnAddPrinter_Click(object sender, EventArgs e)

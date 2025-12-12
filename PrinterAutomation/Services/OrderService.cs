@@ -4,13 +4,63 @@ using System.Linq;
 using PrinterAutomation.Models;
 using System.ComponentModel;
 using System.IO;
+using MongoDB.Driver;
 
 namespace PrinterAutomation.Services
 {
     public class OrderService
     {
         private readonly BindingList<Order> _orders = new BindingList<Order>();
+        private readonly MongoDbService _mongoDbService;
+        private readonly IMongoCollection<Order> _ordersCollection;
         private int _nextOrderId = 1;
+
+        public OrderService(MongoDbService mongoDbService = null)
+        {
+            _mongoDbService = mongoDbService;
+            System.Diagnostics.Debug.WriteLine($"[OrderService] Constructor çağrıldı. MongoDB servisi: {(_mongoDbService != null ? "MEVCUT" : "NULL")}");
+            
+            if (_mongoDbService != null)
+            {
+                try
+                {
+                    _ordersCollection = _mongoDbService.GetCollection<Order>("orders");
+                    System.Diagnostics.Debug.WriteLine($"[OrderService] Collection oluşturuldu: orders");
+                    System.Diagnostics.Debug.WriteLine($"[OrderService] Collection null mu? {(_ordersCollection == null ? "EVET" : "HAYIR")}");
+                    LoadOrdersFromDatabase();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[OrderService] Collection oluşturulurken hata: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"[OrderService] StackTrace: {ex.StackTrace}");
+                }
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine($"[OrderService] ⚠ MongoDB servisi NULL - veriler sadece bellekte tutulacak");
+            }
+        }
+
+        private void LoadOrdersFromDatabase()
+        {
+            try
+            {
+                var orders = _ordersCollection.Find(_ => true).ToList();
+                foreach (var order in orders)
+                {
+                    _orders.Add(order);
+                    if (order.Id >= _nextOrderId)
+                    {
+                        _nextOrderId = order.Id + 1;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MongoDB] Siparişler yüklenirken hata: {ex.Message}");
+                System.Console.WriteLine($"[MongoDB] Siparişler yüklenirken hata: {ex.Message}");
+            }
+        }
 
         public BindingList<Order> GetAllOrders() => _orders;
 
@@ -21,6 +71,8 @@ namespace PrinterAutomation.Services
 
         public Order CreateOrder(string orderNumber, string customerName, List<OrderItem> items)
         {
+            System.Diagnostics.Debug.WriteLine($"[OrderService] CreateOrder çağrıldı: {orderNumber}");
+            
             // Fiyatlandırma: Model setine göre fiyat belirle
             decimal totalPrice = 0;
             if (items.Count > 0)
@@ -45,6 +97,55 @@ namespace PrinterAutomation.Services
             };
 
             _orders.Add(order);
+            System.Diagnostics.Debug.WriteLine($"[OrderService] Sipariş belleğe eklendi: {order.OrderNumber} (ID: {order.Id})");
+            
+            // MongoDB'ye kaydet
+            bool savedToMongoDb = false;
+            string mongoError = null;
+            
+            if (_mongoDbService == null)
+            {
+                mongoError = "MongoDB servisi NULL";
+                System.Diagnostics.Debug.WriteLine($"[MongoDB] ⚠ {mongoError}");
+            }
+            else if (_ordersCollection == null)
+            {
+                mongoError = "Orders collection NULL";
+                System.Diagnostics.Debug.WriteLine($"[MongoDB] ⚠ {mongoError}");
+            }
+            else
+            {
+                try
+                {
+                    System.Diagnostics.Debug.WriteLine($"[MongoDB] Sipariş kaydediliyor: {order.OrderNumber} (ID: {order.Id})");
+                    _ordersCollection.InsertOne(order);
+                    savedToMongoDb = true;
+                    System.Diagnostics.Debug.WriteLine($"[MongoDB] ✓ Sipariş başarıyla kaydedildi: {order.OrderNumber} (ID: {order.Id})");
+                }
+                catch (Exception ex)
+                {
+                    savedToMongoDb = false;
+                    mongoError = ex.Message;
+                    System.Diagnostics.Debug.WriteLine($"[MongoDB] ✗ Sipariş kaydedilirken hata: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"[MongoDB] StackTrace: {ex.StackTrace}");
+                    
+                    // Hata mesajını kullanıcıya göster
+                    System.Windows.Forms.MessageBox.Show(
+                        $"MongoDB'ye sipariş kaydedilemedi!\n\nHata: {ex.Message}\n\nSipariş bellekte tutuluyor.",
+                        "MongoDB Kayıt Hatası",
+                        System.Windows.Forms.MessageBoxButtons.OK,
+                        System.Windows.Forms.MessageBoxIcon.Warning);
+                }
+            }
+            
+            if (!savedToMongoDb && mongoError != null)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MongoDB] ⚠ Sipariş MongoDB'ye kaydedilemedi: {mongoError}");
+            }
+            
+            // MongoDB kayıt durumunu order'a ekle (opsiyonel - reflection ile)
+            // Şimdilik sadece log olarak bırakıyoruz
+            
             return order;
         }
 
@@ -54,6 +155,22 @@ namespace PrinterAutomation.Services
             if (order != null)
             {
                 order.Status = status;
+                
+                // MongoDB'de güncelle
+                if (_mongoDbService != null)
+                {
+                    try
+                    {
+                        var filter = Builders<Order>.Filter.Eq(o => o.Id, orderId);
+                        var update = Builders<Order>.Update.Set(o => o.Status, status);
+                        _ordersCollection.UpdateOne(filter, update);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[MongoDB] Sipariş güncellenirken hata: {ex.Message}");
+                        System.Console.WriteLine($"[MongoDB] Sipariş güncellenirken hata: {ex.Message}");
+                    }
+                }
             }
         }
 

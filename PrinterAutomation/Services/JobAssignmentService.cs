@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using PrinterAutomation.Models;
 using System.ComponentModel;
+using MongoDB.Driver;
 
 namespace PrinterAutomation.Services
 {
@@ -10,6 +11,8 @@ namespace PrinterAutomation.Services
     {
         private readonly PrinterService _printerService;
         private readonly OrderService _orderService;
+        private readonly MongoDbService _mongoDbService;
+        private readonly IMongoCollection<PrintJob> _jobsCollection;
         private BindingList<PrintJob> _printJobs = new BindingList<PrintJob>();
         private int _nextJobId = 1;
         private System.Windows.Forms.Timer _progressTimer;
@@ -17,11 +20,42 @@ namespace PrinterAutomation.Services
         public event System.EventHandler<PrintJobEventArgs> JobAssigned;
         public event System.EventHandler<PrintJobEventArgs> JobCompleted;
 
-        public JobAssignmentService(PrinterService printerService, OrderService orderService)
+        public JobAssignmentService(PrinterService printerService, OrderService orderService, MongoDbService mongoDbService = null)
         {
             _printerService = printerService;
             _orderService = orderService;
+            _mongoDbService = mongoDbService;
+            
+            if (_mongoDbService != null)
+            {
+                _jobsCollection = _mongoDbService.GetCollection<PrintJob>("printJobs");
+                LoadJobsFromDatabase();
+            }
+            
             InitializeProgressTimer();
+        }
+
+        private void LoadJobsFromDatabase()
+        {
+            try
+            {
+                var jobs = _jobsCollection.Find(_ => true).ToList();
+                foreach (var job in jobs)
+                {
+                    _printJobs.Add(job);
+                    if (job.Id >= _nextJobId)
+                    {
+                        _nextJobId = job.Id + 1;
+                    }
+                }
+                System.Diagnostics.Debug.WriteLine($"[MongoDB] {jobs.Count} iş yüklendi");
+                System.Console.WriteLine($"[MongoDB] {jobs.Count} iş veritabanından yüklendi");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MongoDB] İşler yüklenirken hata: {ex.Message}");
+                System.Console.WriteLine($"[MongoDB] İşler yüklenirken hata: {ex.Message}");
+            }
         }
 
         private void InitializeProgressTimer()
@@ -49,6 +83,26 @@ namespace PrinterAutomation.Services
                         var progress = Math.Min(100, (elapsed.TotalSeconds / total.TotalSeconds) * 100);
                         job.Progress = progress;
                         _printerService.UpdateJobProgress(job.PrinterId, progress);
+                        
+                        // MongoDB'de ilerlemeyi güncelle (her %10 değişimde veya tamamlandığında)
+                        // Performans için sık güncelleme yapmıyoruz
+                        if (_mongoDbService != null && ((int)progress % 10 == 0 || progress >= 100))
+                        {
+                            try
+                            {
+                                var filter = Builders<PrintJob>.Filter.Eq(j => j.Id, job.Id);
+                                var update = Builders<PrintJob>.Update.Set(j => j.Progress, progress);
+                                var result = _jobsCollection.UpdateOne(filter, update);
+                                if (result.ModifiedCount > 0)
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"[MongoDB] İş #{job.Id} ilerlemesi güncellendi: %{progress:F1}");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[MongoDB] İş ilerlemesi güncellenirken hata: {ex.Message}");
+                            }
+                        }
 
                         if (progress >= 100)
                         {
@@ -91,6 +145,21 @@ namespace PrinterAutomation.Services
                     EstimatedTime = item.EstimatedTime
                 };
                 _printJobs.Add(queuedJob);
+                
+                // MongoDB'ye kaydet
+                if (_mongoDbService != null)
+                {
+                    try
+                    {
+                        _jobsCollection.InsertOne(queuedJob);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[MongoDB] İş kaydedilirken hata: {ex.Message}");
+                        System.Console.WriteLine($"[MongoDB] İş kaydedilirken hata: {ex.Message}");
+                    }
+                }
+                
                 return;
             }
 
@@ -111,6 +180,23 @@ namespace PrinterAutomation.Services
             };
 
             _printJobs.Add(job);
+            
+            // MongoDB'ye kaydet
+            if (_mongoDbService != null)
+            {
+                try
+                {
+                    _jobsCollection.InsertOne(job);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[MongoDB] İş kaydedilirken hata: {ex.Message}");
+                    System.Console.WriteLine($"[MongoDB] İş kaydedilirken hata: {ex.Message}");
+                }
+            }
+            
+            System.Diagnostics.Debug.WriteLine($"[MongoDB] İş kaydedildi: {job.ModelFileName} (ID: {job.Id})");
+            
             _printerService.AssignJobToPrinter(printer.Id, item.ModelFileName, item.EstimatedTime);
             
             if (JobAssigned != null)
@@ -131,6 +217,25 @@ namespace PrinterAutomation.Services
                     job.Status = JobStatus.Printing;
                     job.StartedAt = DateTime.Now;
 
+                    // MongoDB'de güncelle
+                    if (_mongoDbService != null)
+                    {
+                        try
+                        {
+                            var filter = Builders<PrintJob>.Filter.Eq(j => j.Id, job.Id);
+                            var update = Builders<PrintJob>.Update
+                                .Set(j => j.PrinterId, job.PrinterId)
+                                .Set(j => j.Status, job.Status)
+                                .Set(j => j.StartedAt, job.StartedAt);
+                            _jobsCollection.UpdateOne(filter, update);
+                        }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[MongoDB] İş güncellenirken hata: {ex.Message}");
+                        System.Console.WriteLine($"[MongoDB] İş güncellenirken hata: {ex.Message}");
+                    }
+                }
+
                     var order = _orderService.GetOrder(job.OrderId);
                     if (order != null)
                     {
@@ -140,7 +245,7 @@ namespace PrinterAutomation.Services
                             _printerService.AssignJobToPrinter(printer.Id, item.ModelFileName, item.EstimatedTime);
                             availablePrinters.Remove(printer);
                             if (JobAssigned != null)
-                JobAssigned(this, new PrintJobEventArgs(job));
+                                JobAssigned(this, new PrintJobEventArgs(job));
                         }
                     }
                 }
@@ -152,6 +257,27 @@ namespace PrinterAutomation.Services
             job.Status = JobStatus.Completed;
             job.CompletedAt = DateTime.Now;
             job.Progress = 100;
+            
+            // MongoDB'de güncelle
+            if (_mongoDbService != null)
+            {
+                try
+                {
+                    var filter = Builders<PrintJob>.Filter.Eq(j => j.Id, job.Id);
+                    var update = Builders<PrintJob>.Update
+                        .Set(j => j.Status, job.Status)
+                        .Set(j => j.CompletedAt, job.CompletedAt)
+                        .Set(j => j.Progress, job.Progress);
+                    _jobsCollection.UpdateOne(filter, update);
+                }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[MongoDB] İş tamamlama güncellenirken hata: {ex.Message}");
+                        System.Console.WriteLine($"[MongoDB] İş tamamlama güncellenirken hata: {ex.Message}");
+                    }
+                }
+                
+                System.Diagnostics.Debug.WriteLine($"[MongoDB] İş tamamlandı: Job #{job.Id}");
             
             _printerService.CompleteJob(job.PrinterId);
             
