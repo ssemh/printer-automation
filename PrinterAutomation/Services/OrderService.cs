@@ -64,7 +64,86 @@ namespace PrinterAutomation.Services
 
         public BindingList<Order> GetAllOrders() => _orders;
 
+        public int DeleteCompletedOrders()
+        {
+            int deletedCount = 0;
+            
+            try
+            {
+                var completedOrders = _orders.Where(o => o.Status == OrderStatus.Completed).ToList();
+                deletedCount = completedOrders.Count;
+                
+                foreach (var order in completedOrders)
+                {
+                    _orders.Remove(order);
+                    
+                    // MongoDB'den sil
+                    if (_mongoDbService != null && _ordersCollection != null)
+                    {
+                        try
+                        {
+                            var filter = Builders<Order>.Filter.Eq(o => o.Id, order.Id);
+                            _ordersCollection.DeleteOne(filter);
+                            System.Diagnostics.Debug.WriteLine($"[MongoDB] Tamamlanan sipariş silindi: Order #{order.Id} ({order.OrderNumber})");
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[MongoDB] Sipariş silinirken hata: {ex.Message}");
+                        }
+                    }
+                }
+                
+                System.Diagnostics.Debug.WriteLine($"[OrderService] {deletedCount} tamamlanan sipariş silindi");
+                System.Console.WriteLine($"[OrderService] {deletedCount} tamamlanan sipariş silindi");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[OrderService] Tamamlanan siparişler silinirken hata: {ex.Message}");
+                System.Console.WriteLine($"[OrderService] Tamamlanan siparişler silinirken hata: {ex.Message}");
+            }
+            
+            return deletedCount;
+        }
+
         public Order? GetOrder(int id) => _orders.FirstOrDefault(o => o.Id == id);
+
+        public bool DeleteOrder(int orderId)
+        {
+            try
+            {
+                var order = _orders.FirstOrDefault(o => o.Id == orderId);
+                if (order == null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[OrderService] Sipariş bulunamadı: {orderId}");
+                    return false;
+                }
+
+                _orders.Remove(order);
+
+                // MongoDB'den sil
+                if (_mongoDbService != null && _ordersCollection != null)
+                {
+                    try
+                    {
+                        var filter = Builders<Order>.Filter.Eq(o => o.Id, orderId);
+                        _ordersCollection.DeleteOne(filter);
+                        System.Diagnostics.Debug.WriteLine($"[MongoDB] Sipariş silindi: Order #{orderId} ({order.OrderNumber})");
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[MongoDB] Sipariş silinirken hata: {ex.Message}");
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[OrderService] Sipariş silindi: Order #{orderId}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[OrderService] Sipariş silinirken hata: {ex.Message}");
+                return false;
+            }
+        }
 
         public List<Order> GetPendingOrders() => 
             _orders.Where(o => o.Status == OrderStatus.Pending).ToList();
@@ -289,6 +368,3 @@ namespace PrinterAutomation.Services
         }
     }
 }
-
-
-

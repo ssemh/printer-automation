@@ -40,16 +40,88 @@ namespace PrinterAutomation.Services
             try
             {
                 var jobs = _jobsCollection.Find(_ => true).ToList();
+                int printingJobsCount = 0;
+                int completedJobsCount = 0;
+                int queuedJobsCount = 0;
+                
+                System.Diagnostics.Debug.WriteLine($"[MongoDB] Toplam {jobs.Count} iş bulundu, durumları kontrol ediliyor...");
+                
                 foreach (var job in jobs)
                 {
+                    System.Diagnostics.Debug.WriteLine($"[MongoDB] İş #{job.Id} - Durum: {job.Status}, Progress: {job.Progress}%");
+                    
+                    // Devam eden işleri (Printing) durdur - uygulama yeniden başlatıldığında
+                    // Tüm Printing durumundaki işleri Queued yap (progress ne olursa olsun)
+                    if (job.Status == JobStatus.Printing)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[MongoDB] Printing iş bulundu: Job #{job.Id}, Progress: {job.Progress}% -> Queued yapılıyor");
+                        
+                        // Tüm Printing işlerini Queued yap (devam ediyordu, durduruldu)
+                        job.Status = JobStatus.Queued;
+                        job.Progress = 0;
+                        job.StartedAt = null;
+                        printingJobsCount++;
+                        
+                        // Yazıcıyı Idle yap
+                        if (job.PrinterId > 0)
+                        {
+                            var printer = _printerService.GetPrinter(job.PrinterId);
+                            if (printer != null)
+                            {
+                                printer.Status = PrinterStatus.Idle;
+                                printer.CurrentJobName = null;
+                                printer.JobStartTime = null;
+                                printer.JobEndTime = null;
+                                printer.Progress = 0;
+                                System.Diagnostics.Debug.WriteLine($"[MongoDB] Yazıcı #{printer.Id} Idle durumuna getirildi");
+                            }
+                        }
+                        
+                        // MongoDB'de güncelle
+                        if (_mongoDbService != null)
+                        {
+                            try
+                            {
+                                var filter = Builders<PrintJob>.Filter.Eq(j => j.Id, job.Id);
+                                var update = Builders<PrintJob>.Update
+                                    .Set(j => j.Status, JobStatus.Queued)
+                                    .Set(j => j.Progress, 0)
+                                    .Set(j => j.StartedAt, (DateTime?)null);
+                                var result = _jobsCollection.UpdateOne(filter, update);
+                                if (result.ModifiedCount > 0)
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"[MongoDB] ✓ İş durduruldu: Job #{job.Id} (Printing -> Queued)");
+                                }
+                                else
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"[MongoDB] ⚠ İş durdurulurken MongoDB güncellemesi başarısız: Job #{job.Id}");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[MongoDB] ✗ İş durdurulurken hata: {ex.Message}");
+                            }
+                        }
+                    }
+                    else if (job.Status == JobStatus.Completed)
+                    {
+                        completedJobsCount++;
+                        System.Diagnostics.Debug.WriteLine($"[MongoDB] Completed iş: Job #{job.Id} (zaten tamamlanmış)");
+                    }
+                    else if (job.Status == JobStatus.Queued)
+                    {
+                        queuedJobsCount++;
+                    }
+                    
                     _printJobs.Add(job);
                     if (job.Id >= _nextJobId)
                     {
                         _nextJobId = job.Id + 1;
                     }
                 }
-                System.Diagnostics.Debug.WriteLine($"[MongoDB] {jobs.Count} iş yüklendi");
-                System.Console.WriteLine($"[MongoDB] {jobs.Count} iş veritabanından yüklendi");
+                
+                System.Diagnostics.Debug.WriteLine($"[MongoDB] Özet: {jobs.Count} iş yüklendi - {printingJobsCount} Printing->Queued, {queuedJobsCount} Queued, {completedJobsCount} Completed");
+                System.Console.WriteLine($"[MongoDB] {jobs.Count} iş veritabanından yüklendi ({printingJobsCount} devam eden iş durduruldu)");
             }
             catch (Exception ex)
             {
@@ -63,7 +135,10 @@ namespace PrinterAutomation.Services
             _progressTimer = new System.Windows.Forms.Timer();
             _progressTimer.Interval = 1000; // Her saniye güncelle
             _progressTimer.Tick += ProgressTimer_Tick;
+            // Timer'ı başlatmadan önce biraz bekle (yükleme işlemlerinin tamamlanması için)
+            System.Threading.Thread.Sleep(100);
             _progressTimer.Start();
+            System.Diagnostics.Debug.WriteLine($"[MongoDB] ProgressTimer başlatıldı");
         }
 
         private void ProgressTimer_Tick(object sender, EventArgs e)
@@ -73,7 +148,37 @@ namespace PrinterAutomation.Services
             foreach (var job in activeJobs)
             {
                 var printer = _printerService.GetPrinter(job.PrinterId);
-                if (printer != null && printer.JobEndTime.HasValue && printer.JobStartTime.HasValue)
+                
+                // Eğer yazıcı yoksa veya Printing durumunda değilse, işi Queued yap
+                if (printer == null || printer.Status != PrinterStatus.Printing)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[MongoDB] ⚠ İş #{job.Id} Printing durumunda ama yazıcı aktif değil -> Queued yapılıyor");
+                    job.Status = JobStatus.Queued;
+                    job.Progress = 0;
+                    job.StartedAt = null;
+                    
+                    // MongoDB'de güncelle
+                    if (_mongoDbService != null)
+                    {
+                        try
+                        {
+                            var filter = Builders<PrintJob>.Filter.Eq(j => j.Id, job.Id);
+                            var update = Builders<PrintJob>.Update
+                                .Set(j => j.Status, JobStatus.Queued)
+                                .Set(j => j.Progress, 0)
+                                .Set(j => j.StartedAt, (DateTime?)null);
+                            _jobsCollection.UpdateOne(filter, update);
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[MongoDB] İş durumu düzeltilirken hata: {ex.Message}");
+                        }
+                    }
+                    continue;
+                }
+                
+                // Sadece gerçekten aktif bir yazıcıya atanmış ve zamanları olan işleri işle
+                if (printer.JobEndTime.HasValue && printer.JobStartTime.HasValue)
                 {
                     var elapsed = DateTime.Now - printer.JobStartTime.Value;
                     var total = printer.JobEndTime.Value - printer.JobStartTime.Value;
@@ -301,6 +406,92 @@ namespace PrinterAutomation.Services
 
         public BindingList<PrintJob> GetAllJobs() => _printJobs;
         public List<PrintJob> GetActiveJobs() => _printJobs.Where(j => j.Status == JobStatus.Printing || j.Status == JobStatus.Queued).ToList();
+
+        public int DeleteCompletedJobs()
+        {
+            int deletedCount = 0;
+            
+            try
+            {
+                var completedJobs = _printJobs.Where(j => j.Status == JobStatus.Completed).ToList();
+                deletedCount = completedJobs.Count;
+                
+                foreach (var job in completedJobs)
+                {
+                    _printJobs.Remove(job);
+                    
+                    // MongoDB'den sil
+                    if (_mongoDbService != null && _jobsCollection != null)
+                    {
+                        try
+                        {
+                            var filter = Builders<PrintJob>.Filter.Eq(j => j.Id, job.Id);
+                            _jobsCollection.DeleteOne(filter);
+                            System.Diagnostics.Debug.WriteLine($"[MongoDB] Tamamlanan iş silindi: Job #{job.Id}");
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[MongoDB] İş silinirken hata: {ex.Message}");
+                        }
+                    }
+                }
+                
+                System.Diagnostics.Debug.WriteLine($"[JobAssignmentService] {deletedCount} tamamlanan iş silindi");
+                System.Console.WriteLine($"[JobAssignmentService] {deletedCount} tamamlanan iş silindi");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[JobAssignmentService] Tamamlanan işler silinirken hata: {ex.Message}");
+                System.Console.WriteLine($"[JobAssignmentService] Tamamlanan işler silinirken hata: {ex.Message}");
+            }
+            
+            return deletedCount;
+        }
+
+        public bool DeleteJob(int jobId)
+        {
+            try
+            {
+                var job = _printJobs.FirstOrDefault(j => j.Id == jobId);
+                if (job == null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[JobAssignmentService] İş bulunamadı: {jobId}");
+                    return false;
+                }
+
+                // Sadece tamamlanan işler silinebilir
+                if (job.Status != JobStatus.Completed)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[JobAssignmentService] Sadece tamamlanan işler silinebilir: Job #{jobId} (Durum: {job.Status})");
+                    return false;
+                }
+
+                _printJobs.Remove(job);
+
+                // MongoDB'den sil
+                if (_mongoDbService != null && _jobsCollection != null)
+                {
+                    try
+                    {
+                        var filter = Builders<PrintJob>.Filter.Eq(j => j.Id, jobId);
+                        _jobsCollection.DeleteOne(filter);
+                        System.Diagnostics.Debug.WriteLine($"[MongoDB] İş silindi: Job #{jobId}");
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[MongoDB] İş silinirken hata: {ex.Message}");
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[JobAssignmentService] İş silindi: Job #{jobId}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[JobAssignmentService] İş silinirken hata: {ex.Message}");
+                return false;
+            }
+        }
     }
 
     public class PrintJobEventArgs : System.EventArgs

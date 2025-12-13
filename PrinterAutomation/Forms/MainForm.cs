@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Windows.Forms;
 using System.Configuration;
@@ -9,6 +9,7 @@ using DevExpress.XtraGrid.Columns;
 using DevExpress.LookAndFeel;
 using DevExpress.Skins;
 using DevExpress.XtraEditors.Controls;
+using DevExpress.XtraEditors.Repository;
 using DevExpress.Utils;
 using PrinterAutomation.Models;
 using PrinterAutomation.Services;
@@ -39,6 +40,8 @@ namespace PrinterAutomation.Forms
         private SimpleButton btnSimulateOrder;
         private SimpleButton btnToggleTheme;
         private SimpleButton btnAddPrinter;
+        private SimpleButton btnDeleteCompletedOrders;
+        private SimpleButton btnDeleteCompletedJobs;
         private LabelControl lblStatus;
         private LabelControl lblTitle;
         private LabelControl lblPrinters;
@@ -62,11 +65,10 @@ namespace PrinterAutomation.Forms
             // ÖNCE InitializeComponent çağrılmalı ki MessageBox çalışsın
             InitializeComponent();
             
-            // MongoDB servisini başlat - BASIT TEST
+            // MongoDB servisini başlat
             MongoDbService mongoDbService = null;
             bool mongoDbConnected = false;
             
-            try { mongoDbService = new MongoDbService(); mongoDbConnected = mongoDbService.IsConnected(); } catch (Exception ex) { mongoDbConnected = false; System.Diagnostics.Debug.WriteLine($"[MainForm] MongoDB bağlantı hatası: {ex.Message}"); }
             try
             {
                 mongoDbService = new MongoDbService();
@@ -228,6 +230,7 @@ namespace PrinterAutomation.Forms
             btnAddPrinter.Location = new System.Drawing.Point(btnToggleTheme.Left - btnAddPrinter.Width - 10, 20);
             btnSimulateOrder.Location = new System.Drawing.Point(btnAddPrinter.Left - btnSimulateOrder.Width - 10, 20);
 
+
             // Printers Grid Başlık Panel
             printersHeaderPanel = new System.Windows.Forms.Panel
             {
@@ -327,11 +330,38 @@ namespace PrinterAutomation.Forms
             {
                 Text = "📦 SİPARİŞLER",
                 Location = new System.Drawing.Point(10, 5),
-                Size = new System.Drawing.Size(430, 25),
+                Size = new System.Drawing.Size(150, 25),
                 Font = new System.Drawing.Font("Segoe UI", 13F, System.Drawing.FontStyle.Bold),
                 ForeColor = System.Drawing.Color.White
             };
             ordersHeaderPanel.Controls.Add(lblOrders);
+            
+            // Tamamlananları Sil butonunu siparişler başlık paneline ekle
+            btnDeleteCompletedOrders = new SimpleButton
+            {
+                Text = "🗑️ Tamamlananları Sil",
+                Size = new System.Drawing.Size(200, 28),
+                Location = new System.Drawing.Point(250, 3),
+                Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold),
+                Visible = true,
+                Enabled = true
+            };
+            btnDeleteCompletedOrders.Appearance.BackColor = System.Drawing.Color.FromArgb(244, 67, 54);
+            btnDeleteCompletedOrders.Appearance.ForeColor = System.Drawing.Color.White;
+            btnDeleteCompletedOrders.Appearance.BorderColor = System.Drawing.Color.FromArgb(211, 47, 47);
+            btnDeleteCompletedOrders.Appearance.Options.UseBackColor = true;
+            btnDeleteCompletedOrders.Appearance.Options.UseForeColor = true;
+            btnDeleteCompletedOrders.Appearance.Options.UseBorderColor = true;
+            btnDeleteCompletedOrders.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(229, 57, 53);
+            btnDeleteCompletedOrders.AppearanceHovered.Options.UseBackColor = true;
+            btnDeleteCompletedOrders.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(198, 40, 40);
+            btnDeleteCompletedOrders.AppearancePressed.Options.UseBackColor = true;
+            btnDeleteCompletedOrders.LookAndFeel.UseDefaultLookAndFeel = false;
+            btnDeleteCompletedOrders.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+            btnDeleteCompletedOrders.Click += BtnDeleteCompletedOrders_Click;
+            ordersHeaderPanel.Controls.Add(btnDeleteCompletedOrders);
+            btnDeleteCompletedOrders.BringToFront();
+
 
             // Orders Grid
             try
@@ -397,6 +427,29 @@ namespace PrinterAutomation.Forms
                 ForeColor = System.Drawing.Color.White
             };
             jobsHeaderPanel.Controls.Add(lblJobs);
+
+            // Tamamlananları Sil butonunu yazdırma işleri başlık paneline ekle
+            btnDeleteCompletedJobs = new SimpleButton
+            {
+                Text = "🗑️ Tamamlananları Sil",
+                Size = new System.Drawing.Size(180, 25),
+                Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right
+            };
+            btnDeleteCompletedJobs.Appearance.BackColor = System.Drawing.Color.FromArgb(244, 67, 54);
+            btnDeleteCompletedJobs.Appearance.ForeColor = System.Drawing.Color.White;
+            btnDeleteCompletedJobs.Appearance.BorderColor = System.Drawing.Color.FromArgb(211, 47, 47);
+            btnDeleteCompletedJobs.Appearance.Options.UseBackColor = true;
+            btnDeleteCompletedJobs.Appearance.Options.UseForeColor = true;
+            btnDeleteCompletedJobs.Appearance.Options.UseBorderColor = true;
+            btnDeleteCompletedJobs.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(229, 57, 53);
+            btnDeleteCompletedJobs.AppearanceHovered.Options.UseBackColor = true;
+            btnDeleteCompletedJobs.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(198, 40, 40);
+            btnDeleteCompletedJobs.AppearancePressed.Options.UseBackColor = true;
+            btnDeleteCompletedJobs.LookAndFeel.UseDefaultLookAndFeel = false;
+            btnDeleteCompletedJobs.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+            btnDeleteCompletedJobs.Click += BtnDeleteCompletedJobs_Click;
+            jobsHeaderPanel.Controls.Add(btnDeleteCompletedJobs);
+            btnDeleteCompletedJobs.BringToFront();
 
             // Jobs Grid
             try
@@ -690,6 +743,32 @@ namespace PrinterAutomation.Forms
             colTotalPrice.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colTotalPrice.AppearanceCell.Options.UseForeColor = true;
 
+            // Silme sütunu ekle (unbound column)
+            GridColumn colDelete = new GridColumn();
+            colDelete.FieldName = "DeleteAction";
+            colDelete.Caption = "İşlem";
+            colDelete.VisibleIndex = 6;
+            colDelete.Width = 80;
+            colDelete.UnboundType = DevExpress.Data.UnboundColumnType.String;
+            colDelete.OptionsColumn.AllowEdit = false;
+            colDelete.OptionsColumn.ReadOnly = true;
+            colDelete.OptionsColumn.AllowSort = DevExpress.Utils.DefaultBoolean.False;
+            colDelete.OptionsColumn.AllowGroup = DevExpress.Utils.DefaultBoolean.False;
+            colDelete.OptionsFilter.AllowFilter = false;
+            colDelete.Visible = true;
+            colDelete.AppearanceCell.ForeColor = System.Drawing.Color.Black;
+            colDelete.AppearanceCell.Options.UseForeColor = true;
+            colDelete.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+            gridViewOrders.Columns.Add(colDelete);
+            
+            // Unbound column için veri sağlama
+            gridViewOrders.CustomUnboundColumnData += GridViewOrders_CustomUnboundColumnData;
+            
+            // Silme butonu tıklama olayı
+            gridViewOrders.MouseDown += GridViewOrders_MouseDown;
+            
+            System.Diagnostics.Debug.WriteLine($"[MainForm] Silme sütunu eklendi. Toplam sütun sayısı: {gridViewOrders.Columns.Count}");
+
             gridViewOrders.OptionsView.ShowGroupPanel = false;
             gridViewOrders.OptionsView.ShowIndicator = true;
             gridViewOrders.OptionsView.ColumnAutoWidth = false;
@@ -740,6 +819,30 @@ namespace PrinterAutomation.Forms
             colMaterial.Width = 80;
             colMaterial.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colMaterial.AppearanceCell.Options.UseForeColor = true;
+
+            // Silme sütunu ekle (unbound column)
+            GridColumn colJobDelete = new GridColumn();
+            colJobDelete.FieldName = "DeleteAction";
+            colJobDelete.Caption = "İşlem";
+            colJobDelete.VisibleIndex = 6;
+            colJobDelete.Width = 80;
+            colJobDelete.UnboundType = DevExpress.Data.UnboundColumnType.String;
+            colJobDelete.OptionsColumn.AllowEdit = false;
+            colJobDelete.OptionsColumn.ReadOnly = true;
+            colJobDelete.OptionsColumn.AllowSort = DevExpress.Utils.DefaultBoolean.False;
+            colJobDelete.OptionsColumn.AllowGroup = DevExpress.Utils.DefaultBoolean.False;
+            colJobDelete.OptionsFilter.AllowFilter = false;
+            colJobDelete.Visible = true;
+            colJobDelete.AppearanceCell.ForeColor = System.Drawing.Color.Black;
+            colJobDelete.AppearanceCell.Options.UseForeColor = true;
+            colJobDelete.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+            gridViewJobs.Columns.Add(colJobDelete);
+            
+            // Unbound column için veri sağlama
+            gridViewJobs.CustomUnboundColumnData += GridViewJobs_CustomUnboundColumnData;
+            
+            // Silme butonu tıklama olayı
+            gridViewJobs.MouseDown += GridViewJobs_MouseDown;
 
             gridViewJobs.OptionsView.ShowGroupPanel = false;
             gridViewJobs.OptionsView.ShowIndicator = true;
@@ -808,6 +911,15 @@ namespace PrinterAutomation.Forms
             {
                 gridViewOrders.BeginUpdate();
                 gridControlOrders.DataSource = _orderService.GetAllOrders();
+                
+                // Silme sütununun görünür olduğundan emin ol
+                var deleteColumn = gridViewOrders.Columns["DeleteAction"];
+                if (deleteColumn != null)
+                {
+                    deleteColumn.Visible = true;
+                    deleteColumn.VisibleIndex = 6;
+                    System.Diagnostics.Debug.WriteLine($"[MainForm] Silme sütunu görünür: {deleteColumn.Visible}, VisibleIndex: {deleteColumn.VisibleIndex}");
+                }
                 // Tema renklerini uygula
                 if (_currentTheme == ThemeMode.Dark)
                 {
@@ -1121,6 +1233,120 @@ namespace PrinterAutomation.Forms
             ApplyTheme();
         }
 
+        private void BtnDeleteCompletedOrders_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Tamamlanan sipariş sayısını kontrol et
+                var completedOrders = _orderService.GetAllOrders().Where(o => o.Status == OrderStatus.Completed).ToList();
+                int completedCount = completedOrders.Count;
+                
+                if (completedCount == 0)
+                {
+                    XtraMessageBox.Show(
+                        "Tamamlanan sipariş bulunmuyor.",
+                        "Bilgi",
+                        System.Windows.Forms.MessageBoxButtons.OK,
+                        System.Windows.Forms.MessageBoxIcon.Information);
+                    return;
+                }
+                
+                // Onay mesajı
+                var result = XtraMessageBox.Show(
+                    $"{completedCount} adet tamamlanan sipariş silinecek.\n\nBu işlem geri alınamaz. Devam etmek istiyor musunuz?",
+                    "Tamamlanan Siparişleri Sil",
+                    System.Windows.Forms.MessageBoxButtons.YesNo,
+                    System.Windows.Forms.MessageBoxIcon.Warning);
+                
+                if (result == System.Windows.Forms.DialogResult.Yes)
+                {
+                    // Siparişleri sil
+                    int deletedCount = _orderService.DeleteCompletedOrders();
+                    
+                    // Verileri yenile
+                    RefreshData();
+                    
+                    // Başarı mesajı
+                    XtraMessageBox.Show(
+                        $"{deletedCount} adet tamamlanan sipariş başarıyla silindi.",
+                        "Başarılı",
+                        System.Windows.Forms.MessageBoxButtons.OK,
+                        System.Windows.Forms.MessageBoxIcon.Information);
+                    
+                    // MongoDB durumunu göster
+                    string mongoStatus = _mongoDbConnected ? "✓ MongoDB'den de silindi" : "⚠ Sadece bellekten silindi";
+                    lblStatus.Text = $"✓ {deletedCount} tamamlanan sipariş silindi - {mongoStatus}";
+                    lblStatus.ForeColor = _mongoDbConnected ? System.Drawing.Color.FromArgb(129, 199, 132) : System.Drawing.Color.FromArgb(255, 193, 7);
+                }
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show(
+                    $"Siparişler silinirken bir hata oluştu:\n\n{ex.Message}",
+                    "Hata",
+                    System.Windows.Forms.MessageBoxButtons.OK,
+                    System.Windows.Forms.MessageBoxIcon.Error);
+                
+                System.Diagnostics.Debug.WriteLine($"[MainForm] Siparişler silinirken hata: {ex.Message}");
+            }
+        }
+
+        private void BtnDeleteCompletedJobs_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Tamamlanan iş sayısını kontrol et
+                var completedJobs = _jobAssignmentService.GetAllJobs().Where(j => j.Status == JobStatus.Completed).ToList();
+                int completedCount = completedJobs.Count;
+                
+                if (completedCount == 0)
+                {
+                    XtraMessageBox.Show(
+                        "Tamamlanan iş bulunmuyor.",
+                        "Bilgi",
+                        System.Windows.Forms.MessageBoxButtons.OK,
+                        System.Windows.Forms.MessageBoxIcon.Information);
+                    return;
+                }
+                
+                // Onay mesajı
+                var result = XtraMessageBox.Show(
+                    $"{completedCount} adet tamamlanan iş silinecek.\n\nBu işlem geri alınamaz. Devam etmek istiyor musunuz?",
+                    "Tamamlanan İşleri Sil",
+                    System.Windows.Forms.MessageBoxButtons.YesNo,
+                    System.Windows.Forms.MessageBoxIcon.Warning);
+                
+                if (result == System.Windows.Forms.DialogResult.Yes)
+                {
+                    // İşleri sil
+                    int deletedCount = _jobAssignmentService.DeleteCompletedJobs();
+                    
+                    // Verileri yenile
+                    RefreshData();
+                    
+                    // Başarı mesajı
+                    XtraMessageBox.Show(
+                        $"{deletedCount} adet tamamlanan iş başarıyla silindi.",
+                        "Başarılı",
+                        System.Windows.Forms.MessageBoxButtons.OK,
+                        System.Windows.Forms.MessageBoxIcon.Information);
+                    
+                    // MongoDB durumunu göster
+                    string mongoStatus = _mongoDbConnected ? "✓ MongoDB'den de silindi" : "⚠ Sadece bellekten silindi";
+                    lblStatus.Text = $"✓ {deletedCount} tamamlanan iş silindi - {mongoStatus}";
+                    lblStatus.ForeColor = _mongoDbConnected ? System.Drawing.Color.FromArgb(129, 199, 132) : System.Drawing.Color.FromArgb(255, 193, 7);
+                }
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show(
+                    $"Tamamlanan işler silinirken hata oluştu:\n{ex.Message}",
+                    "Hata",
+                    System.Windows.Forms.MessageBoxButtons.OK,
+                    System.Windows.Forms.MessageBoxIcon.Error);
+            }
+        }
+
         private void ApplyTheme()
         {
             if (_currentTheme == ThemeMode.Dark)
@@ -1159,6 +1385,22 @@ namespace PrinterAutomation.Forms
             {
                 btnAddPrinter.Appearance.BackColor = System.Drawing.Color.FromArgb(40, 120, 200);
                 btnAddPrinter.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(50, 130, 210);
+            }
+
+            // Tamamlanan siparişleri sil butonu (koyu tema)
+            if (btnDeleteCompletedOrders != null)
+            {
+                btnDeleteCompletedOrders.Appearance.BackColor = System.Drawing.Color.FromArgb(200, 50, 50);
+                btnDeleteCompletedOrders.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(220, 60, 60);
+                btnDeleteCompletedOrders.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(180, 40, 40);
+            }
+
+            // Tamamlanan işleri sil butonu (koyu tema)
+            if (btnDeleteCompletedJobs != null)
+            {
+                btnDeleteCompletedJobs.Appearance.BackColor = System.Drawing.Color.FromArgb(200, 50, 50);
+                btnDeleteCompletedJobs.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(220, 60, 60);
+                btnDeleteCompletedJobs.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(180, 40, 40);
             }
 
             // Header panelleri (daha koyu tonlar)
@@ -1234,6 +1476,22 @@ namespace PrinterAutomation.Forms
             {
                 btnAddPrinter.Appearance.BackColor = System.Drawing.Color.FromArgb(33, 150, 243);
                 btnAddPrinter.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(30, 136, 229);
+            }
+
+            // Tamamlanan siparişleri sil butonu (açık tema)
+            if (btnDeleteCompletedOrders != null)
+            {
+                btnDeleteCompletedOrders.Appearance.BackColor = System.Drawing.Color.FromArgb(244, 67, 54);
+                btnDeleteCompletedOrders.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(229, 57, 53);
+                btnDeleteCompletedOrders.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(198, 40, 40);
+            }
+
+            // Tamamlanan işleri sil butonu (açık tema)
+            if (btnDeleteCompletedJobs != null)
+            {
+                btnDeleteCompletedJobs.Appearance.BackColor = System.Drawing.Color.FromArgb(244, 67, 54);
+                btnDeleteCompletedJobs.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(229, 57, 53);
+                btnDeleteCompletedJobs.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(198, 40, 40);
             }
 
             // Header panelleri
@@ -1912,6 +2170,153 @@ namespace PrinterAutomation.Forms
             e.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F);
         }
 
+        private void GridViewOrders_CustomUnboundColumnData(object sender, DevExpress.XtraGrid.Views.Base.CustomColumnDataEventArgs e)
+        {
+            if (e.Column != null && e.Column.FieldName == "DeleteAction")
+            {
+                if (e.IsGetData)
+                {
+                    var order = e.Row as Order;
+                    // Sadece tamamlanan siparişler için silme butonu göster
+                    if (order != null && order.Status == OrderStatus.Completed)
+                    {
+                        e.Value = "🗑️ Sil";
+                    }
+                    else
+                    {
+                        e.Value = string.Empty;
+                    }
+                }
+            }
+        }
+
+        private void GridViewOrders_MouseDown(object sender, System.Windows.Forms.MouseEventArgs e)
+        {
+            var view = sender as GridView;
+            if (view == null) return;
+
+            var hitInfo = view.CalcHitInfo(e.Location);
+            if (hitInfo.InRowCell && hitInfo.Column != null && hitInfo.Column.FieldName == "DeleteAction")
+            {
+                var order = view.GetRow(hitInfo.RowHandle) as Order;
+                if (order != null)
+                {
+                    // Sadece tamamlanan siparişler silinebilir
+                    if (order.Status != OrderStatus.Completed)
+                    {
+                        XtraMessageBox.Show(
+                            "Sadece tamamlanan siparişler silinebilir.",
+                            "Bilgi",
+                            System.Windows.Forms.MessageBoxButtons.OK,
+                            System.Windows.Forms.MessageBoxIcon.Information);
+                        return;
+                    }
+
+                    var result = XtraMessageBox.Show(
+                        $"Tamamlanan sipariş #{order.OrderNumber} silinecek.\n\nBu işlem geri alınamaz. Devam etmek istiyor musunuz?",
+                        "Siparişi Sil",
+                        System.Windows.Forms.MessageBoxButtons.YesNo,
+                        System.Windows.Forms.MessageBoxIcon.Warning);
+                    
+                    if (result == System.Windows.Forms.DialogResult.Yes)
+                    {
+                        bool deleted = _orderService.DeleteOrder(order.Id);
+                        if (deleted)
+                        {
+                            RefreshData();
+                            XtraMessageBox.Show(
+                                "Sipariş başarıyla silindi.",
+                                "Başarılı",
+                                System.Windows.Forms.MessageBoxButtons.OK,
+                                System.Windows.Forms.MessageBoxIcon.Information);
+                        }
+                        else
+                        {
+                            XtraMessageBox.Show(
+                                "Sipariş silinirken bir hata oluştu.",
+                                "Hata",
+                                System.Windows.Forms.MessageBoxButtons.OK,
+                                System.Windows.Forms.MessageBoxIcon.Error);
+                        }
+                    }
+                }
+            }
+        }
+
+        private void GridViewJobs_CustomUnboundColumnData(object sender, DevExpress.XtraGrid.Views.Base.CustomColumnDataEventArgs e)
+        {
+            if (e.Column != null && e.Column.FieldName == "DeleteAction")
+            {
+                if (e.IsGetData)
+                {
+                    var job = e.Row as PrintJob;
+                    // Sadece tamamlanan işler için silme butonu göster
+                    if (job != null && job.Status == JobStatus.Completed)
+                    {
+                        e.Value = "🗑️ Sil";
+                    }
+                    else
+                    {
+                        e.Value = string.Empty;
+                    }
+                }
+            }
+        }
+
+        private void GridViewJobs_MouseDown(object sender, System.Windows.Forms.MouseEventArgs e)
+        {
+            var view = sender as GridView;
+            if (view == null) return;
+
+            var hitInfo = view.CalcHitInfo(e.Location);
+            if (hitInfo.InRowCell && hitInfo.Column != null && hitInfo.Column.FieldName == "DeleteAction")
+            {
+                var job = view.GetRow(hitInfo.RowHandle) as PrintJob;
+                if (job != null)
+                {
+                    // Sadece tamamlanan işler silinebilir
+                    if (job.Status != JobStatus.Completed)
+                    {
+                        XtraMessageBox.Show(
+                            "Sadece tamamlanan işler silinebilir.",
+                            "Bilgi",
+                            System.Windows.Forms.MessageBoxButtons.OK,
+                            System.Windows.Forms.MessageBoxIcon.Information);
+                        return;
+                    }
+
+                    var result = XtraMessageBox.Show(
+                        $"Tamamlanan iş #{job.Id} silinecek.\n\nBu işlem geri alınamaz. Devam etmek istiyor musunuz?",
+                        "İşi Sil",
+                        System.Windows.Forms.MessageBoxButtons.YesNo,
+                        System.Windows.Forms.MessageBoxIcon.Warning);
+                    
+                    if (result == System.Windows.Forms.DialogResult.Yes)
+                    {
+                        bool deleted = _jobAssignmentService.DeleteJob(job.Id);
+                        if (deleted)
+                        {
+                            RefreshData();
+                            XtraMessageBox.Show(
+                                "İş başarıyla silindi.",
+                                "Başarılı",
+                                System.Windows.Forms.MessageBoxButtons.OK,
+                                System.Windows.Forms.MessageBoxIcon.Information);
+                        }
+                        else
+                        {
+                            XtraMessageBox.Show(
+                                "İş silinirken bir hata oluştu.",
+                                "Hata",
+                                System.Windows.Forms.MessageBoxButtons.OK,
+                                System.Windows.Forms.MessageBoxIcon.Error);
+                        }
+                    }
+                }
+            }
+        }
+
+
         private void GridViewJobs_RowCellStyle(object sender, DevExpress.XtraGrid.Views.Grid.RowCellStyleEventArgs e)
         {
             if (_currentTheme == ThemeMode.Dark)
@@ -2209,6 +2614,21 @@ namespace PrinterAutomation.Forms
                 btnAddPrinter.Left = btnToggleTheme.Left - btnAddPrinter.Width - 10;
                 btnSimulateOrder.Left = btnAddPrinter.Left - btnSimulateOrder.Width - 10;
             }
+            
+            // Tamamlanan siparişleri sil butonunu siparişler başlık panelinde güncelle
+            if (btnDeleteCompletedOrders != null && ordersHeaderPanel != null)
+            {
+                btnDeleteCompletedOrders.Left = ordersHeaderPanel.Width - btnDeleteCompletedOrders.Width - 10;
+                btnDeleteCompletedOrders.Top = 3;
+                btnDeleteCompletedOrders.Visible = true;
+                
+                if (btnDeleteCompletedJobs != null && jobsHeaderPanel != null)
+                {
+                    btnDeleteCompletedJobs.Left = jobsHeaderPanel.Width - btnDeleteCompletedJobs.Width - 10;
+                    btnDeleteCompletedJobs.Top = 3;
+                    btnDeleteCompletedJobs.Visible = true;
+                }
+            }
 
             // İstatistikler panelini bul
             var statsPanel = this.Controls.OfType<System.Windows.Forms.Panel>()
@@ -2237,12 +2657,24 @@ namespace PrinterAutomation.Forms
                 {
                     ordersHeaderPanel.Left = gridControlOrders.Left;
                     ordersHeaderPanel.Width = gridControlOrders.Width;
+                    
+                    // Tamamlananları sil butonunu güncelle
+                    if (btnDeleteCompletedOrders != null)
+                    {
+                        btnDeleteCompletedOrders.Left = ordersHeaderPanel.Width - btnDeleteCompletedOrders.Width - 10;
+                    }
                 }
 
                 if (jobsHeaderPanel != null)
                 {
                     jobsHeaderPanel.Left = gridControlJobs.Left;
                     jobsHeaderPanel.Width = gridControlJobs.Width;
+                    
+                    // Tamamlananları sil butonunu güncelle
+                    if (btnDeleteCompletedJobs != null)
+                    {
+                        btnDeleteCompletedJobs.Left = jobsHeaderPanel.Width - btnDeleteCompletedJobs.Width - 10;
+                    }
                 }
             }
 
