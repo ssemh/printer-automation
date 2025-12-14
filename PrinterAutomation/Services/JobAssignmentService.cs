@@ -51,14 +51,15 @@ namespace PrinterAutomation.Services
                     System.Diagnostics.Debug.WriteLine($"[MongoDB] İş #{job.Id} - Durum: {job.Status}, Progress: {job.Progress}%");
                     
                     // Devam eden işleri (Printing) durdur - uygulama yeniden başlatıldığında
-                    // Tüm Printing durumundaki işleri Queued yap (progress ne olursa olsun)
+                    // Tüm Printing durumundaki işleri Queued yap ama Progress'i koru
                     if (job.Status == JobStatus.Printing)
                     {
-                        System.Diagnostics.Debug.WriteLine($"[MongoDB] Printing iş bulundu: Job #{job.Id}, Progress: {job.Progress}% -> Queued yapılıyor");
+                        var savedProgress = job.Progress; // İlerlemeyi koru
+                        System.Diagnostics.Debug.WriteLine($"[MongoDB] Printing iş bulundu: Job #{job.Id}, Progress: {job.Progress}% -> Queued yapılıyor (Progress korunuyor)");
                         
-                        // Tüm Printing işlerini Queued yap (devam ediyordu, durduruldu)
+                        // Tüm Printing işlerini Queued yap ama Progress'i koru
                         job.Status = JobStatus.Queued;
-                        job.Progress = 0;
+                        job.Progress = savedProgress; // İlerlemeyi koru
                         job.StartedAt = null;
                         printingJobsCount++;
                         
@@ -72,12 +73,12 @@ namespace PrinterAutomation.Services
                                 printer.CurrentJobName = null;
                                 printer.JobStartTime = null;
                                 printer.JobEndTime = null;
-                                printer.Progress = 0;
+                                printer.Progress = 0; // Yazıcı progress'i sıfırla (iş progress'i korunur)
                                 System.Diagnostics.Debug.WriteLine($"[MongoDB] Yazıcı #{printer.Id} Idle durumuna getirildi");
                             }
                         }
                         
-                        // MongoDB'de güncelle
+                        // MongoDB'de güncelle (Progress korunur)
                         if (_mongoDbService != null)
                         {
                             try
@@ -85,12 +86,12 @@ namespace PrinterAutomation.Services
                                 var filter = Builders<PrintJob>.Filter.Eq(j => j.Id, job.Id);
                                 var update = Builders<PrintJob>.Update
                                     .Set(j => j.Status, JobStatus.Queued)
-                                    .Set(j => j.Progress, 0)
+                                    .Set(j => j.Progress, savedProgress) // İlerlemeyi koru
                                     .Set(j => j.StartedAt, (DateTime?)null);
                                 var result = _jobsCollection.UpdateOne(filter, update);
                                 if (result.ModifiedCount > 0)
                                 {
-                                    System.Diagnostics.Debug.WriteLine($"[MongoDB] ✓ İş durduruldu: Job #{job.Id} (Printing -> Queued)");
+                                    System.Diagnostics.Debug.WriteLine($"[MongoDB] ✓ İş durduruldu: Job #{job.Id} (Printing -> Queued, Progress: {savedProgress}% korundu)");
                                 }
                                 else
                                 {
@@ -218,6 +219,32 @@ namespace PrinterAutomation.Services
             }
         }
 
+        /// <summary>
+        /// Model dosya adına göre gerekli filament tipini belirler
+        /// </summary>
+        private string GetRequiredFilamentType(string modelFileName)
+        {
+            if (string.IsNullOrEmpty(modelFileName))
+                return "PLA";
+
+            string modelLower = modelFileName.ToLower();
+            
+            // cable modeli -> TPU
+            if (modelLower.Contains("cable"))
+                return "TPU";
+            
+            // whist modeli -> PETG
+            if (modelLower.Contains("whist"))
+                return "PETG";
+            
+            // octo ve shark modelleri -> PLA
+            if (modelLower.Contains("octo") || modelLower.Contains("shark"))
+                return "PLA";
+            
+            // Varsayılan olarak PLA
+            return "PLA";
+        }
+
         public void ProcessNewOrder(Order order)
         {
             foreach (var item in order.Items)
@@ -268,18 +295,31 @@ namespace PrinterAutomation.Services
                 return;
             }
 
-            // İlk boşta olan yazıcıya ata
-            var printer = availablePrinters.First();
+            // Model için gerekli filament tipini belirle
+            string requiredFilamentType = GetRequiredFilamentType(item.ModelFileName);
+            
+            // Önce uygun filament tipine sahip bir yazıcı ara
+            var suitablePrinter = availablePrinters.FirstOrDefault(p => p.FilamentType == requiredFilamentType);
+            
+            // Uygun filament tipine sahip yazıcı yoksa, ilk boşta olan yazıcının filament tipini değiştir
+            if (suitablePrinter == null)
+            {
+                suitablePrinter = availablePrinters.First();
+                // Yazıcının filament tipini değiştir
+                _printerService.ChangeFilamentType(suitablePrinter.Id, requiredFilamentType);
+                System.Diagnostics.Debug.WriteLine($"[JobAssignment] Yazıcı #{suitablePrinter.Id} filament tipi {requiredFilamentType} olarak değiştirildi (Model: {item.ModelFileName})");
+            }
+            
             var job = new PrintJob
             {
                 Id = _nextJobId++,
                 OrderId = order.Id,
                 OrderItemId = item.Id,
-                PrinterId = printer.Id,
+                PrinterId = suitablePrinter.Id,
                 ModelFileName = item.ModelFileName,
                 Status = JobStatus.Printing,
                 StartedAt = DateTime.Now,
-                Material = item.Material,
+                Material = requiredFilamentType, // Model için gerekli filament tipini kullan
                 EstimatedTime = item.EstimatedTime,
                 Progress = 0
             };
@@ -300,9 +340,13 @@ namespace PrinterAutomation.Services
                 }
             }
             
-            System.Diagnostics.Debug.WriteLine($"[MongoDB] İş kaydedildi: {job.ModelFileName} (ID: {job.Id})");
+            System.Diagnostics.Debug.WriteLine($"[MongoDB] İş kaydedildi: {job.ModelFileName} (ID: {job.Id}, Filament: {requiredFilamentType})");
             
-            _printerService.AssignJobToPrinter(printer.Id, item.ModelFileName, item.EstimatedTime);
+            // Model bilgisini al ve filament tüketimini hesapla
+            var modelInfo = _orderService.GetModelInfo(item.ModelFileName);
+            double filamentUsage = modelInfo?.FilamentUsage ?? 3; // Varsayılan %3
+            
+            _printerService.AssignJobToPrinter(suitablePrinter.Id, item.ModelFileName, item.EstimatedTime);
             
             if (JobAssigned != null)
                 JobAssigned(this, new PrintJobEventArgs(job));
@@ -317,10 +361,25 @@ namespace PrinterAutomation.Services
             {
                 if (availablePrinters.Count > 0)
                 {
-                    var printer = availablePrinters.First();
-                    job.PrinterId = printer.Id;
+                    // Model için gerekli filament tipini belirle
+                    string requiredFilamentType = GetRequiredFilamentType(job.ModelFileName);
+                    
+                    // Önce uygun filament tipine sahip bir yazıcı ara
+                    var suitablePrinter = availablePrinters.FirstOrDefault(p => p.FilamentType == requiredFilamentType);
+                    
+                    // Uygun filament tipine sahip yazıcı yoksa, ilk boşta olan yazıcının filament tipini değiştir
+                    if (suitablePrinter == null)
+                    {
+                        suitablePrinter = availablePrinters.First();
+                        // Yazıcının filament tipini değiştir
+                        _printerService.ChangeFilamentType(suitablePrinter.Id, requiredFilamentType);
+                        System.Diagnostics.Debug.WriteLine($"[JobAssignment] Yazıcı #{suitablePrinter.Id} filament tipi {requiredFilamentType} olarak değiştirildi (Model: {job.ModelFileName})");
+                    }
+                    
+                    job.PrinterId = suitablePrinter.Id;
                     job.Status = JobStatus.Printing;
                     job.StartedAt = DateTime.Now;
+                    job.Material = requiredFilamentType; // Model için gerekli filament tipini kullan
 
                     // MongoDB'de güncelle
                     if (_mongoDbService != null)
@@ -331,15 +390,16 @@ namespace PrinterAutomation.Services
                             var update = Builders<PrintJob>.Update
                                 .Set(j => j.PrinterId, job.PrinterId)
                                 .Set(j => j.Status, job.Status)
-                                .Set(j => j.StartedAt, job.StartedAt);
+                                .Set(j => j.StartedAt, job.StartedAt)
+                                .Set(j => j.Material, job.Material);
                             _jobsCollection.UpdateOne(filter, update);
                         }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[MongoDB] İş güncellenirken hata: {ex.Message}");
-                        System.Console.WriteLine($"[MongoDB] İş güncellenirken hata: {ex.Message}");
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[MongoDB] İş güncellenirken hata: {ex.Message}");
+                            System.Console.WriteLine($"[MongoDB] İş güncellenirken hata: {ex.Message}");
+                        }
                     }
-                }
 
                     var order = _orderService.GetOrder(job.OrderId);
                     if (order != null)
@@ -347,8 +407,12 @@ namespace PrinterAutomation.Services
                         var item = order.Items.FirstOrDefault(i => i.Id == job.OrderItemId);
                         if (item != null)
                         {
-                            _printerService.AssignJobToPrinter(printer.Id, item.ModelFileName, item.EstimatedTime);
-                            availablePrinters.Remove(printer);
+                            // Model bilgisini al ve filament tüketimini hesapla
+                            var modelInfo = _orderService.GetModelInfo(item.ModelFileName);
+                            double filamentUsage = modelInfo?.FilamentUsage ?? 3; // Varsayılan %3
+                            
+                            _printerService.AssignJobToPrinter(suitablePrinter.Id, item.ModelFileName, item.EstimatedTime);
+                            availablePrinters.Remove(suitablePrinter);
                             if (JobAssigned != null)
                                 JobAssigned(this, new PrintJobEventArgs(job));
                         }

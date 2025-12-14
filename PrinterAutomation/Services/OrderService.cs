@@ -11,8 +11,9 @@ namespace PrinterAutomation.Services
     public class OrderService
     {
         private readonly BindingList<Order> _orders = new BindingList<Order>();
-        private readonly MongoDbService _mongoDbService;
-        private readonly IMongoCollection<Order> _ordersCollection;
+        private readonly MongoDbService? _mongoDbService;
+        private readonly IMongoCollection<Order>? _ordersCollection;
+        private readonly IMongoCollection<ModelInfo>? _modelsCollection;
         private int _nextOrderId = 1;
 
         public OrderService(MongoDbService mongoDbService = null)
@@ -25,9 +26,21 @@ namespace PrinterAutomation.Services
                 try
                 {
                     _ordersCollection = _mongoDbService.GetCollection<Order>("orders");
-                    System.Diagnostics.Debug.WriteLine($"[OrderService] Collection oluşturuldu: orders");
+                    _modelsCollection = _mongoDbService.GetCollection<ModelInfo>("modelInfos");
+                    System.Diagnostics.Debug.WriteLine($"[OrderService] Collection oluşturuldu: orders, modelInfos");
                     System.Diagnostics.Debug.WriteLine($"[OrderService] Collection null mu? {(_ordersCollection == null ? "EVET" : "HAYIR")}");
                     LoadOrdersFromDatabase();
+                    
+                    // Model bilgilerini başlat (hata olsa bile devam et)
+                    try
+                    {
+                        InitializeModelInfos();
+                    }
+                    catch (Exception modelEx)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[OrderService] Model bilgileri başlatılırken hata: {modelEx.Message}");
+                        System.Diagnostics.Debug.WriteLine($"[OrderService] Model bilgileri StackTrace: {modelEx.StackTrace}");
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -43,6 +56,8 @@ namespace PrinterAutomation.Services
 
         private void LoadOrdersFromDatabase()
         {
+            if (_ordersCollection == null) return;
+            
             try
             {
                 var orders = _ordersCollection.Find(_ => true).ToList();
@@ -236,7 +251,7 @@ namespace PrinterAutomation.Services
                 order.Status = status;
                 
                 // MongoDB'de güncelle
-                if (_mongoDbService != null)
+                if (_mongoDbService != null && _ordersCollection != null)
                 {
                     try
                     {
@@ -336,8 +351,121 @@ namespace PrinterAutomation.Services
                     "shark/head_easy_press_in.stl",
                     "shark/head_hard_press_in.stl"
                 },
+                "whist" => new List<string> { "whist/v29d_engraved.stl" },
                 _ => new List<string>()
             };
+        }
+
+        private void InitializeModelInfos()
+        {
+            if (_mongoDbService == null || _modelsCollection == null)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ModelInfo] MongoDB servisi veya collection null - model bilgileri başlatılamıyor");
+                return;
+            }
+
+            try
+            {
+                // Mevcut model bilgilerini kontrol et
+                var existingModels = _modelsCollection.Find(_ => true).ToList();
+                if (existingModels.Count > 0)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[ModelInfo] {existingModels.Count} model bilgisi zaten mevcut");
+                    return;
+                }
+
+                // Tüm modelleri bul ve bilgilerini oluştur
+                var subfolders = GetModelSubfolders();
+                if (subfolders == null || subfolders.Count == 0)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[ModelInfo] Model klasörü bulunamadı veya alt klasör yok");
+                    return;
+                }
+
+                var allModels = new List<ModelInfo>();
+
+                foreach (var subfolder in subfolders)
+                {
+                    try
+                    {
+                        var models = GetModelsInSubfolder(subfolder);
+                        if (models == null || models.Count == 0) 
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[ModelInfo] {subfolder} klasöründe model bulunamadı");
+                            continue;
+                        }
+                        
+                        foreach (var model in models)
+                        {
+                            // Varsayılan değerler (model dosyasına göre)
+                            double estimatedTime = 60; // Dakika
+                            double filamentUsage = 5; // %
+
+                            // Model tipine göre varsayılan değerler
+                            if (model.Contains("octo"))
+                            {
+                                estimatedTime = 90;
+                                filamentUsage = 8;
+                            }
+                            else if (model.Contains("shark"))
+                            {
+                                if (model.Contains("body"))
+                                {
+                                    estimatedTime = 120;
+                                    filamentUsage = 12;
+                                }
+                                else if (model.Contains("head"))
+                                {
+                                    estimatedTime = 60;
+                                    filamentUsage = 6;
+                                }
+                            }
+                            else if (model.Contains("whist"))
+                            {
+                                estimatedTime = 75;
+                                filamentUsage = 7;
+                            }
+
+                            allModels.Add(new ModelInfo
+                            {
+                                ModelFileName = model,
+                                EstimatedTime = estimatedTime,
+                                FilamentUsage = filamentUsage
+                            });
+                        }
+                    }
+                    catch (Exception subfolderEx)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[ModelInfo] {subfolder} klasörü işlenirken hata: {subfolderEx.Message}");
+                    }
+                }
+
+                if (allModels.Count > 0)
+                {
+                    _modelsCollection.InsertMany(allModels);
+                    System.Diagnostics.Debug.WriteLine($"[ModelInfo] {allModels.Count} model bilgisi oluşturuldu");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ModelInfo] Model bilgileri oluşturulurken hata: {ex.Message}");
+            }
+        }
+
+        public ModelInfo? GetModelInfo(string modelFileName)
+        {
+            if (_modelsCollection == null) 
+                return null;
+
+            try
+            {
+                return _modelsCollection.Find(m => m.ModelFileName == modelFileName).FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ModelInfo] Model bilgisi alınırken hata: {ex.Message}");
+                return null;
+            }
         }
 
         public Order SimulateECommerceOrder()
@@ -354,13 +482,20 @@ namespace PrinterAutomation.Services
             var selectedSubfolder = subfolders[random.Next(subfolders.Count)];
             var modelsInSubfolder = GetModelsInSubfolder(selectedSubfolder);
 
-            var items = modelsInSubfolder.Select((model, index) => new OrderItem
+            var items = modelsInSubfolder.Select((model, index) =>
             {
-                Id = index + 1,
-                ModelFileName = model,
-                Quantity = 1,
-                Material = materials[random.Next(materials.Length)],
-                EstimatedTime = random.Next(30, 180)
+                // Model bilgisini veritabanından al
+                var modelInfo = GetModelInfo(model);
+                double estimatedTime = modelInfo?.EstimatedTime ?? 60; // Varsayılan 60 dakika
+
+                return new OrderItem
+                {
+                    Id = index + 1,
+                    ModelFileName = model,
+                    Quantity = 1,
+                    Material = materials[random.Next(materials.Length)],
+                    EstimatedTime = estimatedTime
+                };
             }).ToList();
 
             return CreateOrder($"ORD-{DateTime.Now:yyyyMMdd}-{random.Next(1000, 9999)}", 
