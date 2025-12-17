@@ -12,6 +12,8 @@ namespace PrinterAutomation.Services
         private BindingList<Printer> _printers = new BindingList<Printer>();
         private readonly MongoDbService _mongoDbService;
         private readonly IMongoCollection<Printer> _printersCollection;
+        private DateTime _lastProgressUpdate = DateTime.MinValue;
+        private const int ProgressUpdateIntervalSeconds = 5; // Her 5 saniyede bir MongoDB'ye yaz
 
         public PrinterService(MongoDbService mongoDbService = null)
         {
@@ -40,8 +42,47 @@ namespace PrinterAutomation.Services
                 var printers = _printersCollection.Find(_ => true).ToList();
                 foreach (var printer in printers)
                 {
+                    // FilamentRemaining ve FilamentType değerlerini MongoDB'den koru
+                    // Sadece aktif iş durumlarını sıfırla (uygulama yeniden başlatıldığında)
+                    var savedFilamentRemaining = printer.FilamentRemaining;
+                    var savedFilamentType = printer.FilamentType;
+                    
+                    printer.Status = PrinterStatus.Idle;
+                    printer.CurrentJobName = null;
+                    printer.JobStartTime = null;
+                    printer.JobEndTime = null;
+                    printer.Progress = 0;
+                    
+                    // Filament durumlarını geri yükle
+                    printer.FilamentRemaining = savedFilamentRemaining;
+                    printer.FilamentType = savedFilamentType;
+                    
                     _printers.Add(printer);
+                    
+                    // MongoDB'de güncelle (sadece iş durumlarını, filament değerlerini koru)
+                    if (_mongoDbService != null)
+                    {
+                        try
+                        {
+                            var filter = Builders<Printer>.Filter.Eq(p => p.Id, printer.Id);
+                            var update = Builders<Printer>.Update
+                                .Set(p => p.Status, PrinterStatus.Idle)
+                                .Set(p => p.CurrentJobName, (string)null)
+                                .Set(p => p.JobStartTime, (DateTime?)null)
+                                .Set(p => p.JobEndTime, (DateTime?)null)
+                                .Set(p => p.Progress, 0);
+                            // FilamentRemaining ve FilamentType güncellenmez (korunur)
+                            _printersCollection.UpdateOne(filter, update);
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[MongoDB] Yazıcı durumu güncellenirken hata: {ex.Message}");
+                        }
+                    }
                 }
+                
+                System.Diagnostics.Debug.WriteLine($"[MongoDB] {printers.Count} yazıcı yüklendi ve Idle durumuna getirildi");
+                System.Console.WriteLine($"[MongoDB] {printers.Count} yazıcı yüklendi ve Idle durumuna getirildi");
             }
             catch (Exception ex)
             {
@@ -124,40 +165,62 @@ namespace PrinterAutomation.Services
                 printer.Status = status;
                 
                 // MongoDB'de güncelle
-                if (_mongoDbService != null)
+                if (_mongoDbService != null && _printersCollection != null)
                 {
                     try
                     {
                         var filter = Builders<Printer>.Filter.Eq(p => p.Id, printerId);
                         var update = Builders<Printer>.Update.Set(p => p.Status, status);
                         _printersCollection.UpdateOne(filter, update);
+                        System.Diagnostics.Debug.WriteLine($"[MongoDB] Yazıcı durumu güncellendi: {printer.Name} -> {status}");
                     }
                     catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine($"MongoDB'de yazıcı durumu güncellenirken hata: {ex.Message}");
+                        System.Diagnostics.Debug.WriteLine($"[MongoDB] Yazıcı durumu güncellenirken hata: {ex.Message}");
                     }
                 }
             }
         }
 
-        public void AssignJobToPrinter(int printerId, string jobName, double estimatedTime)
+        public void AssignJobToPrinter(int printerId, string jobName, double estimatedTime, double filamentUsage = 3, double savedProgress = 0)
         {
             var printer = GetPrinter(printerId);
             if (printer != null)
             {
                 printer.Status = PrinterStatus.Printing;
                 printer.CurrentJobName = jobName;
-                printer.JobStartTime = DateTime.Now;
-                printer.JobEndTime = DateTime.Now.AddMinutes(estimatedTime);
-                printer.Progress = 0;
                 
-                // Filament tüketimi simülasyonu (iş başladığında %1-3 arası azalır)
-                var random = new Random();
-                var filamentUsage = random.Next(1, 4);
+                // Eğer kaydedilmiş progress varsa, zamanları buna göre ayarla
+                if (savedProgress > 0 && savedProgress < 100)
+                {
+                    // Toplam süreyi dakika cinsinden hesapla
+                    double totalMinutes = estimatedTime;
+                    // Geçen süreyi hesapla (progress'e göre)
+                    double elapsedMinutes = totalMinutes * (savedProgress / 100.0);
+                    // Kalan süreyi hesapla
+                    double remainingMinutes = totalMinutes - elapsedMinutes;
+                    
+                    // JobStartTime'ı geçmişe ayarla (şu anki zaman - geçen süre)
+                    printer.JobStartTime = DateTime.Now.AddMinutes(-elapsedMinutes);
+                    // JobEndTime'ı geleceğe ayarla (şu anki zaman + kalan süre)
+                    printer.JobEndTime = DateTime.Now.AddMinutes(remainingMinutes);
+                    printer.Progress = savedProgress;
+                    
+                    System.Diagnostics.Debug.WriteLine($"[PrinterService] İş devam ediyor: Progress={savedProgress:F1}%, Geçen={elapsedMinutes:F1}dk, Kalan={remainingMinutes:F1}dk");
+                }
+                else
+                {
+                    // Yeni iş - sıfırdan başla
+                    printer.JobStartTime = DateTime.Now;
+                    printer.JobEndTime = DateTime.Now.AddMinutes(estimatedTime);
+                    printer.Progress = 0;
+                }
+                
+                // Filament tüketimi ModelInfo'dan alınır
                 printer.FilamentRemaining = Math.Max(0, printer.FilamentRemaining - filamentUsage);
                 
                 // MongoDB'de güncelle
-                if (_mongoDbService != null)
+                if (_mongoDbService != null && _printersCollection != null)
                 {
                     try
                     {
@@ -170,17 +233,15 @@ namespace PrinterAutomation.Services
                             .Set(p => p.Progress, printer.Progress)
                             .Set(p => p.FilamentRemaining, printer.FilamentRemaining);
                         _printersCollection.UpdateOne(filter, update);
+                        System.Diagnostics.Debug.WriteLine($"[MongoDB] Yazıcı iş ataması güncellendi: {printer.Name}");
                     }
                     catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine($"MongoDB'de yazıcı iş ataması güncellenirken hata: {ex.Message}");
+                        System.Diagnostics.Debug.WriteLine($"[MongoDB] Yazıcı iş ataması güncellenirken hata: {ex.Message}");
                     }
                 }
             }
         }
-
-        private DateTime _lastProgressUpdate = DateTime.MinValue;
-        private const int ProgressUpdateIntervalSeconds = 5; // Her 5 saniyede bir MongoDB'ye yaz
 
         public void UpdateJobProgress(int printerId, double progress)
         {
@@ -190,7 +251,7 @@ namespace PrinterAutomation.Services
                 printer.Progress = progress;
                 
                 // MongoDB'de güncelle (performans için belirli aralıklarla)
-                if (_mongoDbService != null && (DateTime.Now - _lastProgressUpdate).TotalSeconds >= ProgressUpdateIntervalSeconds)
+                if (_mongoDbService != null && _printersCollection != null && (DateTime.Now - _lastProgressUpdate).TotalSeconds >= ProgressUpdateIntervalSeconds)
                 {
                     try
                     {
@@ -201,7 +262,7 @@ namespace PrinterAutomation.Services
                     }
                     catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine($"MongoDB'de yazıcı ilerlemesi güncellenirken hata: {ex.Message}");
+                        System.Diagnostics.Debug.WriteLine($"[MongoDB] Yazıcı ilerlemesi güncellenirken hata: {ex.Message}");
                     }
                 }
             }
@@ -227,7 +288,7 @@ namespace PrinterAutomation.Services
                 printer.TotalJobsCompleted++;
                 
                 // MongoDB'de güncelle
-                if (_mongoDbService != null)
+                if (_mongoDbService != null && _printersCollection != null)
                 {
                     try
                     {
@@ -241,10 +302,11 @@ namespace PrinterAutomation.Services
                             .Set(p => p.TotalJobsCompleted, printer.TotalJobsCompleted)
                             .Set(p => p.TotalPrintTime, printer.TotalPrintTime);
                         _printersCollection.UpdateOne(filter, update);
+                        System.Diagnostics.Debug.WriteLine($"[MongoDB] Yazıcı iş tamamlama güncellendi: {printer.Name}");
                     }
                     catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine($"MongoDB'de yazıcı iş tamamlama güncellenirken hata: {ex.Message}");
+                        System.Diagnostics.Debug.WriteLine($"[MongoDB] Yazıcı iş tamamlama güncellenirken hata: {ex.Message}");
                     }
                 }
             }
@@ -278,25 +340,26 @@ namespace PrinterAutomation.Services
             var printer = GetPrinter(printerId);
             if (printer != null)
             {
-                // Yazıcı yazdırma yapıyorsa filament değiştirilemez
-                if (printer.Status == PrinterStatus.Printing)
+                // Yazıcı yazdırma yapıyorsa veya ilerleme varsa filament değiştirilemez
+                if (printer.Status == PrinterStatus.Printing || printer.Progress > 0)
                 {
                     return false;
                 }
                 printer.FilamentType = newFilamentType;
                 
                 // MongoDB'de güncelle
-                if (_mongoDbService != null)
+                if (_mongoDbService != null && _printersCollection != null)
                 {
                     try
                     {
                         var filter = Builders<Printer>.Filter.Eq(p => p.Id, printerId);
                         var update = Builders<Printer>.Update.Set(p => p.FilamentType, newFilamentType);
                         _printersCollection.UpdateOne(filter, update);
+                        System.Diagnostics.Debug.WriteLine($"[MongoDB] Yazıcı filament tipi güncellendi: {printer.Name} -> {newFilamentType}");
                     }
                     catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine($"MongoDB'de filament tipi güncellenirken hata: {ex.Message}");
+                        System.Diagnostics.Debug.WriteLine($"[MongoDB] Filament tipi güncellenirken hata: {ex.Message}");
                     }
                 }
                 
@@ -357,15 +420,16 @@ namespace PrinterAutomation.Services
             _printers.Add(newPrinter);
             
             // MongoDB'ye kaydet
-            if (_mongoDbService != null)
+            if (_mongoDbService != null && _printersCollection != null)
             {
                 try
                 {
                     _printersCollection.InsertOne(newPrinter);
+                    System.Diagnostics.Debug.WriteLine($"[MongoDB] Yeni yazıcı kaydedildi: {newPrinter.Name} (ID: {newPrinter.Id})");
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"MongoDB'ye yazıcı kaydedilirken hata: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"[MongoDB] Yeni yazıcı kaydedilirken hata: {ex.Message}");
                 }
             }
             
@@ -374,7 +438,7 @@ namespace PrinterAutomation.Services
         
         private void SavePrinterToDatabase(Printer printer)
         {
-            if (_mongoDbService != null)
+            if (_mongoDbService != null && _printersCollection != null)
             {
                 try
                 {
@@ -384,15 +448,18 @@ namespace PrinterAutomation.Services
                     if (existing == null)
                     {
                         _printersCollection.InsertOne(printer);
+                        System.Diagnostics.Debug.WriteLine($"[MongoDB] Yazıcı kaydedildi: {printer.Name} (ID: {printer.Id})");
                     }
                     else
                     {
                         _printersCollection.ReplaceOne(filter, printer);
+                        System.Diagnostics.Debug.WriteLine($"[MongoDB] Yazıcı güncellendi: {printer.Name} (ID: {printer.Id})");
                     }
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"MongoDB'ye yazıcı kaydedilirken hata: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"[MongoDB] Yazıcı kaydedilirken hata: {ex.Message}");
+                    System.Console.WriteLine($"[MongoDB] Yazıcı kaydedilirken hata: {ex.Message}");
                 }
             }
         }

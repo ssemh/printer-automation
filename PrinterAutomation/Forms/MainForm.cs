@@ -27,6 +27,7 @@ namespace PrinterAutomation.Forms
         private readonly PrinterService _printerService;
         private readonly OrderService _orderService;
         private readonly JobAssignmentService _jobAssignmentService;
+        private readonly MongoDbService? _mongoDbService;
         private System.Windows.Forms.Timer _refreshTimer;
         private ThemeMode _currentTheme = ThemeMode.Light;
         private bool _mongoDbConnected = false;
@@ -42,6 +43,7 @@ namespace PrinterAutomation.Forms
         private SimpleButton btnAddPrinter;
         private SimpleButton btnDeleteCompletedOrders;
         private SimpleButton btnDeleteCompletedJobs;
+        private SimpleButton btnClearDatabase;
         private LabelControl lblStatus;
         private LabelControl lblTitle;
         private LabelControl lblPrinters;
@@ -62,43 +64,160 @@ namespace PrinterAutomation.Forms
 
         public MainForm()
         {
-            // ÖNCE InitializeComponent çağrılmalı ki MessageBox çalışsın
-            InitializeComponent();
-            
-            // MongoDB servisini başlat
-            MongoDbService mongoDbService = null;
-            bool mongoDbConnected = false;
-            
             try
             {
-                mongoDbService = new MongoDbService();
-                mongoDbConnected = mongoDbService.IsConnected();
+                System.Diagnostics.Debug.WriteLine("[MainForm] Constructor başladı");
+                System.Console.WriteLine("[MainForm] Constructor başladı");
+                
+                // ÖNCE InitializeComponent çağrılmalı ki MessageBox çalışsın
+                System.Diagnostics.Debug.WriteLine("[MainForm] InitializeComponent çağrılıyor...");
+                System.Console.WriteLine("[MainForm] InitializeComponent çağrılıyor...");
+                
+                try
+                {
+                    InitializeComponent();
+                    System.Diagnostics.Debug.WriteLine("[MainForm] InitializeComponent tamamlandı");
+                    System.Console.WriteLine("[MainForm] InitializeComponent tamamlandı");
+                }
+                catch (Exception initEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[MainForm] InitializeComponent hatası: {initEx.Message}");
+                    System.Console.WriteLine($"[MainForm] InitializeComponent hatası: {initEx.Message}");
+                    System.Console.WriteLine($"[MainForm] InitializeComponent StackTrace: {initEx.StackTrace}");
+                    throw; // InitializeComponent hatası kritik, programı durdur
+                }
+                
+                // MongoDB servisini başlat
+                MongoDbService mongoDbService = null;
+                bool mongoDbConnected = false;
+                
+                try
+                {
+                    System.Diagnostics.Debug.WriteLine("[MainForm] MongoDbService oluşturuluyor...");
+                    System.Console.WriteLine("[MainForm] MongoDbService oluşturuluyor...");
+                    mongoDbService = new MongoDbService();
+                    mongoDbConnected = mongoDbService.IsConnected();
+                    System.Diagnostics.Debug.WriteLine($"[MainForm] MongoDbService oluşturuldu, bağlantı: {mongoDbConnected}");
+                    System.Console.WriteLine($"[MainForm] MongoDbService oluşturuldu, bağlantı: {mongoDbConnected}");
+                }
+                catch (Exception ex)
+                {
+                    mongoDbConnected = false;
+                    System.Diagnostics.Debug.WriteLine($"[MainForm] MongoDB bağlantı hatası: {ex.Message}");
+                    System.Console.WriteLine($"[MainForm] MongoDB bağlantı hatası: {ex.Message}");
+                    System.Console.WriteLine($"[MainForm] MongoDB StackTrace: {ex.StackTrace}");
+                }
+                
+                // MongoDB servisini sakla
+                _mongoDbService = mongoDbService;
+                
+                // MongoDB durumunu sakla (status label'da göstermek için)
+                _mongoDbConnected = mongoDbConnected;
+                
+                System.Diagnostics.Debug.WriteLine($"[MainForm] MongoDB servisi durumu: {(mongoDbService != null ? "MEVCUT" : "NULL")}");
+                System.Diagnostics.Debug.WriteLine($"[MainForm] MongoDB bağlantı durumu: {(mongoDbConnected ? "BAĞLI" : "BAĞLI DEĞİL")}");
+                
+                try
+                {
+                    _printerService = new PrinterService(mongoDbService);
+                    System.Diagnostics.Debug.WriteLine("[MainForm] PrinterService oluşturuldu");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[MainForm] PrinterService oluşturulurken hata: {ex.Message}");
+                    System.Console.WriteLine($"[MainForm] PrinterService oluşturulurken hata: {ex.Message}");
+                    XtraMessageBox.Show(
+                        $"PrinterService oluşturulurken hata oluştu:\n{ex.Message}\n\nProgram devam edecek ancak bazı özellikler çalışmayabilir.",
+                        "Uyarı",
+                        System.Windows.Forms.MessageBoxButtons.OK,
+                        System.Windows.Forms.MessageBoxIcon.Warning);
+                }
+                
+                try
+                {
+                    _orderService = new OrderService(mongoDbService);
+                    System.Diagnostics.Debug.WriteLine("[MainForm] OrderService oluşturuldu");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[MainForm] OrderService oluşturulurken hata: {ex.Message}");
+                    System.Console.WriteLine($"[MainForm] OrderService oluşturulurken hata: {ex.Message}");
+                    System.Console.WriteLine($"[MainForm] OrderService StackTrace: {ex.StackTrace}");
+                    XtraMessageBox.Show(
+                        $"OrderService oluşturulurken hata oluştu:\n{ex.Message}\n\nProgram devam edecek ancak bazı özellikler çalışmayabilir.",
+                        "Uyarı",
+                        System.Windows.Forms.MessageBoxButtons.OK,
+                        System.Windows.Forms.MessageBoxIcon.Warning);
+                }
+                
+                try
+                {
+                    if (_printerService != null && _orderService != null)
+                    {
+                        _jobAssignmentService = new JobAssignmentService(_printerService, _orderService, mongoDbService);
+                        System.Diagnostics.Debug.WriteLine("[MainForm] JobAssignmentService oluşturuldu");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[MainForm] JobAssignmentService oluşturulurken hata: {ex.Message}");
+                    System.Console.WriteLine($"[MainForm] JobAssignmentService oluşturulurken hata: {ex.Message}");
+                    XtraMessageBox.Show(
+                        $"JobAssignmentService oluşturulurken hata oluştu:\n{ex.Message}\n\nProgram devam edecek ancak bazı özellikler çalışmayabilir.",
+                        "Uyarı",
+                        System.Windows.Forms.MessageBoxButtons.OK,
+                        System.Windows.Forms.MessageBoxIcon.Warning);
+                }
+                
+                this.Shown += MainForm_Shown;
+                SetupEventHandlers();
+                StartRefreshTimer();
+                // İlk temayı uygula
+                ApplyTheme();
+                
+                // Formun görünür olduğundan emin ol
+                this.Visible = true;
+                this.ShowInTaskbar = true;
+                this.WindowState = System.Windows.Forms.FormWindowState.Normal;
+                
+                System.Diagnostics.Debug.WriteLine($"[MainForm] Form görünür: {this.Visible}, Taskbar'da: {this.ShowInTaskbar}");
+                System.Console.WriteLine($"[MainForm] Form görünür: {this.Visible}, Taskbar'da: {this.ShowInTaskbar}");
+                System.Diagnostics.Debug.WriteLine("[MainForm] Constructor tamamlandı!");
+                System.Console.WriteLine("[MainForm] Constructor tamamlandı!");
             }
             catch (Exception ex)
             {
-                mongoDbConnected = false;
-                System.Diagnostics.Debug.WriteLine($"[MainForm] MongoDB bağlantı hatası: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[MainForm] Constructor'da kritik hata: {ex.Message}");
+                System.Console.WriteLine($"[MainForm] Constructor'da kritik hata: {ex.Message}");
+                System.Console.WriteLine($"[MainForm] StackTrace: {ex.StackTrace}");
+                
+                try
+                {
+                    XtraMessageBox.Show(
+                        $"Program başlatılırken kritik bir hata oluştu:\n\n{ex.Message}\n\nStack Trace:\n{ex.StackTrace}",
+                        "Kritik Hata",
+                        System.Windows.Forms.MessageBoxButtons.OK,
+                        System.Windows.Forms.MessageBoxIcon.Error);
+                }
+                catch
+                {
+                    // MessageBox bile gösterilemiyorsa, en azından konsola yaz
+                    System.Console.WriteLine("MessageBox gösterilemedi!");
+                }
+                
+                // Hata olsa bile formu göster
+                try
+                {
+                    this.Visible = true;
+                    this.ShowInTaskbar = true;
+                    this.WindowState = System.Windows.Forms.FormWindowState.Normal;
+                    System.Console.WriteLine("Form görünürlüğü ayarlandı (hata durumunda)");
+                }
+                catch
+                {
+                    System.Console.WriteLine("Form görünürlüğü ayarlanamadı!");
+                }
             }
-            
-            // MongoDB durumunu sakla (status label'da göstermek için)
-            _mongoDbConnected = mongoDbConnected;
-            
-            System.Diagnostics.Debug.WriteLine($"[MainForm] MongoDB servisi durumu: {(mongoDbService != null ? "MEVCUT" : "NULL")}");
-            System.Diagnostics.Debug.WriteLine($"[MainForm] MongoDB bağlantı durumu: {(mongoDbConnected ? "BAĞLI" : "BAĞLI DEĞİL")}");
-            
-            _printerService = new PrinterService(mongoDbService);
-            System.Diagnostics.Debug.WriteLine("[MainForm] PrinterService oluşturuldu");
-            
-            _orderService = new OrderService(mongoDbService);
-            System.Diagnostics.Debug.WriteLine("[MainForm] OrderService oluşturuldu");
-            
-            _jobAssignmentService = new JobAssignmentService(_printerService, _orderService, mongoDbService);
-            System.Diagnostics.Debug.WriteLine("[MainForm] JobAssignmentService oluşturuldu");
-            this.Shown += MainForm_Shown;
-            SetupEventHandlers();
-            StartRefreshTimer();
-            // İlk temayı uygula
-            ApplyTheme();
         }
 
         private void MainForm_Shown(object sender, EventArgs e)
@@ -229,6 +348,30 @@ namespace PrinterAutomation.Forms
             titlePanel.Controls.Add(btnSimulateOrder);
             btnAddPrinter.Location = new System.Drawing.Point(btnToggleTheme.Left - btnAddPrinter.Width - 10, 20);
             btnSimulateOrder.Location = new System.Drawing.Point(btnAddPrinter.Left - btnSimulateOrder.Width - 10, 20);
+
+            // Veritabanını Temizle Butonu
+            btnClearDatabase = new SimpleButton
+            {
+                Text = "🗑️ Veritabanını Temizle",
+                Size = new System.Drawing.Size(200, 45),
+                Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right,
+                Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold)
+            };
+            btnClearDatabase.Appearance.BackColor = System.Drawing.Color.FromArgb(244, 67, 54);
+            btnClearDatabase.Appearance.ForeColor = System.Drawing.Color.White;
+            btnClearDatabase.Appearance.BorderColor = System.Drawing.Color.FromArgb(211, 47, 47);
+            btnClearDatabase.Appearance.Options.UseBackColor = true;
+            btnClearDatabase.Appearance.Options.UseForeColor = true;
+            btnClearDatabase.Appearance.Options.UseBorderColor = true;
+            btnClearDatabase.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(229, 57, 53);
+            btnClearDatabase.AppearanceHovered.Options.UseBackColor = true;
+            btnClearDatabase.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(198, 40, 40);
+            btnClearDatabase.AppearancePressed.Options.UseBackColor = true;
+            btnClearDatabase.LookAndFeel.UseDefaultLookAndFeel = false;
+            btnClearDatabase.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+            btnClearDatabase.Click += BtnClearDatabase_Click;
+            titlePanel.Controls.Add(btnClearDatabase);
+            btnClearDatabase.Location = new System.Drawing.Point(btnSimulateOrder.Left - btnClearDatabase.Width - 10, 20);
 
 
             // Printers Grid Başlık Panel
@@ -766,8 +909,6 @@ namespace PrinterAutomation.Forms
             
             // Silme butonu tıklama olayı
             gridViewOrders.MouseDown += GridViewOrders_MouseDown;
-            
-            System.Diagnostics.Debug.WriteLine($"[MainForm] Silme sütunu eklendi. Toplam sütun sayısı: {gridViewOrders.Columns.Count}");
 
             gridViewOrders.OptionsView.ShowGroupPanel = false;
             gridViewOrders.OptionsView.ShowIndicator = true;
@@ -885,6 +1026,20 @@ namespace PrinterAutomation.Forms
             ApplyTheme();
             
             RefreshData();
+            
+            // Program açıldığında kuyruktaki işleri işle (devam eden işler için)
+            try
+            {
+                _jobAssignmentService.ProcessQueuedJobs();
+                System.Diagnostics.Debug.WriteLine("[MainForm] Kuyruktaki işler işlendi");
+                
+                // İşler atandıktan sonra UI'ı güncelle
+                RefreshData();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainForm] Kuyruktaki işler işlenirken hata: {ex.Message}");
+            }
         }
 
         private void RefreshData()
@@ -918,7 +1073,6 @@ namespace PrinterAutomation.Forms
                 {
                     deleteColumn.Visible = true;
                     deleteColumn.VisibleIndex = 6;
-                    System.Diagnostics.Debug.WriteLine($"[MainForm] Silme sütunu görünür: {deleteColumn.Visible}, VisibleIndex: {deleteColumn.VisibleIndex}");
                 }
                 // Tema renklerini uygula
                 if (_currentTheme == ThemeMode.Dark)
@@ -1058,6 +1212,61 @@ namespace PrinterAutomation.Forms
                 "Sipariş Alındı",
                 System.Windows.Forms.MessageBoxButtons.OK,
                 _mongoDbConnected ? System.Windows.Forms.MessageBoxIcon.Information : System.Windows.Forms.MessageBoxIcon.Warning);
+        }
+
+        private void BtnClearDatabase_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var result = XtraMessageBox.Show(
+                    "TÜM VERİTABANI VERİLERİ SİLİNECEK!\n\n" +
+                    "Bu işlem şunları silecek:\n" +
+                    "• Tüm siparişler\n" +
+                    "• Tüm yazdırma işleri\n" +
+                    "• Tüm yazıcılar\n\n" +
+                    "Model bilgileri korunacak.\n\n" +
+                    "Bu işlem geri alınamaz. Devam etmek istiyor musunuz?",
+                    "Veritabanını Temizle",
+                    System.Windows.Forms.MessageBoxButtons.YesNo,
+                    System.Windows.Forms.MessageBoxIcon.Warning);
+
+                if (result == System.Windows.Forms.DialogResult.Yes)
+                {
+                    if (_mongoDbService != null && _mongoDbService.IsConnected())
+                    {
+                        _mongoDbService.ClearAllData();
+                        
+                        // Servisleri yeniden başlat
+                        RefreshData();
+                        
+                        XtraMessageBox.Show(
+                            "Veritabanı başarıyla temizlendi.\n\n" +
+                            "Model bilgileri korundu.",
+                            "Başarılı",
+                            System.Windows.Forms.MessageBoxButtons.OK,
+                            System.Windows.Forms.MessageBoxIcon.Information);
+                        
+                        lblStatus.Text = "✓ Veritabanı temizlendi";
+                        lblStatus.ForeColor = System.Drawing.Color.FromArgb(129, 199, 132);
+                    }
+                    else
+                    {
+                        XtraMessageBox.Show(
+                            "MongoDB bağlantısı yok!",
+                            "Hata",
+                            System.Windows.Forms.MessageBoxButtons.OK,
+                            System.Windows.Forms.MessageBoxIcon.Error);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show(
+                    $"Veritabanı temizlenirken hata oluştu:\n{ex.Message}",
+                    "Hata",
+                    System.Windows.Forms.MessageBoxButtons.OK,
+                    System.Windows.Forms.MessageBoxIcon.Error);
+            }
         }
 
         private void BtnAddPrinter_Click(object sender, EventArgs e)
@@ -2467,13 +2676,18 @@ namespace PrinterAutomation.Forms
 
                         string newFilamentType = comboFilament.Text;
 
-                        // Yazıcı yazdırma yapıyorsa uyarı ver
-                        if (printer.Status == PrinterStatus.Printing)
+                        // Yazıcı yazdırma yapıyorsa veya ilerleme varsa uyarı ver
+                        if (printer.Status == PrinterStatus.Printing || printer.Progress > 0)
                         {
+                            string statusMessage = printer.Status == PrinterStatus.Printing 
+                                ? "Yazıcı şu anda yazdırma yapıyor!" 
+                                : $"Yazıcıda aktif bir iş var (İlerleme: %{printer.Progress:F1})!";
+                            
                             XtraMessageBox.Show(
-                                $"Yazıcı şu anda yazdırma yapıyor!\n\n" +
+                                $"{statusMessage}\n\n" +
                                 $"Yazıcı: {printer.Name}\n" +
-                                $"Mevcut İş: {printer.CurrentJobName}\n\n" +
+                                $"Mevcut İş: {printer.CurrentJobName ?? "Yok"}\n" +
+                                $"İlerleme: %{printer.Progress:F1}\n\n" +
                                 $"Filament değiştirmek için yazdırmanın tamamlanmasını bekleyin.",
                                 "Uyarı",
                                 System.Windows.Forms.MessageBoxButtons.OK,
@@ -2613,6 +2827,11 @@ namespace PrinterAutomation.Forms
                 btnToggleTheme.Left = titlePanel.Width - btnToggleTheme.Width - 20;
                 btnAddPrinter.Left = btnToggleTheme.Left - btnAddPrinter.Width - 10;
                 btnSimulateOrder.Left = btnAddPrinter.Left - btnSimulateOrder.Width - 10;
+                
+                if (btnClearDatabase != null)
+                {
+                    btnClearDatabase.Left = btnSimulateOrder.Left - btnClearDatabase.Width - 10;
+                }
             }
             
             // Tamamlanan siparişleri sil butonunu siparişler başlık panelinde güncelle
