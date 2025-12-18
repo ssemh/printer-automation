@@ -182,39 +182,16 @@ namespace PrinterAutomation.Services
             }
         }
 
-        public void AssignJobToPrinter(int printerId, string jobName, double estimatedTime, double filamentUsage = 3, double savedProgress = 0)
+        public void AssignJobToPrinter(int printerId, string jobName, double estimatedTime, double filamentUsage = 3)
         {
             var printer = GetPrinter(printerId);
             if (printer != null)
             {
                 printer.Status = PrinterStatus.Printing;
                 printer.CurrentJobName = jobName;
-                
-                // Eğer kaydedilmiş progress varsa, zamanları buna göre ayarla
-                if (savedProgress > 0 && savedProgress < 100)
-                {
-                    // Toplam süreyi dakika cinsinden hesapla
-                    double totalMinutes = estimatedTime;
-                    // Geçen süreyi hesapla (progress'e göre)
-                    double elapsedMinutes = totalMinutes * (savedProgress / 100.0);
-                    // Kalan süreyi hesapla
-                    double remainingMinutes = totalMinutes - elapsedMinutes;
-                    
-                    // JobStartTime'ı geçmişe ayarla (şu anki zaman - geçen süre)
-                    printer.JobStartTime = DateTime.Now.AddMinutes(-elapsedMinutes);
-                    // JobEndTime'ı geleceğe ayarla (şu anki zaman + kalan süre)
-                    printer.JobEndTime = DateTime.Now.AddMinutes(remainingMinutes);
-                    printer.Progress = savedProgress;
-                    
-                    System.Diagnostics.Debug.WriteLine($"[PrinterService] İş devam ediyor: Progress={savedProgress:F1}%, Geçen={elapsedMinutes:F1}dk, Kalan={remainingMinutes:F1}dk");
-                }
-                else
-                {
-                    // Yeni iş - sıfırdan başla
-                    printer.JobStartTime = DateTime.Now;
-                    printer.JobEndTime = DateTime.Now.AddMinutes(estimatedTime);
-                    printer.Progress = 0;
-                }
+                printer.JobStartTime = DateTime.Now;
+                printer.JobEndTime = DateTime.Now.AddMinutes(estimatedTime);
+                printer.Progress = 0;
                 
                 // Filament tüketimi ModelInfo'dan alınır
                 printer.FilamentRemaining = Math.Max(0, printer.FilamentRemaining - filamentUsage);

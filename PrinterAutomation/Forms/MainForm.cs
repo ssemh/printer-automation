@@ -44,6 +44,7 @@ namespace PrinterAutomation.Forms
         private SimpleButton btnDeleteCompletedOrders;
         private SimpleButton btnDeleteCompletedJobs;
         private SimpleButton btnClearDatabase;
+        private SimpleButton btnShowEarnings;
         private LabelControl lblStatus;
         private LabelControl lblTitle;
         private LabelControl lblPrinters;
@@ -54,6 +55,7 @@ namespace PrinterAutomation.Forms
         private LabelControl lblActivePrinters;
         private LabelControl lblTotalOrders;
         private LabelControl lblPendingJobs;
+        private LabelControl lblTotalEarnings;
         private System.Windows.Forms.Panel titlePanel;
         private System.Windows.Forms.Panel printersHeaderPanel;
         private System.Windows.Forms.Panel ordersHeaderPanel;
@@ -649,9 +651,9 @@ namespace PrinterAutomation.Forms
             statsPanel = new System.Windows.Forms.Panel
             {
                 Location = new System.Drawing.Point(20, 495),
-                Size = new System.Drawing.Size(this.ClientSize.Width - 40, 100),
+                Size = new System.Drawing.Size(this.ClientSize.Width - 40, 110),
                 Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right,
-                BackColor = System.Drawing.Color.White,
+                BackColor = System.Drawing.Color.FromArgb(250, 250, 250),
                 BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
             };
             this.Controls.Add(statsPanel);
@@ -659,18 +661,28 @@ namespace PrinterAutomation.Forms
             lblStats = new LabelControl
             {
                 Text = "📊 İSTATİSTİKLER",
-                Location = new System.Drawing.Point(10, 5),
+                Location = new System.Drawing.Point(15, 8),
                 Size = new System.Drawing.Size(200, 25),
                 Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold),
                 ForeColor = System.Drawing.Color.FromArgb(63, 81, 181)
             };
             statsPanel.Controls.Add(lblStats);
+            
+            // Alt çizgi
+            var separatorLine = new System.Windows.Forms.Panel
+            {
+                Location = new System.Drawing.Point(15, 30),
+                Size = new System.Drawing.Size(statsPanel.Width - 30, 1),
+                BackColor = System.Drawing.Color.FromArgb(220, 220, 220),
+                Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right
+            };
+            statsPanel.Controls.Add(separatorLine);
 
             // Toplam Yazıcı
             var lblTotalPrintersLabel = new LabelControl
             {
                 Text = "Toplam Yazıcı:",
-                Location = new System.Drawing.Point(20, 35),
+                Location = new System.Drawing.Point(25, 40),
                 Size = new System.Drawing.Size(100, 20),
                 Font = new System.Drawing.Font("Segoe UI", 9F),
                 ForeColor = System.Drawing.Color.FromArgb(100, 100, 100)
@@ -680,9 +692,9 @@ namespace PrinterAutomation.Forms
             lblTotalPrinters = new LabelControl
             {
                 Text = "10",
-                Location = new System.Drawing.Point(130, 35),
+                Location = new System.Drawing.Point(135, 40),
                 Size = new System.Drawing.Size(50, 25),
-                Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 13F, System.Drawing.FontStyle.Bold),
                 ForeColor = System.Drawing.Color.FromArgb(63, 81, 181)
             };
             statsPanel.Controls.Add(lblTotalPrinters);
@@ -691,7 +703,7 @@ namespace PrinterAutomation.Forms
             var lblActivePrintersLabel = new LabelControl
             {
                 Text = "Aktif Yazıcı:",
-                Location = new System.Drawing.Point(220, 35),
+                Location = new System.Drawing.Point(225, 40),
                 Size = new System.Drawing.Size(100, 20),
                 Font = new System.Drawing.Font("Segoe UI", 9F),
                 ForeColor = System.Drawing.Color.FromArgb(100, 100, 100)
@@ -701,9 +713,9 @@ namespace PrinterAutomation.Forms
             lblActivePrinters = new LabelControl
             {
                 Text = "0",
-                Location = new System.Drawing.Point(330, 35),
+                Location = new System.Drawing.Point(335, 40),
                 Size = new System.Drawing.Size(50, 25),
-                Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 13F, System.Drawing.FontStyle.Bold),
                 ForeColor = System.Drawing.Color.FromArgb(76, 175, 80)
             };
             statsPanel.Controls.Add(lblActivePrinters);
@@ -712,7 +724,7 @@ namespace PrinterAutomation.Forms
             var lblTotalOrdersLabel = new LabelControl
             {
                 Text = "Toplam Sipariş:",
-                Location = new System.Drawing.Point(420, 35),
+                Location = new System.Drawing.Point(425, 40),
                 Size = new System.Drawing.Size(100, 20),
                 Font = new System.Drawing.Font("Segoe UI", 9F),
                 ForeColor = System.Drawing.Color.FromArgb(100, 100, 100)
@@ -722,9 +734,9 @@ namespace PrinterAutomation.Forms
             lblTotalOrders = new LabelControl
             {
                 Text = "0",
-                Location = new System.Drawing.Point(530, 35),
+                Location = new System.Drawing.Point(535, 40),
                 Size = new System.Drawing.Size(50, 25),
-                Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 13F, System.Drawing.FontStyle.Bold),
                 ForeColor = System.Drawing.Color.FromArgb(255, 152, 0)
             };
             statsPanel.Controls.Add(lblTotalOrders);
@@ -733,7 +745,7 @@ namespace PrinterAutomation.Forms
             var lblPendingJobsLabel = new LabelControl
             {
                 Text = "Bekleyen İşler:",
-                Location = new System.Drawing.Point(620, 35),
+                Location = new System.Drawing.Point(625, 40),
                 Size = new System.Drawing.Size(100, 20),
                 Font = new System.Drawing.Font("Segoe UI", 9F),
                 ForeColor = System.Drawing.Color.FromArgb(100, 100, 100)
@@ -743,9 +755,9 @@ namespace PrinterAutomation.Forms
             lblPendingJobs = new LabelControl
             {
                 Text = "0",
-                Location = new System.Drawing.Point(730, 35),
+                Location = new System.Drawing.Point(735, 40),
                 Size = new System.Drawing.Size(50, 25),
-                Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 13F, System.Drawing.FontStyle.Bold),
                 ForeColor = System.Drawing.Color.FromArgb(156, 39, 176)
             };
             statsPanel.Controls.Add(lblPendingJobs);
@@ -754,7 +766,7 @@ namespace PrinterAutomation.Forms
             var lblCompletedJobsLabel = new LabelControl
             {
                 Text = "Tamamlanan İş:",
-                Location = new System.Drawing.Point(20, 65),
+                Location = new System.Drawing.Point(25, 70),
                 Size = new System.Drawing.Size(120, 20),
                 Font = new System.Drawing.Font("Segoe UI", 9F),
                 ForeColor = System.Drawing.Color.FromArgb(100, 100, 100),
@@ -765,13 +777,65 @@ namespace PrinterAutomation.Forms
             var lblCompletedJobs = new LabelControl
             {
                 Text = "0",
-                Location = new System.Drawing.Point(150, 65),
+                Location = new System.Drawing.Point(155, 70),
                 Size = new System.Drawing.Size(50, 25),
-                Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 13F, System.Drawing.FontStyle.Bold),
                 ForeColor = System.Drawing.Color.FromArgb(76, 175, 80),
                 Name = "lblCompletedJobs"
             };
             statsPanel.Controls.Add(lblCompletedJobs);
+
+            // Toplam Kazanç (Butonun üzerinde)
+            var lblTotalEarningsLabel = new LabelControl
+            {
+                Text = "Toplam Kazanç:",
+                Size = new System.Drawing.Size(100, 20),
+                Font = new System.Drawing.Font("Segoe UI", 9F),
+                ForeColor = System.Drawing.Color.FromArgb(100, 100, 100),
+                Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right,
+                Name = "lblTotalEarningsLabel"
+            };
+            lblTotalEarningsLabel.Location = new System.Drawing.Point(statsPanel.Width - 190, 40);
+            statsPanel.Controls.Add(lblTotalEarningsLabel);
+
+            lblTotalEarnings = new LabelControl
+            {
+                Text = "0,00 TL",
+                Size = new System.Drawing.Size(90, 20),
+                Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold),
+                ForeColor = System.Drawing.Color.FromArgb(255, 193, 7),
+                Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right,
+                Name = "lblTotalEarnings"
+            };
+            lblTotalEarnings.Location = new System.Drawing.Point(statsPanel.Width - 100, 40);
+            statsPanel.Controls.Add(lblTotalEarnings);
+
+            // Kazanç Detayları Butonu
+            btnShowEarnings = new SimpleButton
+            {
+                Text = "💰 Kazanç Detayları",
+                Size = new System.Drawing.Size(180, 32),
+                Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold),
+                Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right
+            };
+            btnShowEarnings.Appearance.BackColor = System.Drawing.Color.FromArgb(255, 193, 7);
+            btnShowEarnings.Appearance.ForeColor = System.Drawing.Color.White;
+            btnShowEarnings.Appearance.BorderColor = System.Drawing.Color.FromArgb(255, 160, 0);
+            btnShowEarnings.Appearance.Options.UseBackColor = true;
+            btnShowEarnings.Appearance.Options.UseForeColor = true;
+            btnShowEarnings.Appearance.Options.UseBorderColor = true;
+            btnShowEarnings.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(255, 183, 0);
+            btnShowEarnings.AppearanceHovered.Options.UseBackColor = true;
+            btnShowEarnings.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(255, 160, 0);
+            btnShowEarnings.AppearancePressed.Options.UseBackColor = true;
+            btnShowEarnings.LookAndFeel.UseDefaultLookAndFeel = false;
+            btnShowEarnings.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+            btnShowEarnings.Click += BtnShowEarnings_Click;
+            statsPanel.Controls.Add(btnShowEarnings);
+            // Butonu sağa hizala ve label'ları öne getir
+            btnShowEarnings.Location = new System.Drawing.Point(statsPanel.Width - btnShowEarnings.Width - 10, 68);
+            lblTotalEarningsLabel.BringToFront();
+            lblTotalEarnings.BringToFront();
         }
 
         private void SetupGridColumns()
@@ -1026,20 +1090,6 @@ namespace PrinterAutomation.Forms
             ApplyTheme();
             
             RefreshData();
-            
-            // Program açıldığında kuyruktaki işleri işle (devam eden işler için)
-            try
-            {
-                _jobAssignmentService.ProcessQueuedJobs();
-                System.Diagnostics.Debug.WriteLine("[MainForm] Kuyruktaki işler işlendi");
-                
-                // İşler atandıktan sonra UI'ı güncelle
-                RefreshData();
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[MainForm] Kuyruktaki işler işlenirken hata: {ex.Message}");
-            }
         }
 
         private void RefreshData()
@@ -1162,6 +1212,14 @@ namespace PrinterAutomation.Forms
                 {
                     completedLabel.Text = completedJobsCount.ToString();
                 }
+            }
+
+            // Toplam kazancı güncelle
+            if (lblTotalEarnings != null)
+            {
+                var completedOrders = orders.Where(o => o.Status == OrderStatus.Completed).ToList();
+                decimal totalEarnings = completedOrders.Sum(o => o.TotalPrice);
+                lblTotalEarnings.Text = $"{totalEarnings:N2} TL";
             }
         }
 
@@ -1556,6 +1614,243 @@ namespace PrinterAutomation.Forms
             }
         }
 
+        private void BtnShowEarnings_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Tamamlanan siparişleri al
+                var completedOrders = _orderService.GetAllOrders()
+                    .Where(o => o.Status == OrderStatus.Completed)
+                    .OrderByDescending(o => o.OrderDate)
+                    .ToList();
+
+                // Hesaplamalar
+                decimal totalRevenue = completedOrders.Sum(o => o.TotalPrice);
+                int orderCount = completedOrders.Count;
+                
+                // Maliyet hesaplama (sipariş başına ortalama %40 maliyet varsayıyoruz)
+                decimal totalCost = totalRevenue * 0.40m;
+                decimal netProfit = totalRevenue - totalCost;
+                decimal profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+
+                // DevExpress XtraForm oluştur
+                var earningsForm = new XtraForm
+                {
+                    Text = "💰 Kazanç Detayları",
+                    Size = new System.Drawing.Size(900, 650),
+                    StartPosition = System.Windows.Forms.FormStartPosition.CenterParent,
+                    FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog,
+                    MaximizeBox = false,
+                    MinimizeBox = false,
+                    BackColor = System.Drawing.Color.FromArgb(245, 247, 250)
+                };
+
+                // Ana Panel
+                var mainPanel = new System.Windows.Forms.Panel
+                {
+                    Dock = System.Windows.Forms.DockStyle.Fill,
+                    Padding = new System.Windows.Forms.Padding(20),
+                    BackColor = System.Drawing.Color.FromArgb(245, 247, 250)
+                };
+                earningsForm.Controls.Add(mainPanel);
+
+                // Başlık
+                var lblTitle = new LabelControl
+                {
+                    Text = "💰 KAZANÇ DETAYLARI",
+                    Location = new System.Drawing.Point(0, 0),
+                    Size = new System.Drawing.Size(860, 30),
+                    Font = new System.Drawing.Font("Segoe UI", 16F, System.Drawing.FontStyle.Bold),
+                    ForeColor = System.Drawing.Color.FromArgb(63, 81, 181)
+                };
+                lblTitle.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+                mainPanel.Controls.Add(lblTitle);
+
+                // Özet Kartları (Üst kısım)
+                int cardY = 40;
+                int cardWidth = 200;
+                int cardHeight = 120;
+                int cardSpacing = 15;
+
+                // Toplam Gelir Kartı
+                var revenueCard = CreateSummaryCard("Toplam Gelir", totalRevenue.ToString("N2") + " TL", 
+                    System.Drawing.Color.FromArgb(33, 150, 243), 0, cardY, cardWidth, cardHeight);
+                mainPanel.Controls.Add(revenueCard);
+
+                // Toplam Maliyet Kartı
+                var costCard = CreateSummaryCard("Toplam Maliyet", totalCost.ToString("N2") + " TL", 
+                    System.Drawing.Color.FromArgb(244, 67, 54), cardWidth + cardSpacing, cardY, cardWidth, cardHeight);
+                mainPanel.Controls.Add(costCard);
+
+                // Net Kazanç Kartı
+                var profitCard = CreateSummaryCard("Net Kazanç", netProfit.ToString("N2") + " TL", 
+                    System.Drawing.Color.FromArgb(76, 175, 80), (cardWidth + cardSpacing) * 2, cardY, cardWidth, cardHeight);
+                mainPanel.Controls.Add(profitCard);
+
+                // Kar/Zarar Kartı
+                var profitMarginCard = CreateSummaryCard("Kar Marjı", profitMargin.ToString("F1") + " %", 
+                    netProfit >= 0 ? System.Drawing.Color.FromArgb(76, 175, 80) : System.Drawing.Color.FromArgb(244, 67, 54),
+                    (cardWidth + cardSpacing) * 3, cardY, cardWidth, cardHeight);
+                mainPanel.Controls.Add(profitMarginCard);
+
+                // Sipariş Sayısı Bilgisi
+                var lblOrderCount = new LabelControl
+                {
+                    Text = $"📦 Tamamlanan Sipariş Sayısı: {orderCount}",
+                    Location = new System.Drawing.Point(0, cardY + cardHeight + 20),
+                    Size = new System.Drawing.Size(860, 25),
+                    Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold),
+                    ForeColor = System.Drawing.Color.FromArgb(100, 100, 100)
+                };
+                lblOrderCount.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+                mainPanel.Controls.Add(lblOrderCount);
+
+                // Grid için Panel
+                var gridPanel = new System.Windows.Forms.Panel
+                {
+                    Location = new System.Drawing.Point(0, cardY + cardHeight + 55),
+                    Size = new System.Drawing.Size(860, 350),
+                    Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | 
+                             System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right
+                };
+                mainPanel.Controls.Add(gridPanel);
+
+                // Siparişler Grid
+                var gridControl = new GridControl
+                {
+                    Dock = System.Windows.Forms.DockStyle.Fill,
+                    DataSource = completedOrders.Select(o => new
+                    {
+                        SiparişNo = o.OrderNumber,
+                        Müşteri = o.CustomerName,
+                        Tarih = o.OrderDate.ToString("dd.MM.yyyy HH:mm"),
+                        Tutar = o.TotalPrice,
+                        ÜrünSayısı = o.Items.Count,
+                        Durum = o.Status.ToString()
+                    }).ToList()
+                };
+                gridPanel.Controls.Add(gridControl);
+
+                var gridView = new GridView(gridControl);
+                gridControl.MainView = gridView;
+                gridView.OptionsBehavior.Editable = false;
+                gridView.OptionsView.ShowGroupPanel = false;
+                gridView.OptionsView.ShowIndicator = true;
+                gridView.PaintStyleName = "Flat";
+
+                // Grid Sütunları
+                var colSiparisNo = gridView.Columns.AddField("SiparişNo");
+                colSiparisNo.Caption = "Sipariş No";
+                colSiparisNo.VisibleIndex = 0;
+                colSiparisNo.Width = 120;
+
+                var colMusteri = gridView.Columns.AddField("Müşteri");
+                colMusteri.Caption = "Müşteri";
+                colMusteri.VisibleIndex = 1;
+                colMusteri.Width = 180;
+
+                var colTarih = gridView.Columns.AddField("Tarih");
+                colTarih.Caption = "Tarih";
+                colTarih.VisibleIndex = 2;
+                colTarih.Width = 150;
+
+                var colTutar = gridView.Columns.AddField("Tutar");
+                colTutar.Caption = "Tutar (TL)";
+                colTutar.VisibleIndex = 3;
+                colTutar.Width = 120;
+                colTutar.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
+                colTutar.DisplayFormat.FormatString = "N2";
+                colTutar.AppearanceCell.ForeColor = System.Drawing.Color.FromArgb(33, 150, 243);
+                colTutar.AppearanceCell.Options.UseForeColor = true;
+
+                var colUrunSayisi = gridView.Columns.AddField("ÜrünSayısı");
+                colUrunSayisi.Caption = "Ürün Sayısı";
+                colUrunSayisi.VisibleIndex = 4;
+                colUrunSayisi.Width = 100;
+
+                var colDurum = gridView.Columns.AddField("Durum");
+                colDurum.Caption = "Durum";
+                colDurum.VisibleIndex = 5;
+                colDurum.Width = 100;
+
+                // Kapat Butonu
+                var closeButton = new SimpleButton
+                {
+                    Text = "Kapat",
+                    Size = new System.Drawing.Size(120, 40),
+                    Location = new System.Drawing.Point(earningsForm.Width - 150, earningsForm.Height - 80),
+                    Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right,
+                    DialogResult = System.Windows.Forms.DialogResult.OK
+                };
+                closeButton.Appearance.BackColor = System.Drawing.Color.FromArgb(33, 150, 243);
+                closeButton.Appearance.ForeColor = System.Drawing.Color.White;
+                closeButton.Appearance.Options.UseBackColor = true;
+                closeButton.Appearance.Options.UseForeColor = true;
+                closeButton.LookAndFeel.UseDefaultLookAndFeel = false;
+                closeButton.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+                earningsForm.Controls.Add(closeButton);
+                earningsForm.AcceptButton = closeButton;
+
+                earningsForm.ShowDialog(this);
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show(
+                    $"Kazanç detayları gösterilirken hata oluştu:\n{ex.Message}",
+                    "Hata",
+                    System.Windows.Forms.MessageBoxButtons.OK,
+                    System.Windows.Forms.MessageBoxIcon.Error);
+                
+                System.Diagnostics.Debug.WriteLine($"[MainForm] Kazanç detayları gösterilirken hata: {ex.Message}");
+            }
+        }
+
+        private System.Windows.Forms.Panel CreateSummaryCard(string title, string value, System.Drawing.Color color, int x, int y, int width, int height)
+        {
+            var card = new System.Windows.Forms.Panel
+            {
+                Location = new System.Drawing.Point(x, y),
+                Size = new System.Drawing.Size(width, height),
+                BackColor = System.Drawing.Color.White,
+                BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+            };
+
+            // Üst renkli çizgi
+            var topLine = new System.Windows.Forms.Panel
+            {
+                Dock = System.Windows.Forms.DockStyle.Top,
+                Height = 4,
+                BackColor = color
+            };
+            card.Controls.Add(topLine);
+
+            // Başlık
+            var lblTitle = new LabelControl
+            {
+                Text = title,
+                Location = new System.Drawing.Point(10, 15),
+                Size = new System.Drawing.Size(width - 20, 20),
+                Font = new System.Drawing.Font("Segoe UI", 9F),
+                ForeColor = System.Drawing.Color.FromArgb(100, 100, 100)
+            };
+            card.Controls.Add(lblTitle);
+
+            // Değer
+            var lblValue = new LabelControl
+            {
+                Text = value,
+                Location = new System.Drawing.Point(10, 40),
+                Size = new System.Drawing.Size(width - 20, 60),
+                Font = new System.Drawing.Font("Segoe UI", 18F, System.Drawing.FontStyle.Bold),
+                ForeColor = color
+            };
+            lblValue.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+            lblValue.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+            card.Controls.Add(lblValue);
+
+            return card;
+        }
+
         private void ApplyTheme()
         {
             if (_currentTheme == ThemeMode.Dark)
@@ -1714,7 +2009,7 @@ namespace PrinterAutomation.Forms
             // İstatistikler paneli
             if (statsPanel != null)
             {
-                statsPanel.BackColor = System.Drawing.Color.White;
+                statsPanel.BackColor = System.Drawing.Color.FromArgb(250, 250, 250);
             }
 
             // Yazıcı icon paneli arka planı
@@ -1916,7 +2211,8 @@ namespace PrinterAutomation.Forms
             foreach (var label in statsPanel?.Controls.OfType<LabelControl>())
             {
                 if (label != lblStats && label != lblTotalPrinters && label != lblActivePrinters && 
-                    label != lblTotalOrders && label != lblPendingJobs && label.Name != "lblCompletedJobs")
+                    label != lblTotalOrders && label != lblPendingJobs && label.Name != "lblCompletedJobs" &&
+                    label.Name != "lblTotalEarnings")
                 {
                     label.ForeColor = System.Drawing.Color.FromArgb(180, 180, 180);
                 }
@@ -1926,6 +2222,10 @@ namespace PrinterAutomation.Forms
                 .FirstOrDefault(l => l.Name == "lblCompletedJobs");
             if (completedLabel != null)
                 completedLabel.ForeColor = System.Drawing.Color.FromArgb(129, 199, 132);
+
+            // Toplam kazanç label'ı rengini güncelle
+            if (lblTotalEarnings != null)
+                lblTotalEarnings.ForeColor = System.Drawing.Color.FromArgb(255, 193, 7);
         }
 
         private void UpdateStatisticsLabelsForLightTheme()
@@ -1943,7 +2243,8 @@ namespace PrinterAutomation.Forms
             foreach (var label in statsPanel?.Controls.OfType<LabelControl>())
             {
                 if (label != lblStats && label != lblTotalPrinters && label != lblActivePrinters && 
-                    label != lblTotalOrders && label != lblPendingJobs && label.Name != "lblCompletedJobs")
+                    label != lblTotalOrders && label != lblPendingJobs && label.Name != "lblCompletedJobs" &&
+                    label.Name != "lblTotalEarnings")
                 {
                     label.ForeColor = System.Drawing.Color.FromArgb(100, 100, 100);
                 }
@@ -1953,6 +2254,10 @@ namespace PrinterAutomation.Forms
                 .FirstOrDefault(l => l.Name == "lblCompletedJobs");
             if (completedLabel != null)
                 completedLabel.ForeColor = System.Drawing.Color.FromArgb(76, 175, 80);
+
+            // Toplam kazanç label'ı rengini güncelle
+            if (lblTotalEarnings != null)
+                lblTotalEarnings.ForeColor = System.Drawing.Color.FromArgb(255, 193, 7);
         }
 
         private void GridViewPrinters_RowCellStyle(object sender, DevExpress.XtraGrid.Views.Grid.RowCellStyleEventArgs e)

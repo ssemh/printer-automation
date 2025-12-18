@@ -115,12 +115,6 @@ namespace PrinterAutomation.Services
 
         public void ClearAllData()
         {
-            if (_database == null)
-            {
-                System.Diagnostics.Debug.WriteLine($"[MongoDB] ⚠ Veritabanı bağlantısı yok - veriler temizlenemiyor");
-                throw new InvalidOperationException("MongoDB veritabanı bağlantısı yok. Veriler temizlenemiyor.");
-            }
-
             try
             {
                 // Tüm collection'ları temizle

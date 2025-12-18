@@ -346,7 +346,7 @@ namespace PrinterAutomation.Services
             var modelInfo = _orderService.GetModelInfo(item.ModelFileName);
             double filamentUsage = modelInfo?.FilamentUsage ?? 3; // Varsayılan %3
             
-            _printerService.AssignJobToPrinter(suitablePrinter.Id, item.ModelFileName, item.EstimatedTime, filamentUsage);
+            _printerService.AssignJobToPrinter(suitablePrinter.Id, item.ModelFileName, item.EstimatedTime);
             
             if (JobAssigned != null)
                 JobAssigned(this, new PrintJobEventArgs(job));
@@ -411,35 +411,7 @@ namespace PrinterAutomation.Services
                             var modelInfo = _orderService.GetModelInfo(item.ModelFileName);
                             double filamentUsage = modelInfo?.FilamentUsage ?? 3; // Varsayılan %3
                             
-                            // Kaydedilmiş progress'i kullan (eğer varsa)
-                            double savedProgress = job.Progress;
-                            if (savedProgress > 0 && savedProgress < 100)
-                            {
-                                System.Diagnostics.Debug.WriteLine($"[JobAssignment] İş #{job.Id} devam ediyor: Progress={savedProgress:F1}%");
-                            }
-                            
-                            _printerService.AssignJobToPrinter(suitablePrinter.Id, item.ModelFileName, item.EstimatedTime, filamentUsage, savedProgress);
-                            
-                            // Job'un progress'ini de güncelle (eğer kaydedilmiş progress varsa)
-                            if (savedProgress > 0 && savedProgress < 100)
-                            {
-                                job.Progress = savedProgress;
-                                // MongoDB'de progress'i güncelle
-                                if (_mongoDbService != null)
-                                {
-                                    try
-                                    {
-                                        var filter = Builders<PrintJob>.Filter.Eq(j => j.Id, job.Id);
-                                        var update = Builders<PrintJob>.Update.Set(j => j.Progress, savedProgress);
-                                        _jobsCollection.UpdateOne(filter, update);
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        System.Diagnostics.Debug.WriteLine($"[MongoDB] İş progress güncellenirken hata: {ex.Message}");
-                                    }
-                                }
-                            }
-                            
+                            _printerService.AssignJobToPrinter(suitablePrinter.Id, item.ModelFileName, item.EstimatedTime);
                             availablePrinters.Remove(suitablePrinter);
                             if (JobAssigned != null)
                                 JobAssigned(this, new PrintJobEventArgs(job));
