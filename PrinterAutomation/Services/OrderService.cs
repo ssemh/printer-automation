@@ -471,7 +471,19 @@ namespace PrinterAutomation.Services
         public Order SimulateECommerceOrder()
         {
             var random = new Random();
-            var customerNames = new[] { "Ahmet Yılmaz", "Ayşe Demir", "Mehmet Kaya", "Zeynep Özkan", "Ali Çelik" };
+            var customerNames = new[] 
+            { 
+                "Ahmet Yılmaz", "Ayşe Demir", "Mehmet Kaya", "Zeynep Özkan", "Ali Çelik",
+                 "Mustafa Arslan", "Elif Yıldız", "Hasan Korkmaz", "Selin Aydın",
+                "Burak Özdemir", "Ceren Avcı", "Emre Doğan", "Gizem Çetin", "Kaan Yücel",
+                "Leyla Aktaş", "Onur Şen", "Pınar Koç", "Serkan Güneş", "Tuğba Erdem",
+                "Uğur Çakır", "Yasemin Karaca", "Barış Öztürk", "Derya Yılmaz", "Furkan Aydın",
+                "Gamze Kaya", "Hakan Demir", "İrem Şahin", "Kemal Arslan", "Melis Yıldız",
+                "Nazlı Korkmaz", "Okan Aydın", "Pelin Çelik", "Rıza Özkan", "Seda Demir",
+                "Tolga Yılmaz", "Ülkü Kaya", "Volkan Şahin", "Zeynep Arslan", "Arda Yıldız",
+                "Beste Korkmaz", "Can Aydın", "Deniz Çelik", "Ece Özkan", "Fırat Demir",
+                "Gökçe Yılmaz", "Hüseyin Kaya", "İpek Şahin", "Jale Arslan", "Koray Yıldız"
+            };
             var materials = new[] { "PLA", "ABS", "PETG" };
 
             var subfolders = GetModelSubfolders();

@@ -44,6 +44,9 @@ namespace PrinterAutomation.Models
         [BsonElement("startedAt")]
         public DateTime? StartedAt { get; set; }
         
+        [BsonElement("estimatedEndTime")]
+        public DateTime? EstimatedEndTime { get; set; }
+        
         [BsonElement("completedAt")]
         public DateTime? CompletedAt { get; set; }
         

@@ -226,7 +226,21 @@ namespace PrinterAutomation.Forms
         {
             try
             {
+                // Yazıcıların ve işlerin yüklenmesi için biraz bekle
+                System.Threading.Thread.Sleep(1500);
                 InitializeData();
+                
+                // Bir kez daha güncelle (yazıcılar tam yüklendikten sonra)
+                var refreshTimer = new System.Windows.Forms.Timer();
+                refreshTimer.Interval = 2000; // 2 saniye bekle
+                refreshTimer.Tick += (s, args) =>
+                {
+                    refreshTimer.Stop();
+                    refreshTimer.Dispose();
+                    RefreshData();
+                    System.Diagnostics.Debug.WriteLine("[MainForm] Yazıcılar yüklendikten sonra RefreshData() çağrıldı");
+                };
+                refreshTimer.Start();
             }
             catch (Exception ex)
             {
@@ -435,6 +449,8 @@ namespace PrinterAutomation.Forms
                 gridViewPrinters.CustomColumnDisplayText += GridViewPrinters_CustomColumnDisplayText;
                 // Çift tıklama ile filament değiştirme
                 gridViewPrinters.DoubleClick += GridViewPrinters_DoubleClick;
+                // Filament sütununa tıklama ile yenileme
+                gridViewPrinters.RowCellClick += GridViewPrinters_RowCellClick;
                 // Filtre paneli için paint event'i
                 gridControlPrinters.Paint += GridControl_Paint;
                 
@@ -1075,6 +1091,25 @@ namespace PrinterAutomation.Forms
                     RefreshData();
                     lblStatus.Text = $"✓ İş tamamlandı: {e.Job.ModelFileName}";
                     lblStatus.ForeColor = System.Drawing.Color.FromArgb(129, 199, 132);
+                }));
+            };
+
+            _jobAssignmentService.FilamentDepleted += (s, e) =>
+            {
+                this.Invoke(new Action(() =>
+                {
+                    RefreshData();
+                    XtraMessageBox.Show(
+                        $"⚠️ FİLAMENT BİTTİ!\n\n" +
+                        $"Yazıcı: {e.Printer.Name}\n" +
+                        $"İş: {e.Job.ModelFileName}\n" +
+                        $"Filament: {e.Printer.FilamentType}\n\n" +
+                        $"İşlem durduruldu. Filament yenilendikten sonra iş devam edecek.",
+                        "Filament Bitti",
+                        System.Windows.Forms.MessageBoxButtons.OK,
+                        System.Windows.Forms.MessageBoxIcon.Warning);
+                    lblStatus.Text = $"⚠ Filament bitti: {e.Printer.Name}";
+                    lblStatus.ForeColor = System.Drawing.Color.FromArgb(244, 67, 54);
                 }));
             };
         }
@@ -2859,6 +2894,168 @@ namespace PrinterAutomation.Forms
 
             // Filament değiştirme dialog'unu aç
             OpenFilamentChangeDialog(printer);
+        }
+
+        private void GridViewPrinters_RowCellClick(object sender, DevExpress.XtraGrid.Views.Grid.RowCellClickEventArgs e)
+        {
+            try
+            {
+                // Sadece FilamentRemaining sütununa tıklanırsa
+                if (e.Column != null && e.Column.FieldName == "FilamentRemaining")
+                {
+                    var printer = gridViewPrinters.GetRow(e.RowHandle) as Printer;
+                    if (printer != null)
+                    {
+                        // Filament yenileme dialog'u aç
+                        OpenFilamentRefillDialog(printer);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainForm] Filament yenileme dialog açılırken hata: {ex.Message}");
+            }
+        }
+
+        private void OpenFilamentRefillDialog(Printer printer)
+        {
+            try
+            {
+                var dialog = new XtraForm
+                {
+                    Text = "Filament Yenile",
+                    Size = new System.Drawing.Size(400, 250),
+                    StartPosition = System.Windows.Forms.FormStartPosition.CenterParent,
+                    FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog,
+                    MaximizeBox = false,
+                    MinimizeBox = false,
+                    BackColor = _currentTheme == ThemeMode.Dark ? 
+                        System.Drawing.Color.FromArgb(30, 30, 30) : 
+                        System.Drawing.Color.FromArgb(245, 247, 250)
+                };
+
+                var mainPanel = new System.Windows.Forms.Panel
+                {
+                    Dock = System.Windows.Forms.DockStyle.Fill,
+                    Padding = new System.Windows.Forms.Padding(20),
+                    BackColor = dialog.BackColor
+                };
+                dialog.Controls.Add(mainPanel);
+
+                // Bilgi Label
+                var lblInfo = new LabelControl
+                {
+                    Text = $"Yazıcı: {printer.Name}\nMevcut Filament: {printer.FilamentRemaining:F1}%",
+                    Location = new System.Drawing.Point(10, 10),
+                    Size = new System.Drawing.Size(360, 50),
+                    Font = new System.Drawing.Font("Segoe UI", 10F),
+                    ForeColor = _currentTheme == ThemeMode.Dark ? 
+                        System.Drawing.Color.FromArgb(230, 230, 230) : 
+                        System.Drawing.Color.FromArgb(100, 100, 100)
+                };
+                mainPanel.Controls.Add(lblInfo);
+
+                // Miktar Label
+                var lblAmount = new LabelControl
+                {
+                    Text = "Yenileme Miktarı (%):",
+                    Location = new System.Drawing.Point(10, 70),
+                    Size = new System.Drawing.Size(150, 20),
+                    Font = new System.Drawing.Font("Segoe UI", 9F),
+                    ForeColor = _currentTheme == ThemeMode.Dark ? 
+                        System.Drawing.Color.FromArgb(230, 230, 230) : 
+                        System.Drawing.Color.FromArgb(100, 100, 100)
+                };
+                mainPanel.Controls.Add(lblAmount);
+
+                // Miktar SpinEdit
+                var spinAmount = new SpinEdit
+                {
+                    Location = new System.Drawing.Point(170, 68),
+                    Size = new System.Drawing.Size(200, 24),
+                    Value = 100
+                };
+                spinAmount.Properties.MinValue = 0;
+                spinAmount.Properties.MaxValue = 100;
+                spinAmount.Properties.Increment = 5;
+                if (_currentTheme == ThemeMode.Dark)
+                {
+                    spinAmount.BackColor = System.Drawing.Color.FromArgb(50, 50, 50);
+                    spinAmount.ForeColor = System.Drawing.Color.FromArgb(230, 230, 230);
+                }
+                mainPanel.Controls.Add(spinAmount);
+
+                // Tamam Butonu
+                var btnOk = new SimpleButton
+                {
+                    Text = "Yenile",
+                    Size = new System.Drawing.Size(120, 35),
+                    Location = new System.Drawing.Point(100, 120),
+                    DialogResult = System.Windows.Forms.DialogResult.OK
+                };
+                btnOk.Appearance.BackColor = System.Drawing.Color.FromArgb(76, 175, 80);
+                btnOk.Appearance.ForeColor = System.Drawing.Color.White;
+                btnOk.Appearance.Options.UseBackColor = true;
+                btnOk.Appearance.Options.UseForeColor = true;
+                btnOk.LookAndFeel.UseDefaultLookAndFeel = false;
+                btnOk.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+                mainPanel.Controls.Add(btnOk);
+
+                // İptal Butonu
+                var btnCancel = new SimpleButton
+                {
+                    Text = "İptal",
+                    Size = new System.Drawing.Size(120, 35),
+                    Location = new System.Drawing.Point(230, 120),
+                    DialogResult = System.Windows.Forms.DialogResult.Cancel
+                };
+                btnCancel.Appearance.BackColor = System.Drawing.Color.FromArgb(158, 158, 158);
+                btnCancel.Appearance.ForeColor = System.Drawing.Color.White;
+                btnCancel.Appearance.Options.UseBackColor = true;
+                btnCancel.Appearance.Options.UseForeColor = true;
+                btnCancel.LookAndFeel.UseDefaultLookAndFeel = false;
+                btnCancel.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+                mainPanel.Controls.Add(btnCancel);
+
+                dialog.AcceptButton = btnOk;
+                dialog.CancelButton = btnCancel;
+
+                if (dialog.ShowDialog(this) == System.Windows.Forms.DialogResult.OK)
+                {
+                    double amount = (double)spinAmount.Value;
+                    bool success = _printerService.RefillFilament(printer.Id, amount);
+
+                    if (success)
+                    {
+                        RefreshData();
+                        lblStatus.Text = $"✓ Filament yenilendi: {printer.Name} -> {amount:F1}%";
+                        lblStatus.ForeColor = System.Drawing.Color.FromArgb(76, 175, 80);
+                        XtraMessageBox.Show(
+                            $"Filament başarıyla yenilendi!\n\n" +
+                            $"Yazıcı: {printer.Name}\n" +
+                            $"Yeni Filament: {amount:F1}%",
+                            "Filament Yenilendi",
+                            System.Windows.Forms.MessageBoxButtons.OK,
+                            System.Windows.Forms.MessageBoxIcon.Information);
+                    }
+                    else
+                    {
+                        XtraMessageBox.Show(
+                            "Filament yenilenirken hata oluştu!",
+                            "Hata",
+                            System.Windows.Forms.MessageBoxButtons.OK,
+                            System.Windows.Forms.MessageBoxIcon.Error);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show(
+                    $"Filament yenilenirken hata oluştu:\n{ex.Message}",
+                    "Hata",
+                    System.Windows.Forms.MessageBoxButtons.OK,
+                    System.Windows.Forms.MessageBoxIcon.Error);
+            }
         }
 
         private void OpenFilamentChangeDialog(Printer printer)

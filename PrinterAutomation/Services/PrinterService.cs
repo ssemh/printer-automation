@@ -43,46 +43,28 @@ namespace PrinterAutomation.Services
                 foreach (var printer in printers)
                 {
                     // FilamentRemaining ve FilamentType değerlerini MongoDB'den koru
-                    // Sadece aktif iş durumlarını sıfırla (uygulama yeniden başlatıldığında)
+                    // Yazıcı durumunu ve iş bilgilerini de koru (JobAssignmentService güncelleyecek)
                     var savedFilamentRemaining = printer.FilamentRemaining;
                     var savedFilamentType = printer.FilamentType;
+                    var savedStatus = printer.Status;
+                    var savedCurrentJobName = printer.CurrentJobName;
+                    var savedJobStartTime = printer.JobStartTime;
+                    var savedJobEndTime = printer.JobEndTime;
+                    var savedProgress = printer.Progress;
                     
-                    printer.Status = PrinterStatus.Idle;
-                    printer.CurrentJobName = null;
-                    printer.JobStartTime = null;
-                    printer.JobEndTime = null;
-                    printer.Progress = 0;
-                    
-                    // Filament durumlarını geri yükle
+                    // Yazıcı durumlarını koru (JobAssignmentService güncelleyecek)
                     printer.FilamentRemaining = savedFilamentRemaining;
                     printer.FilamentType = savedFilamentType;
+                    // Status, CurrentJobName, JobStartTime, JobEndTime, Progress JobAssignmentService tarafından güncellenecek
+                    // Şimdilik MongoDB'den gelen değerleri koru
                     
                     _printers.Add(printer);
                     
-                    // MongoDB'de güncelle (sadece iş durumlarını, filament değerlerini koru)
-                    if (_mongoDbService != null)
-                    {
-                        try
-                        {
-                            var filter = Builders<Printer>.Filter.Eq(p => p.Id, printer.Id);
-                            var update = Builders<Printer>.Update
-                                .Set(p => p.Status, PrinterStatus.Idle)
-                                .Set(p => p.CurrentJobName, (string)null)
-                                .Set(p => p.JobStartTime, (DateTime?)null)
-                                .Set(p => p.JobEndTime, (DateTime?)null)
-                                .Set(p => p.Progress, 0);
-                            // FilamentRemaining ve FilamentType güncellenmez (korunur)
-                            _printersCollection.UpdateOne(filter, update);
-                        }
-                        catch (Exception ex)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"[MongoDB] Yazıcı durumu güncellenirken hata: {ex.Message}");
-                        }
-                    }
+                    System.Diagnostics.Debug.WriteLine($"[MongoDB] Yazıcı #{printer.Id} yüklendi: Status={printer.Status}, Job={printer.CurrentJobName}, Progress={printer.Progress}");
                 }
                 
-                System.Diagnostics.Debug.WriteLine($"[MongoDB] {printers.Count} yazıcı yüklendi ve Idle durumuna getirildi");
-                System.Console.WriteLine($"[MongoDB] {printers.Count} yazıcı yüklendi ve Idle durumuna getirildi");
+                System.Diagnostics.Debug.WriteLine($"[MongoDB] {printers.Count} yazıcı yüklendi (durumlar korundu)");
+                System.Console.WriteLine($"[MongoDB] {printers.Count} yazıcı yüklendi (durumlar korundu)");
             }
             catch (Exception ex)
             {
@@ -182,16 +164,41 @@ namespace PrinterAutomation.Services
             }
         }
 
-        public void AssignJobToPrinter(int printerId, string jobName, double estimatedTime, double filamentUsage = 3)
+        public bool AssignJobToPrinter(int printerId, string jobName, double estimatedTime, double filamentUsage = 3, DateTime? jobStartTime = null, DateTime? jobEndTime = null)
         {
             var printer = GetPrinter(printerId);
             if (printer != null)
             {
+                // Filament kontrolü - yetersizse iş atanmasın
+                if (printer.FilamentRemaining < filamentUsage)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[PrinterService] Filament yetersiz! Yazıcı #{printerId}: {printer.FilamentRemaining:F1}% < {filamentUsage:F1}%");
+                    return false;
+                }
+
                 printer.Status = PrinterStatus.Printing;
                 printer.CurrentJobName = jobName;
-                printer.JobStartTime = DateTime.Now;
-                printer.JobEndTime = DateTime.Now.AddMinutes(estimatedTime);
-                printer.Progress = 0;
+                
+                // Eğer jobStartTime ve jobEndTime verilmişse (devam eden iş), onları kullan
+                // Yoksa yeni iş başlatılıyor, şimdiki zamandan başlat
+                if (jobStartTime.HasValue && jobEndTime.HasValue)
+                {
+                    printer.JobStartTime = jobStartTime;
+                    printer.JobEndTime = jobEndTime;
+                    // İlerlemeyi hesapla
+                    var elapsed = DateTime.Now - jobStartTime.Value;
+                    var total = jobEndTime.Value - jobStartTime.Value;
+                    if (total.TotalSeconds > 0)
+                    {
+                        printer.Progress = Math.Min(100, Math.Max(0, (elapsed.TotalSeconds / total.TotalSeconds) * 100));
+                    }
+                }
+                else
+                {
+                    printer.JobStartTime = DateTime.Now;
+                    printer.JobEndTime = DateTime.Now.AddMinutes(estimatedTime);
+                    printer.Progress = 0;
+                }
                 
                 // Filament tüketimi ModelInfo'dan alınır
                 printer.FilamentRemaining = Math.Max(0, printer.FilamentRemaining - filamentUsage);
@@ -217,14 +224,31 @@ namespace PrinterAutomation.Services
                         System.Diagnostics.Debug.WriteLine($"[MongoDB] Yazıcı iş ataması güncellenirken hata: {ex.Message}");
                     }
                 }
+                
+                return true;
             }
+            
+            return false;
         }
 
-        public void UpdateJobProgress(int printerId, double progress)
+        public bool UpdateJobProgress(int printerId, double progress)
         {
             var printer = GetPrinter(printerId);
             if (printer != null)
             {
+                // Filament kontrolü - filament bittiğinde işlemi durdur
+                if (printer.FilamentRemaining <= 0)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[PrinterService] Filament bitti! Yazıcı #{printerId} işlemi durduruldu.");
+                    // Yazıcıyı durdur
+                    printer.Status = PrinterStatus.Idle;
+                    printer.CurrentJobName = null;
+                    printer.JobStartTime = null;
+                    printer.JobEndTime = null;
+                    printer.Progress = 0;
+                    return false; // İşlem durduruldu
+                }
+                
                 printer.Progress = progress;
                 
                 // MongoDB'de güncelle (performans için belirli aralıklarla)
@@ -242,7 +266,11 @@ namespace PrinterAutomation.Services
                         System.Diagnostics.Debug.WriteLine($"[MongoDB] Yazıcı ilerlemesi güncellenirken hata: {ex.Message}");
                     }
                 }
+                
+                return true;
             }
+            
+            return false;
         }
 
         public void CompleteJob(int printerId)
@@ -310,6 +338,37 @@ namespace PrinterAutomation.Services
         public static List<string> GetAvailableFilamentTypes()
         {
             return new List<string> { "PLA", "ABS", "PETG", "TPU", "NYLON", "WOOD", "METAL", "CARBON" };
+        }
+
+        public bool RefillFilament(int printerId, double amount = 100.0)
+        {
+            var printer = GetPrinter(printerId);
+            if (printer != null)
+            {
+                printer.FilamentRemaining = Math.Min(100.0, amount);
+                
+                // MongoDB'de güncelle
+                if (_mongoDbService != null && _printersCollection != null)
+                {
+                    try
+                    {
+                        var filter = Builders<Printer>.Filter.Eq(p => p.Id, printerId);
+                        var update = Builders<Printer>.Update.Set(p => p.FilamentRemaining, printer.FilamentRemaining);
+                        _printersCollection.UpdateOne(filter, update);
+                        System.Diagnostics.Debug.WriteLine($"[MongoDB] Filament yenilendi: Yazıcı #{printerId} -> {printer.FilamentRemaining:F1}%");
+                        return true;
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[MongoDB] Filament yenilenirken hata: {ex.Message}");
+                        return false;
+                    }
+                }
+                
+                return true;
+            }
+            
+            return false;
         }
 
         public bool ChangeFilamentType(int printerId, string newFilamentType)

@@ -19,6 +19,7 @@ namespace PrinterAutomation.Services
 
         public event System.EventHandler<PrintJobEventArgs> JobAssigned;
         public event System.EventHandler<PrintJobEventArgs> JobCompleted;
+        public event System.EventHandler<FilamentDepletedEventArgs> FilamentDepleted;
 
         public JobAssignmentService(PrinterService printerService, OrderService orderService, MongoDbService mongoDbService = null)
         {
@@ -33,6 +34,9 @@ namespace PrinterAutomation.Services
             }
             
             InitializeProgressTimer();
+            
+            // Yazıcıların güncellenmesi için biraz bekle ve sonra bir event tetikle
+            System.Threading.Thread.Sleep(1000); // 1 saniye bekle
         }
 
         private void LoadJobsFromDatabase()
@@ -50,57 +54,198 @@ namespace PrinterAutomation.Services
                 {
                     System.Diagnostics.Debug.WriteLine($"[MongoDB] İş #{job.Id} - Durum: {job.Status}, Progress: {job.Progress}%");
                     
-                    // Devam eden işleri (Printing) durdur - uygulama yeniden başlatıldığında
-                    // Tüm Printing durumundaki işleri Queued yap ama Progress'i koru
+                    // Devam eden işleri (Printing) koru - uygulama yeniden başlatıldığında
+                    // StartedAt ve EstimatedEndTime zamanlarına göre ilerlemeyi hesapla ve yazıcıya geri ata
                     if (job.Status == JobStatus.Printing)
                     {
-                        var savedProgress = job.Progress; // İlerlemeyi koru
-                        System.Diagnostics.Debug.WriteLine($"[MongoDB] Printing iş bulundu: Job #{job.Id}, Progress: {job.Progress}% -> Queued yapılıyor (Progress korunuyor)");
+                        // StartedAt ve EstimatedEndTime zamanlarına göre mevcut ilerlemeyi hesapla
+                        double calculatedProgress = 0;
+                        bool shouldComplete = false;
                         
-                        // Tüm Printing işlerini Queued yap ama Progress'i koru
-                        job.Status = JobStatus.Queued;
-                        job.Progress = savedProgress; // İlerlemeyi koru
-                        job.StartedAt = null;
+                        if (job.StartedAt.HasValue && job.EstimatedEndTime.HasValue)
+                        {
+                            var elapsed = DateTime.Now - job.StartedAt.Value;
+                            var total = job.EstimatedEndTime.Value - job.StartedAt.Value;
+                            
+                            if (total.TotalSeconds > 0)
+                            {
+                                calculatedProgress = Math.Min(100, Math.Max(0, (elapsed.TotalSeconds / total.TotalSeconds) * 100));
+                            }
+                            
+                            // Eğer süre dolmuşsa
+                            if (DateTime.Now >= job.EstimatedEndTime.Value)
+                            {
+                                // Eğer progress %95'ten fazlaysa tamamlanmış say
+                                if (calculatedProgress >= 95 || job.Progress >= 95)
+                                {
+                                    calculatedProgress = 100;
+                                    shouldComplete = true;
+                                }
+                                else
+                                {
+                                    // Progress düşükse, EstimatedEndTime'ı güncelle (program kapatıldığında süre geçmiş olabilir)
+                                    var remainingProgress = 100 - calculatedProgress;
+                                    if (calculatedProgress > 0)
+                                    {
+                                        var estimatedTotalTime = elapsed.TotalMinutes * (100.0 / calculatedProgress);
+                                        var remainingTime = estimatedTotalTime - elapsed.TotalMinutes;
+                                        job.EstimatedEndTime = DateTime.Now.AddMinutes(Math.Max(1, remainingTime));
+                                        System.Diagnostics.Debug.WriteLine($"[MongoDB] İş #{job.Id} EstimatedEndTime güncellendi: {job.EstimatedEndTime} (Progress: {calculatedProgress:F1}%, Kalan: {remainingTime:F1} dk)");
+                                    }
+                                    else
+                                    {
+                                        // Progress 0 ise, EstimatedTime kadar ileriye al
+                                        job.EstimatedEndTime = DateTime.Now.AddMinutes(job.EstimatedTime);
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // Eski veriler için mevcut progress'i kullan
+                            calculatedProgress = job.Progress;
+                            // Eğer progress zaten %100 ise tamamlanmış olarak işaretle
+                            if (calculatedProgress >= 100)
+                            {
+                                shouldComplete = true;
+                            }
+                        }
+                        
+                        System.Diagnostics.Debug.WriteLine($"[MongoDB] Printing iş bulundu: Job #{job.Id}, Hesaplanan Progress: {calculatedProgress:F1}% (StartedAt: {job.StartedAt}, EstimatedEndTime: {job.EstimatedEndTime}, PrinterId: {job.PrinterId})");
+                        
+                        // Eğer tamamlanmışsa direkt CompleteJob çağır
+                        if (shouldComplete)
+                        {
+                            job.Progress = 100;
+                            job.Status = JobStatus.Completed;
+                            job.CompletedAt = job.EstimatedEndTime ?? DateTime.Now;
+                            
+                            // MongoDB'de güncelle
+                            if (_mongoDbService != null)
+                            {
+                                try
+                                {
+                                    var filter = Builders<PrintJob>.Filter.Eq(j => j.Id, job.Id);
+                                    var update = Builders<PrintJob>.Update
+                                        .Set(j => j.Status, JobStatus.Completed)
+                                        .Set(j => j.Progress, 100)
+                                        .Set(j => j.CompletedAt, job.CompletedAt);
+                                    _jobsCollection.UpdateOne(filter, update);
+                                }
+                                catch (Exception ex)
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"[MongoDB] İş tamamlanırken hata: {ex.Message}");
+                                }
+                            }
+                            
+                            // Yazıcıyı Idle yap
+                            if (job.PrinterId > 0)
+                            {
+                                var printer = _printerService.GetPrinter(job.PrinterId);
+                                if (printer != null)
+                                {
+                                    _printerService.CompleteJob(job.PrinterId);
+                                }
+                            }
+                            
+                            System.Diagnostics.Debug.WriteLine($"[MongoDB] ✓ İş tamamlandı: Job #{job.Id} (Süre dolmuş)");
+                            completedJobsCount++;
+                            continue; // Bu işi atla, bir sonrakine geç
+                        }
+                        
+                        // İlerlemeyi güncelle (tamamlanmamış işler için)
+                        job.Progress = calculatedProgress;
+                        job.Status = JobStatus.Printing; // Printing olarak koru
+                        // PrinterId korunur, sıfırlanmaz
                         printingJobsCount++;
                         
-                        // Yazıcıyı Idle yap
+                        // Yazıcıyı Printing durumuna getir ve zamanları senkronize et
                         if (job.PrinterId > 0)
                         {
                             var printer = _printerService.GetPrinter(job.PrinterId);
                             if (printer != null)
                             {
-                                printer.Status = PrinterStatus.Idle;
-                                printer.CurrentJobName = null;
-                                printer.JobStartTime = null;
-                                printer.JobEndTime = null;
-                                printer.Progress = 0; // Yazıcı progress'i sıfırla (iş progress'i korunur)
-                                System.Diagnostics.Debug.WriteLine($"[MongoDB] Yazıcı #{printer.Id} Idle durumuna getirildi");
+                                printer.Status = PrinterStatus.Printing;
+                                printer.CurrentJobName = job.ModelFileName;
+                                
+                                // Zamanları job'dan al
+                                if (job.StartedAt.HasValue)
+                                {
+                                    printer.JobStartTime = job.StartedAt;
+                                }
+                                if (job.EstimatedEndTime.HasValue)
+                                {
+                                    printer.JobEndTime = job.EstimatedEndTime;
+                                }
+                                
+                                // Progress'i job'dan al
+                                printer.Progress = calculatedProgress;
+                                
+                                System.Diagnostics.Debug.WriteLine($"[MongoDB] Yazıcı #{printer.Id} Printing durumuna getirildi (Job #{job.Id}, Progress: {calculatedProgress:F1}%)");
+                                
+                                // MongoDB'de yazıcıyı güncelle
+                                if (_mongoDbService != null)
+                                {
+                                    try
+                                    {
+                                        var printerCollection = _mongoDbService.GetCollection<Printer>("printers");
+                                        var filter = Builders<Printer>.Filter.Eq(p => p.Id, printer.Id);
+                                        var update = Builders<Printer>.Update
+                                            .Set(p => p.Status, printer.Status)
+                                            .Set(p => p.CurrentJobName, printer.CurrentJobName)
+                                            .Set(p => p.JobStartTime, printer.JobStartTime)
+                                            .Set(p => p.JobEndTime, printer.JobEndTime)
+                                            .Set(p => p.Progress, printer.Progress);
+                                        printerCollection.UpdateOne(filter, update);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        System.Diagnostics.Debug.WriteLine($"[MongoDB] Yazıcı güncellenirken hata: {ex.Message}");
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                // Yazıcı bulunamadıysa işi Queued yap
+                                System.Diagnostics.Debug.WriteLine($"[MongoDB] ⚠ Yazıcı #{job.PrinterId} bulunamadı, iş #{job.Id} Queued yapılıyor");
+                                job.Status = JobStatus.Queued;
+                                job.PrinterId = 0;
                             }
                         }
+                        else
+                        {
+                            // PrinterId yoksa Queued yap
+                            System.Diagnostics.Debug.WriteLine($"[MongoDB] ⚠ İş #{job.Id} için PrinterId yok, Queued yapılıyor");
+                            job.Status = JobStatus.Queued;
+                        }
                         
-                        // MongoDB'de güncelle (Progress korunur)
+                        // MongoDB'de güncelle (StartedAt ve EstimatedEndTime korunur, Progress güncellenir)
                         if (_mongoDbService != null)
                         {
                             try
                             {
                                 var filter = Builders<PrintJob>.Filter.Eq(j => j.Id, job.Id);
                                 var update = Builders<PrintJob>.Update
-                                    .Set(j => j.Status, JobStatus.Queued)
-                                    .Set(j => j.Progress, savedProgress) // İlerlemeyi koru
-                                    .Set(j => j.StartedAt, (DateTime?)null);
+                                    .Set(j => j.Status, job.Status)
+                                    .Set(j => j.Progress, calculatedProgress);
+                                // PrinterId, StartedAt ve EstimatedEndTime korunur (güncellenmez)
+                                if (job.PrinterId > 0)
+                                {
+                                    update = update.Set(j => j.PrinterId, job.PrinterId);
+                                }
                                 var result = _jobsCollection.UpdateOne(filter, update);
                                 if (result.ModifiedCount > 0)
                                 {
-                                    System.Diagnostics.Debug.WriteLine($"[MongoDB] ✓ İş durduruldu: Job #{job.Id} (Printing -> Queued, Progress: {savedProgress}% korundu)");
+                                    System.Diagnostics.Debug.WriteLine($"[MongoDB] ✓ İş devam ediyor: Job #{job.Id} (Printing, Progress: {calculatedProgress:F1}%, PrinterId: {job.PrinterId})");
                                 }
                                 else
                                 {
-                                    System.Diagnostics.Debug.WriteLine($"[MongoDB] ⚠ İş durdurulurken MongoDB güncellemesi başarısız: Job #{job.Id}");
+                                    System.Diagnostics.Debug.WriteLine($"[MongoDB] ⚠ İş güncellenirken MongoDB güncellemesi başarısız: Job #{job.Id}");
                                 }
                             }
                             catch (Exception ex)
                             {
-                                System.Diagnostics.Debug.WriteLine($"[MongoDB] ✗ İş durdurulurken hata: {ex.Message}");
+                                System.Diagnostics.Debug.WriteLine($"[MongoDB] ✗ İş güncellenirken hata: {ex.Message}");
                             }
                         }
                     }
@@ -121,8 +266,25 @@ namespace PrinterAutomation.Services
                     }
                 }
                 
-                System.Diagnostics.Debug.WriteLine($"[MongoDB] Özet: {jobs.Count} iş yüklendi - {printingJobsCount} Printing->Queued, {queuedJobsCount} Queued, {completedJobsCount} Completed");
-                System.Console.WriteLine($"[MongoDB] {jobs.Count} iş veritabanından yüklendi ({printingJobsCount} devam eden iş durduruldu)");
+                System.Diagnostics.Debug.WriteLine($"[MongoDB] Özet: {jobs.Count} iş yüklendi - {printingJobsCount} Printing (devam ediyor), {queuedJobsCount} Queued, {completedJobsCount} Completed");
+                System.Console.WriteLine($"[MongoDB] {jobs.Count} iş veritabanından yüklendi ({printingJobsCount} devam eden iş korundu)");
+                
+                // Sadece kuyruktaki işleri işle (Printing işler zaten devam ediyor)
+                if (queuedJobsCount > 0)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[MongoDB] {queuedJobsCount} kuyruktaki iş işlenecek (Timer ile)");
+                    // Timer ile çağır - yazıcıların tam yüklenmesi için bekle
+                    var processTimer = new System.Windows.Forms.Timer();
+                    processTimer.Interval = 2000; // 2 saniye bekle
+                    processTimer.Tick += (s, e) =>
+                    {
+                        processTimer.Stop();
+                        processTimer.Dispose();
+                        System.Diagnostics.Debug.WriteLine($"[MongoDB] ProcessQueuedJobs çağrılıyor...");
+                        ProcessQueuedJobs();
+                    };
+                    processTimer.Start();
+                }
             }
             catch (Exception ex)
             {
@@ -178,17 +340,88 @@ namespace PrinterAutomation.Services
                     continue;
                 }
                 
-                // Sadece gerçekten aktif bir yazıcıya atanmış ve zamanları olan işleri işle
-                if (printer.JobEndTime.HasValue && printer.JobStartTime.HasValue)
+                // StartedAt ve EstimatedEndTime zamanlarına göre ilerlemeyi hesapla
+                if (job.StartedAt.HasValue && job.EstimatedEndTime.HasValue)
                 {
-                    var elapsed = DateTime.Now - printer.JobStartTime.Value;
-                    var total = printer.JobEndTime.Value - printer.JobStartTime.Value;
+                    var elapsed = DateTime.Now - job.StartedAt.Value;
+                    var total = job.EstimatedEndTime.Value - job.StartedAt.Value;
                     
                     if (total.TotalSeconds > 0)
                     {
-                        var progress = Math.Min(100, (elapsed.TotalSeconds / total.TotalSeconds) * 100);
+                        var progress = Math.Min(100, Math.Max(0, (elapsed.TotalSeconds / total.TotalSeconds) * 100));
+                        
+                        // Eğer süre dolmuşsa
+                        if (DateTime.Now >= job.EstimatedEndTime.Value)
+                        {
+                            // Eğer progress %95'ten fazlaysa tamamlanmış say
+                            if (progress >= 95 || job.Progress >= 95)
+                            {
+                                progress = 100;
+                            }
+                            else
+                            {
+                                // Progress düşükse, EstimatedEndTime'ı güncelle
+                                var remainingProgress = 100 - progress;
+                                if (progress > 0)
+                                {
+                                    var estimatedTotalTime = elapsed.TotalMinutes * (100.0 / progress);
+                                    var remainingTime = estimatedTotalTime - elapsed.TotalMinutes;
+                                    job.EstimatedEndTime = DateTime.Now.AddMinutes(Math.Max(1, remainingTime));
+                                    System.Diagnostics.Debug.WriteLine($"[JobAssignment] İş #{job.Id} EstimatedEndTime güncellendi: {job.EstimatedEndTime} (Progress: {progress:F1}%, Kalan: {remainingTime:F1} dk)");
+                                }
+                                else
+                                {
+                                    // Progress 0 ise, EstimatedTime kadar ileriye al
+                                    job.EstimatedEndTime = DateTime.Now.AddMinutes(job.EstimatedTime);
+                                }
+                            }
+                        }
+                        
                         job.Progress = progress;
-                        _printerService.UpdateJobProgress(job.PrinterId, progress);
+                        
+                        // Yazıcının zamanlarını da güncelle (senkronizasyon için)
+                        if (printer.JobStartTime != job.StartedAt || printer.JobEndTime != job.EstimatedEndTime)
+                        {
+                            printer.JobStartTime = job.StartedAt;
+                            printer.JobEndTime = job.EstimatedEndTime;
+                        }
+                        
+                        bool progressUpdated = _printerService.UpdateJobProgress(job.PrinterId, progress);
+                        
+                        // Filament bittiğinde işi durdur
+                        if (!progressUpdated)
+                        {
+                            // Filament bitti - işi durdur ve kuyruğa ekle
+                            job.Status = JobStatus.Queued;
+                            job.PrinterId = 0;
+                            job.Progress = progress; // Mevcut ilerlemeyi koru
+                            
+                            // MongoDB'de güncelle
+                            if (_mongoDbService != null)
+                            {
+                                try
+                                {
+                                    var filter = Builders<PrintJob>.Filter.Eq(j => j.Id, job.Id);
+                                    var update = Builders<PrintJob>.Update
+                                        .Set(j => j.Status, job.Status)
+                                        .Set(j => j.PrinterId, 0)
+                                        .Set(j => j.Progress, job.Progress);
+                                    _jobsCollection.UpdateOne(filter, update);
+                                }
+                                catch (Exception ex)
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"[MongoDB] İş durdurulurken hata: {ex.Message}");
+                                }
+                            }
+                            
+                            System.Diagnostics.Debug.WriteLine($"[JobAssignment] Filament bitti! İş #{job.Id} durduruldu ve kuyruğa eklendi.");
+                            
+                            // Filament bitti uyarısı için event tetikle
+                            if (FilamentDepleted != null)
+                                FilamentDepleted(this, new FilamentDepletedEventArgs(printer, job));
+                            
+                            continue; // Bu işi atla, bir sonrakine geç
+                        }
                         
                         // MongoDB'de ilerlemeyi güncelle (her %10 değişimde veya tamamlandığında)
                         // Performans için sık güncelleme yapmıyoruz
@@ -197,7 +430,10 @@ namespace PrinterAutomation.Services
                             try
                             {
                                 var filter = Builders<PrintJob>.Filter.Eq(j => j.Id, job.Id);
-                                var update = Builders<PrintJob>.Update.Set(j => j.Progress, progress);
+                                var update = Builders<PrintJob>.Update
+                                    .Set(j => j.Progress, progress)
+                                    .Set(j => j.StartedAt, job.StartedAt) // Zamanları koru
+                                    .Set(j => j.EstimatedEndTime, job.EstimatedEndTime);
                                 var result = _jobsCollection.UpdateOne(filter, update);
                                 if (result.ModifiedCount > 0)
                                 {
@@ -217,6 +453,9 @@ namespace PrinterAutomation.Services
                     }
                 }
             }
+            
+            // Kuyruktaki işleri kontrol et ve atanmamış işleri yazıcılara ata
+            ProcessQueuedJobs();
         }
 
         /// <summary>
@@ -298,6 +537,10 @@ namespace PrinterAutomation.Services
             // Model için gerekli filament tipini belirle
             string requiredFilamentType = GetRequiredFilamentType(item.ModelFileName);
             
+            // Model bilgisini al ve filament tüketimini hesapla (önce kontrol için)
+            var modelInfo = _orderService.GetModelInfo(item.ModelFileName);
+            double filamentUsage = modelInfo?.FilamentUsage ?? 3; // Varsayılan %3
+            
             // Önce uygun filament tipine sahip bir yazıcı ara
             var suitablePrinter = availablePrinters.FirstOrDefault(p => p.FilamentType == requiredFilamentType);
             
@@ -310,6 +553,48 @@ namespace PrinterAutomation.Services
                 System.Diagnostics.Debug.WriteLine($"[JobAssignment] Yazıcı #{suitablePrinter.Id} filament tipi {requiredFilamentType} olarak değiştirildi (Model: {item.ModelFileName})");
             }
             
+            // Zamanları önce hesapla (yeni iş için)
+            var startTime = DateTime.Now;
+            var estimatedEndTime = startTime.AddMinutes(item.EstimatedTime);
+            
+            // İş ataması yap - filament kontrolü yapılır (ÖNCE KONTROL, SONRA JOB OLUŞTUR)
+            bool jobAssigned = _printerService.AssignJobToPrinter(suitablePrinter.Id, item.ModelFileName, item.EstimatedTime, filamentUsage, startTime, estimatedEndTime);
+            
+            if (!jobAssigned)
+            {
+                // Filament yetersiz - işi kuyruğa ekle
+                var queuedJob = new PrintJob
+                {
+                    Id = _nextJobId++,
+                    OrderId = order.Id,
+                    OrderItemId = item.Id,
+                    PrinterId = 0, // Henüz atanmadı
+                    ModelFileName = item.ModelFileName,
+                    Status = JobStatus.Queued,
+                    Material = requiredFilamentType,
+                    EstimatedTime = item.EstimatedTime
+                };
+                _printJobs.Add(queuedJob);
+                
+                // MongoDB'ye kaydet
+                if (_mongoDbService != null)
+                {
+                    try
+                    {
+                        _jobsCollection.InsertOne(queuedJob);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[MongoDB] İş kaydedilirken hata: {ex.Message}");
+                    }
+                }
+                
+                System.Diagnostics.Debug.WriteLine($"[JobAssignment] Filament yetersiz! İş #{queuedJob.Id} kuyruğa eklendi.");
+                return;
+            }
+            
+            // İş ataması başarılı - job oluştur
+            
             var job = new PrintJob
             {
                 Id = _nextJobId++,
@@ -318,7 +603,8 @@ namespace PrinterAutomation.Services
                 PrinterId = suitablePrinter.Id,
                 ModelFileName = item.ModelFileName,
                 Status = JobStatus.Printing,
-                StartedAt = DateTime.Now,
+                StartedAt = startTime,
+                EstimatedEndTime = estimatedEndTime,
                 Material = requiredFilamentType, // Model için gerekli filament tipini kullan
                 EstimatedTime = item.EstimatedTime,
                 Progress = 0
@@ -340,13 +626,7 @@ namespace PrinterAutomation.Services
                 }
             }
             
-            System.Diagnostics.Debug.WriteLine($"[MongoDB] İş kaydedildi: {job.ModelFileName} (ID: {job.Id}, Filament: {requiredFilamentType})");
-            
-            // Model bilgisini al ve filament tüketimini hesapla
-            var modelInfo = _orderService.GetModelInfo(item.ModelFileName);
-            double filamentUsage = modelInfo?.FilamentUsage ?? 3; // Varsayılan %3
-            
-            _printerService.AssignJobToPrinter(suitablePrinter.Id, item.ModelFileName, item.EstimatedTime);
+            System.Diagnostics.Debug.WriteLine($"[MongoDB] İş kaydedildi: {job.ModelFileName} (ID: {job.Id}, Filament: {requiredFilamentType}, Tüketim: {filamentUsage}%)");
             
             if (JobAssigned != null)
                 JobAssigned(this, new PrintJobEventArgs(job));
@@ -378,7 +658,50 @@ namespace PrinterAutomation.Services
                     
                     job.PrinterId = suitablePrinter.Id;
                     job.Status = JobStatus.Printing;
-                    job.StartedAt = DateTime.Now;
+                    
+                    // Eğer daha önce başlatılmışsa (devam eden iş), StartedAt'ı koru
+                    // Yoksa yeni başlatılıyorsa şimdiki zamanı kullan
+                    if (!job.StartedAt.HasValue)
+                    {
+                        job.StartedAt = DateTime.Now;
+                    }
+                    
+                    // EstimatedEndTime'ı güncelle (StartedAt + EstimatedTime)
+                    if (job.StartedAt.HasValue)
+                    {
+                        // Eğer EstimatedEndTime zaten varsa ve geçmişse, progress'e göre yeniden hesapla
+                        if (job.EstimatedEndTime.HasValue && DateTime.Now >= job.EstimatedEndTime.Value && job.Progress < 100)
+                        {
+                            // Kalan süreyi hesapla
+                            var remainingProgress = 100 - job.Progress;
+                            if (job.Progress > 0)
+                            {
+                                var elapsedTime = DateTime.Now - job.StartedAt.Value;
+                                var estimatedTotalTime = elapsedTime.TotalMinutes * (100.0 / job.Progress);
+                                var remainingTime = estimatedTotalTime - elapsedTime.TotalMinutes;
+                                
+                                // EstimatedEndTime'ı şimdiki zamandan kalan süre kadar ileriye al
+                                job.EstimatedEndTime = DateTime.Now.AddMinutes(Math.Max(1, remainingTime));
+                                System.Diagnostics.Debug.WriteLine($"[JobAssignment] İş #{job.Id} EstimatedEndTime güncellendi: {job.EstimatedEndTime} (Progress: {job.Progress:F1}%, Kalan: {remainingTime:F1} dk)");
+                            }
+                            else
+                            {
+                                // Progress 0 ise, EstimatedTime kadar ileriye al
+                                job.EstimatedEndTime = DateTime.Now.AddMinutes(job.EstimatedTime);
+                            }
+                        }
+                        else if (!job.EstimatedEndTime.HasValue)
+                        {
+                            // EstimatedEndTime yoksa, StartedAt + EstimatedTime olarak hesapla
+                            job.EstimatedEndTime = job.StartedAt.Value.AddMinutes(job.EstimatedTime);
+                        }
+                        // Eğer EstimatedEndTime varsa ve geçmemişse, olduğu gibi bırak
+                    }
+                    else
+                    {
+                        job.EstimatedEndTime = DateTime.Now.AddMinutes(job.EstimatedTime);
+                    }
+                    
                     job.Material = requiredFilamentType; // Model için gerekli filament tipini kullan
 
                     // MongoDB'de güncelle
@@ -391,6 +714,7 @@ namespace PrinterAutomation.Services
                                 .Set(j => j.PrinterId, job.PrinterId)
                                 .Set(j => j.Status, job.Status)
                                 .Set(j => j.StartedAt, job.StartedAt)
+                                .Set(j => j.EstimatedEndTime, job.EstimatedEndTime)
                                 .Set(j => j.Material, job.Material);
                             _jobsCollection.UpdateOne(filter, update);
                         }
@@ -411,7 +735,18 @@ namespace PrinterAutomation.Services
                             var modelInfo = _orderService.GetModelInfo(item.ModelFileName);
                             double filamentUsage = modelInfo?.FilamentUsage ?? 3; // Varsayılan %3
                             
-                            _printerService.AssignJobToPrinter(suitablePrinter.Id, item.ModelFileName, item.EstimatedTime);
+                            // İş ataması yap - filament kontrolü yapılır (devam eden iş için zamanları geçir)
+                            bool jobAssigned = _printerService.AssignJobToPrinter(suitablePrinter.Id, item.ModelFileName, item.EstimatedTime, filamentUsage, job.StartedAt, job.EstimatedEndTime);
+                            
+                            if (!jobAssigned)
+                            {
+                                // Filament yetersiz - işi kuyruğa ekle
+                                job.Status = JobStatus.Queued;
+                                job.PrinterId = 0;
+                                System.Diagnostics.Debug.WriteLine($"[JobAssignment] Filament yetersiz! İş #{job.Id} kuyruğa eklendi.");
+                                continue;
+                            }
+                            
                             availablePrinters.Remove(suitablePrinter);
                             if (JobAssigned != null)
                                 JobAssigned(this, new PrintJobEventArgs(job));
@@ -564,6 +899,18 @@ namespace PrinterAutomation.Services
 
         public PrintJobEventArgs(PrintJob job)
         {
+            Job = job;
+        }
+    }
+
+    public class FilamentDepletedEventArgs : System.EventArgs
+    {
+        public Printer Printer { get; }
+        public PrintJob Job { get; }
+
+        public FilamentDepletedEventArgs(Printer printer, PrintJob job)
+        {
+            Printer = printer;
             Job = job;
         }
     }
