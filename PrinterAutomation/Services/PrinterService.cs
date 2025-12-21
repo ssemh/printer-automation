@@ -39,37 +39,28 @@ namespace PrinterAutomation.Services
         {
             try
             {
+                System.Diagnostics.Debug.WriteLine($"[PrinterService] LoadPrintersFromDatabase() başladı");
                 var printers = _printersCollection.Find(_ => true).ToList();
+                System.Diagnostics.Debug.WriteLine($"[PrinterService] MongoDB'den {printers.Count} yazıcı bulundu");
+                System.Console.WriteLine($"[PrinterService] MongoDB'den {printers.Count} yazıcı bulundu");
+                
                 foreach (var printer in printers)
                 {
-                    // FilamentRemaining ve FilamentType değerlerini MongoDB'den koru
-                    // Yazıcı durumunu ve iş bilgilerini de koru (JobAssignmentService güncelleyecek)
-                    var savedFilamentRemaining = printer.FilamentRemaining;
-                    var savedFilamentType = printer.FilamentType;
-                    var savedStatus = printer.Status;
-                    var savedCurrentJobName = printer.CurrentJobName;
-                    var savedJobStartTime = printer.JobStartTime;
-                    var savedJobEndTime = printer.JobEndTime;
-                    var savedProgress = printer.Progress;
-                    
-                    // Yazıcı durumlarını koru (JobAssignmentService güncelleyecek)
-                    printer.FilamentRemaining = savedFilamentRemaining;
-                    printer.FilamentType = savedFilamentType;
-                    // Status, CurrentJobName, JobStartTime, JobEndTime, Progress JobAssignmentService tarafından güncellenecek
-                    // Şimdilik MongoDB'den gelen değerleri koru
-                    
+                    // MongoDB'den gelen tüm değerleri koru (durumlar, iş bilgileri, filament, vb.)
+                    // JobAssignmentService yazıcıları güncelleyecek ama şimdilik MongoDB'den gelen değerleri kullan
                     _printers.Add(printer);
                     
-                    System.Diagnostics.Debug.WriteLine($"[MongoDB] Yazıcı #{printer.Id} yüklendi: Status={printer.Status}, Job={printer.CurrentJobName}, Progress={printer.Progress}");
+                    System.Diagnostics.Debug.WriteLine($"[PrinterService] Yazıcı #{printer.Id} yüklendi: Status={printer.Status}, Job={printer.CurrentJobName ?? "(null)"}, Progress={printer.Progress:F1}%, Filament={printer.FilamentRemaining:F1}%");
+                    System.Console.WriteLine($"[PrinterService] Yazıcı #{printer.Id} yüklendi: Status={printer.Status}, Job={printer.CurrentJobName ?? "(null)"}, Progress={printer.Progress:F1}%");
                 }
                 
-                System.Diagnostics.Debug.WriteLine($"[MongoDB] {printers.Count} yazıcı yüklendi (durumlar korundu)");
-                System.Console.WriteLine($"[MongoDB] {printers.Count} yazıcı yüklendi (durumlar korundu)");
+                System.Diagnostics.Debug.WriteLine($"[PrinterService] {printers.Count} yazıcı yüklendi (MongoDB'den gelen durumlar korundu)");
+                System.Console.WriteLine($"[PrinterService] {printers.Count} yazıcı yüklendi (MongoDB'den gelen durumlar korundu)");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[MongoDB] Yazıcılar yüklenirken hata: {ex.Message}");
-                System.Console.WriteLine($"[MongoDB] Yazıcılar yüklenirken hata: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[PrinterService] Yazıcılar yüklenirken hata: {ex.Message}");
+                System.Console.WriteLine($"[PrinterService] Yazıcılar yüklenirken hata: {ex.Message}");
             }
         }
 
@@ -195,9 +186,9 @@ namespace PrinterAutomation.Services
                 }
                 else
                 {
-                    printer.JobStartTime = DateTime.Now;
-                    printer.JobEndTime = DateTime.Now.AddMinutes(estimatedTime);
-                    printer.Progress = 0;
+                printer.JobStartTime = DateTime.Now;
+                printer.JobEndTime = DateTime.Now.AddMinutes(estimatedTime);
+                printer.Progress = 0;
                 }
                 
                 // Filament tüketimi ModelInfo'dan alınır

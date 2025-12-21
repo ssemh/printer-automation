@@ -20,3 +20,7 @@ namespace PrinterAutomation.Models
         public double FilamentUsage { get; set; } // % olarak filament kullanımı
     }
 }
+
+
+
+
