@@ -191,8 +191,8 @@ namespace PrinterAutomation.Services
                 printer.Progress = 0;
                 }
                 
-                // Filament tüketimi ModelInfo'dan alınır
-                printer.FilamentRemaining = Math.Max(0, printer.FilamentRemaining - filamentUsage);
+                // Filament başlangıç miktarını kaydet (ilerlemeye göre azaltılacak)
+                printer.JobStartFilament = printer.FilamentRemaining;
                 
                 // MongoDB'de güncelle
                 if (_mongoDbService != null && _printersCollection != null)
@@ -206,7 +206,8 @@ namespace PrinterAutomation.Services
                             .Set(p => p.JobStartTime, printer.JobStartTime)
                             .Set(p => p.JobEndTime, printer.JobEndTime)
                             .Set(p => p.Progress, printer.Progress)
-                            .Set(p => p.FilamentRemaining, printer.FilamentRemaining);
+                            .Set(p => p.FilamentRemaining, printer.FilamentRemaining)
+                            .Set(p => p.JobStartFilament, printer.JobStartFilament);
                         _printersCollection.UpdateOne(filter, update);
                         System.Diagnostics.Debug.WriteLine($"[MongoDB] Yazıcı iş ataması güncellendi: {printer.Name}");
                     }
@@ -243,12 +244,16 @@ namespace PrinterAutomation.Services
                 printer.Progress = progress;
                 
                 // MongoDB'de güncelle (performans için belirli aralıklarla)
+                // Filament güncellemesi JobAssignmentService'de yapılıyor, burada sadece progress ve filament'i kaydet
                 if (_mongoDbService != null && _printersCollection != null && (DateTime.Now - _lastProgressUpdate).TotalSeconds >= ProgressUpdateIntervalSeconds)
                 {
                     try
                     {
                         var filter = Builders<Printer>.Filter.Eq(p => p.Id, printerId);
-                        var update = Builders<Printer>.Update.Set(p => p.Progress, progress);
+                        var update = Builders<Printer>.Update
+                            .Set(p => p.Progress, progress)
+                            .Set(p => p.FilamentRemaining, printer.FilamentRemaining)
+                            .Set(p => p.JobStartFilament, printer.JobStartFilament);
                         _printersCollection.UpdateOne(filter, update);
                         _lastProgressUpdate = DateTime.Now;
                     }
@@ -281,6 +286,7 @@ namespace PrinterAutomation.Services
                 printer.JobStartTime = null;
                 printer.JobEndTime = null;
                 printer.Progress = 0;
+                printer.JobStartFilament = null; // İş bittiğinde başlangıç filament'ini temizle
                 printer.TotalJobsCompleted++;
                 
                 // MongoDB'de güncelle
@@ -295,6 +301,7 @@ namespace PrinterAutomation.Services
                             .Set(p => p.JobStartTime, printer.JobStartTime)
                             .Set(p => p.JobEndTime, printer.JobEndTime)
                             .Set(p => p.Progress, printer.Progress)
+                            .Set(p => p.JobStartFilament, printer.JobStartFilament)
                             .Set(p => p.TotalJobsCompleted, printer.TotalJobsCompleted)
                             .Set(p => p.TotalPrintTime, printer.TotalPrintTime);
                         _printersCollection.UpdateOne(filter, update);

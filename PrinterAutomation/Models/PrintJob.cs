@@ -58,6 +58,9 @@ namespace PrinterAutomation.Models
         
         [BsonElement("estimatedTime")]
         public double EstimatedTime { get; set; } // Dakika
+        
+        [BsonElement("filamentUsage")]
+        public double FilamentUsage { get; set; } = 0; // Filament kullanımı (%)
     }
 }
 

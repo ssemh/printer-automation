@@ -205,6 +205,47 @@ namespace PrinterAutomation.Services
                                 // Progress'i job'dan al
                                 printer.Progress = calculatedProgress;
                                 
+                                // Program kapalıyken filament azaltma: İlerlemeye göre filament güncelle
+                                // Eğer JobStartFilament yoksa (eski veriler için), mevcut filament'i kullan
+                                if (!printer.JobStartFilament.HasValue)
+                                {
+                                    // Eski veriler için, mevcut filament'i başlangıç olarak kabul et
+                                    // Ancak bu durumda filament azaltma yapamayız, sadece ilerlemeye göre güncelleme yapabiliriz
+                                    // FilamentUsage'ı job'dan al, yoksa ModelInfo'dan al
+                                    double filamentUsage = job.FilamentUsage > 0 ? job.FilamentUsage : (_orderService?.GetModelInfo(job.ModelFileName)?.FilamentUsage ?? 3);
+                                    
+                                    // Eğer filament kullanımı kaydedilmemişse, job'a kaydet
+                                    if (job.FilamentUsage <= 0)
+                                    {
+                                        job.FilamentUsage = filamentUsage;
+                                    }
+                                    
+                                    // Başlangıç filament'ini hesapla: Mevcut filament + kullanılan filament
+                                    // Kullanılan filament = FilamentUsage * Progress / 100
+                                    double usedFilament = filamentUsage * (calculatedProgress / 100.0);
+                                    printer.JobStartFilament = printer.FilamentRemaining + usedFilament;
+                                    
+                                    System.Diagnostics.Debug.WriteLine($"[JobAssignment] Yazıcı #{printer.Id} için JobStartFilament hesaplandı: {printer.JobStartFilament:F1}% (Mevcut: {printer.FilamentRemaining:F1}%, Kullanılan: {usedFilament:F1}%)");
+                                }
+                                
+                                // İlerlemeye göre filament güncelle
+                                if (printer.JobStartFilament.HasValue)
+                                {
+                                    double filamentUsage = job.FilamentUsage > 0 ? job.FilamentUsage : (_orderService?.GetModelInfo(job.ModelFileName)?.FilamentUsage ?? 3);
+                                    
+                                    // Eğer filament kullanımı kaydedilmemişse, job'a kaydet
+                                    if (job.FilamentUsage <= 0)
+                                    {
+                                        job.FilamentUsage = filamentUsage;
+                                    }
+                                    
+                                    // Filament = Başlangıç - (Kullanım * İlerleme / 100)
+                                    double usedFilament = filamentUsage * (calculatedProgress / 100.0);
+                                    printer.FilamentRemaining = Math.Max(0, printer.JobStartFilament.Value - usedFilament);
+                                    
+                                    System.Diagnostics.Debug.WriteLine($"[JobAssignment] Yazıcı #{printer.Id} filament güncellendi: {printer.FilamentRemaining:F1}% (Başlangıç: {printer.JobStartFilament:F1}%, Kullanılan: {usedFilament:F1}%, İlerleme: {calculatedProgress:F1}%)");
+                                }
+                                
                                 System.Diagnostics.Debug.WriteLine($"[JobAssignment] ✓ Yazıcı #{printer.Id} Printing durumuna getirildi (Job #{job.Id}, Progress: {calculatedProgress:F1}%, JobName: {printer.CurrentJobName})");
                                 
                                 // MongoDB'de yazıcıyı güncelle
@@ -219,7 +260,9 @@ namespace PrinterAutomation.Services
                                             .Set(p => p.CurrentJobName, printer.CurrentJobName)
                                             .Set(p => p.JobStartTime, printer.JobStartTime)
                                             .Set(p => p.JobEndTime, printer.JobEndTime)
-                                            .Set(p => p.Progress, printer.Progress);
+                                            .Set(p => p.Progress, printer.Progress)
+                                            .Set(p => p.FilamentRemaining, printer.FilamentRemaining)
+                                            .Set(p => p.JobStartFilament, printer.JobStartFilament);
                                         var result = printerCollection.UpdateOne(filter, update);
                                         if (result.ModifiedCount > 0)
                                         {
@@ -470,6 +513,32 @@ namespace PrinterAutomation.Services
                             printer.JobEndTime = job.EstimatedEndTime;
                         }
                         
+                        // İlerlemeye göre filament azalt
+                        // FilamentUsage'ı job'dan al, yoksa ModelInfo'dan al
+                        double filamentUsage = job.FilamentUsage > 0 ? job.FilamentUsage : (_orderService?.GetModelInfo(job.ModelFileName)?.FilamentUsage ?? 3);
+                        
+                        // Eğer filament kullanımı kaydedilmemişse, job'a kaydet
+                        if (job.FilamentUsage <= 0)
+                        {
+                            job.FilamentUsage = filamentUsage;
+                        }
+                        
+                        // Eğer JobStartFilament yoksa (yeni başlatılan iş), mevcut filament'i başlangıç olarak kaydet
+                        if (!printer.JobStartFilament.HasValue)
+                        {
+                            printer.JobStartFilament = printer.FilamentRemaining;
+                            System.Diagnostics.Debug.WriteLine($"[JobAssignment] Yazıcı #{printer.Id} için JobStartFilament kaydedildi: {printer.JobStartFilament:F1}%");
+                        }
+                        
+                        // Filament = Başlangıç - (Kullanım * İlerleme / 100)
+                        if (printer.JobStartFilament.HasValue)
+                        {
+                            double usedFilament = filamentUsage * (progress / 100.0);
+                            printer.FilamentRemaining = Math.Max(0, printer.JobStartFilament.Value - usedFilament);
+                            
+                            System.Diagnostics.Debug.WriteLine($"[JobAssignment] Yazıcı #{printer.Id} filament güncellendi: {printer.FilamentRemaining:F1}% (Başlangıç: {printer.JobStartFilament:F1}%, Kullanılan: {usedFilament:F1}%, İlerleme: {progress:F1}%)");
+                        }
+                        
                         bool progressUpdated = _printerService.UpdateJobProgress(job.PrinterId, progress);
                         
                         // Filament bittiğinde işi durdur
@@ -516,7 +585,8 @@ namespace PrinterAutomation.Services
                                 var filter = Builders<PrintJob>.Filter.Eq(j => j.Id, job.Id);
                                 var update = Builders<PrintJob>.Update
                                     .Set(j => j.Progress, progress)
-                                    .Set(j => j.EstimatedEndTime, job.EstimatedEndTime);
+                                    .Set(j => j.EstimatedEndTime, job.EstimatedEndTime)
+                                    .Set(j => j.FilamentUsage, job.FilamentUsage);
                                 // StartedAt korunur (güncellenmez)
                                 if (job.StartedAt.HasValue)
                                 {
@@ -695,6 +765,7 @@ namespace PrinterAutomation.Services
                 EstimatedEndTime = estimatedEndTime,
                 Material = requiredFilamentType, // Model için gerekli filament tipini kullan
                 EstimatedTime = item.EstimatedTime,
+                FilamentUsage = filamentUsage, // Filament kullanımını kaydet
                 Progress = 0
             };
 
@@ -803,7 +874,8 @@ namespace PrinterAutomation.Services
                                 .Set(j => j.Status, job.Status)
                                 .Set(j => j.StartedAt, job.StartedAt)
                                 .Set(j => j.EstimatedEndTime, job.EstimatedEndTime)
-                                .Set(j => j.Material, job.Material);
+                                .Set(j => j.Material, job.Material)
+                                .Set(j => j.FilamentUsage, job.FilamentUsage);
                             _jobsCollection.UpdateOne(filter, update);
                         }
                         catch (Exception ex)
@@ -822,6 +894,9 @@ namespace PrinterAutomation.Services
                             // Model bilgisini al ve filament tüketimini hesapla
                             var modelInfo = _orderService.GetModelInfo(item.ModelFileName);
                             double filamentUsage = modelInfo?.FilamentUsage ?? 3; // Varsayılan %3
+                            
+                            // FilamentUsage'ı job'a kaydet
+                            job.FilamentUsage = filamentUsage;
                             
                             // İş ataması yap - filament kontrolü yapılır (devam eden iş için zamanları geçir)
                             bool jobAssigned = _printerService.AssignJobToPrinter(suitablePrinter.Id, item.ModelFileName, item.EstimatedTime, filamentUsage, job.StartedAt, job.EstimatedEndTime);

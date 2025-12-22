@@ -53,6 +53,9 @@ namespace PrinterAutomation.Models
         [BsonElement("totalPrintTime")]
         public double TotalPrintTime { get; set; } = 0; // Toplam yazdırma süresi (saat)
         
+        [BsonElement("jobStartFilament")]
+        public double? JobStartFilament { get; set; } // İş başladığında filament miktarı (%)
+        
         [BsonIgnore]
         public bool IsAvailable => Status == PrinterStatus.Idle;
     }

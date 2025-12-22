@@ -296,18 +296,23 @@ namespace PrinterAutomation.Forms
             };
             lblTitle.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Near;
             lblTitle.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+            lblTitle.Appearance.BackColor = System.Drawing.Color.Transparent;
+            lblTitle.Appearance.Options.UseBackColor = true;
             titlePanel.Controls.Add(lblTitle);
 
-            // Status Label (Başlık panelinde - daha modern)
+            // Status Label (Başlık panelinde - daha modern) - Gizli
             lblStatus = new LabelControl
             {
                 Text = "● Sistem Hazır",
                 Location = new System.Drawing.Point(30, 55),
                 Size = new System.Drawing.Size(400, 28),
                 Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold),
-                ForeColor = System.Drawing.Color.FromArgb(200, 230, 255)
+                ForeColor = System.Drawing.Color.FromArgb(200, 230, 255),
+                Visible = false // Gizli
             };
             lblStatus.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Near;
+            lblStatus.Appearance.BackColor = System.Drawing.Color.Transparent;
+            lblStatus.Appearance.Options.UseBackColor = true;
             titlePanel.Controls.Add(lblStatus);
 
             // Tema Değiştirme Butonu (Modern tasarım)
@@ -429,6 +434,8 @@ namespace PrinterAutomation.Forms
                 Font = new System.Drawing.Font("Segoe UI", 13F, System.Drawing.FontStyle.Bold),
                 ForeColor = System.Drawing.Color.White
             };
+            lblPrinters.Appearance.BackColor = System.Drawing.Color.Transparent;
+            lblPrinters.Appearance.Options.UseBackColor = true;
             printersHeaderPanel.Controls.Add(lblPrinters);
 
             // Printers Grid
@@ -519,6 +526,8 @@ namespace PrinterAutomation.Forms
                 Font = new System.Drawing.Font("Segoe UI", 13F, System.Drawing.FontStyle.Bold),
                 ForeColor = System.Drawing.Color.White
             };
+            lblOrders.Appearance.BackColor = System.Drawing.Color.Transparent;
+            lblOrders.Appearance.Options.UseBackColor = true;
             ordersHeaderPanel.Controls.Add(lblOrders);
             
             // Tamamlananları Sil butonunu siparişler başlık paneline ekle
@@ -616,6 +625,8 @@ namespace PrinterAutomation.Forms
                 Font = new System.Drawing.Font("Segoe UI", 13F, System.Drawing.FontStyle.Bold),
                 ForeColor = System.Drawing.Color.White
             };
+            lblJobs.Appearance.BackColor = System.Drawing.Color.Transparent;
+            lblJobs.Appearance.Options.UseBackColor = true;
             jobsHeaderPanel.Controls.Add(lblJobs);
 
             // Tamamlananları Sil butonunu yazdırma işleri başlık paneline ekle
@@ -711,6 +722,8 @@ namespace PrinterAutomation.Forms
                 Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold),
                 ForeColor = System.Drawing.Color.FromArgb(63, 81, 181)
             };
+            lblStats.Appearance.BackColor = System.Drawing.Color.Transparent;
+            lblStats.Appearance.Options.UseBackColor = true;
             statsPanel.Controls.Add(lblStats);
             
             // Alt çizgi
