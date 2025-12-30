@@ -13,6 +13,10 @@ using DevExpress.XtraEditors.Repository;
 using DevExpress.Utils;
 using PrinterAutomation.Models;
 using PrinterAutomation.Services;
+using MongoDB.Driver;
+using System.IO;
+using System.Diagnostics;
+using System.Collections.Generic;
 
 namespace PrinterAutomation.Forms
 {
@@ -45,6 +49,7 @@ namespace PrinterAutomation.Forms
         private SimpleButton btnDeleteCompletedJobs;
         private SimpleButton btnClearDatabase;
         private SimpleButton btnShowEarnings;
+        private SimpleButton btnShowModels;
         private LabelControl lblStatus;
         private LabelControl lblTitle;
         private LabelControl lblPrinters;
@@ -231,6 +236,17 @@ namespace PrinterAutomation.Forms
                 // İlk yükleme
                 InitializeData();
                 
+                // JobAssignmentService'den yazıcıları manuel olarak güncelle
+                // (Event handler'lar kurulduktan sonra)
+                if (_jobAssignmentService != null)
+                {
+                    System.Diagnostics.Debug.WriteLine("[MainForm] MainForm_Shown: Yazıcılar manuel olarak güncelleniyor...");
+                    System.Console.WriteLine("[MainForm] MainForm_Shown: Yazıcılar manuel olarak güncelleniyor...");
+                    
+                    // RefreshData() çağırarak yazıcıları güncelle
+                    RefreshData();
+                }
+                
                 // Yazıcıların ve işlerin tam yüklenmesi için birkaç kez güncelle
                 var refreshTimer1 = new System.Windows.Forms.Timer();
                 refreshTimer1.Interval = 1000; // 1 saniye bekle
@@ -291,7 +307,7 @@ namespace PrinterAutomation.Forms
                 Text = "🖨️ 3D YAZICI OTOMASYON SİSTEMİ",
                 Location = new System.Drawing.Point(30, 22),
                 Size = new System.Drawing.Size(600, 42),
-                Font = new System.Drawing.Font("Segoe UI", 24F, System.Drawing.FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 20F, System.Drawing.FontStyle.Bold),
                 ForeColor = System.Drawing.Color.White
             };
             lblTitle.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Near;
@@ -415,6 +431,30 @@ namespace PrinterAutomation.Forms
             titlePanel.Controls.Add(btnClearDatabase);
             btnClearDatabase.Location = new System.Drawing.Point(btnSimulateOrder.Left - btnClearDatabase.Width - 10, 20);
 
+            // Modelleri Göster Butonu (Modern tasarım)
+            btnShowModels = new SimpleButton
+            {
+                Text = "📦 Modelleri Göster",
+                Size = new System.Drawing.Size(200, 48),
+                Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right,
+                Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold)
+            };
+            btnShowModels.Appearance.BackColor = System.Drawing.Color.FromArgb(156, 39, 176);
+            btnShowModels.Appearance.ForeColor = System.Drawing.Color.White;
+            btnShowModels.Appearance.BorderColor = System.Drawing.Color.FromArgb(123, 31, 162);
+            btnShowModels.Appearance.Options.UseBackColor = true;
+            btnShowModels.Appearance.Options.UseForeColor = true;
+            btnShowModels.Appearance.Options.UseBorderColor = true;
+            btnShowModels.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(171, 71, 188);
+            btnShowModels.AppearanceHovered.BorderColor = System.Drawing.Color.FromArgb(180, 100, 200);
+            btnShowModels.AppearanceHovered.Options.UseBackColor = true;
+            btnShowModels.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(123, 31, 162);
+            btnShowModels.AppearancePressed.Options.UseBackColor = true;
+            btnShowModels.LookAndFeel.UseDefaultLookAndFeel = false;
+            btnShowModels.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+            btnShowModels.Click += BtnShowModels_Click;
+            titlePanel.Controls.Add(btnShowModels);
+            btnShowModels.Location = new System.Drawing.Point(btnClearDatabase.Left - btnShowModels.Width - 10, 20);
 
             // Printers Grid Başlık Panel
             printersHeaderPanel = new System.Windows.Forms.Panel
@@ -740,110 +780,120 @@ namespace PrinterAutomation.Forms
             var lblTotalPrintersLabel = new LabelControl
             {
                 Text = "Toplam Yazıcı:",
-                Location = new System.Drawing.Point(25, 40),
+                Location = new System.Drawing.Point(25, 45),
                 Size = new System.Drawing.Size(100, 20),
                 Font = new System.Drawing.Font("Segoe UI", 9F),
                 ForeColor = System.Drawing.Color.FromArgb(100, 100, 100)
             };
+            lblTotalPrintersLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             statsPanel.Controls.Add(lblTotalPrintersLabel);
 
             lblTotalPrinters = new LabelControl
             {
                 Text = "10",
                 Location = new System.Drawing.Point(135, 40),
-                Size = new System.Drawing.Size(50, 25),
+                Size = new System.Drawing.Size(50, 20),
                 Font = new System.Drawing.Font("Segoe UI", 13F, System.Drawing.FontStyle.Bold),
                 ForeColor = System.Drawing.Color.FromArgb(63, 81, 181)
             };
+            lblTotalPrinters.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             statsPanel.Controls.Add(lblTotalPrinters);
 
             // Aktif Yazıcı
             var lblActivePrintersLabel = new LabelControl
             {
                 Text = "Aktif Yazıcı:",
-                Location = new System.Drawing.Point(225, 40),
+                Location = new System.Drawing.Point(225, 45),
                 Size = new System.Drawing.Size(100, 20),
                 Font = new System.Drawing.Font("Segoe UI", 9F),
                 ForeColor = System.Drawing.Color.FromArgb(100, 100, 100)
             };
+            lblActivePrintersLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             statsPanel.Controls.Add(lblActivePrintersLabel);
 
             lblActivePrinters = new LabelControl
             {
                 Text = "0",
-                Location = new System.Drawing.Point(335, 40),
-                Size = new System.Drawing.Size(50, 25),
+                Location = new System.Drawing.Point(315, 40),
+                Size = new System.Drawing.Size(50, 20),
                 Font = new System.Drawing.Font("Segoe UI", 13F, System.Drawing.FontStyle.Bold),
                 ForeColor = System.Drawing.Color.FromArgb(76, 175, 80)
             };
+            lblActivePrinters.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             statsPanel.Controls.Add(lblActivePrinters);
 
             // Toplam Sipariş
             var lblTotalOrdersLabel = new LabelControl
             {
                 Text = "Toplam Sipariş:",
-                Location = new System.Drawing.Point(425, 40),
+                Location = new System.Drawing.Point(425, 45),
                 Size = new System.Drawing.Size(100, 20),
                 Font = new System.Drawing.Font("Segoe UI", 9F),
                 ForeColor = System.Drawing.Color.FromArgb(100, 100, 100)
             };
+            lblTotalOrdersLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             statsPanel.Controls.Add(lblTotalOrdersLabel);
 
             lblTotalOrders = new LabelControl
             {
                 Text = "0",
                 Location = new System.Drawing.Point(535, 40),
-                Size = new System.Drawing.Size(50, 25),
+                Size = new System.Drawing.Size(50, 20),
                 Font = new System.Drawing.Font("Segoe UI", 13F, System.Drawing.FontStyle.Bold),
                 ForeColor = System.Drawing.Color.FromArgb(255, 152, 0)
             };
+            lblTotalOrders.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             statsPanel.Controls.Add(lblTotalOrders);
 
             // Bekleyen İşler
             var lblPendingJobsLabel = new LabelControl
             {
                 Text = "Bekleyen İşler:",
-                Location = new System.Drawing.Point(625, 40),
+                Location = new System.Drawing.Point(625, 45),
                 Size = new System.Drawing.Size(100, 20),
                 Font = new System.Drawing.Font("Segoe UI", 9F),
                 ForeColor = System.Drawing.Color.FromArgb(100, 100, 100)
             };
+            lblPendingJobsLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             statsPanel.Controls.Add(lblPendingJobsLabel);
 
             lblPendingJobs = new LabelControl
             {
                 Text = "0",
                 Location = new System.Drawing.Point(735, 40),
-                Size = new System.Drawing.Size(50, 25),
+                Size = new System.Drawing.Size(50, 20),
                 Font = new System.Drawing.Font("Segoe UI", 13F, System.Drawing.FontStyle.Bold),
                 ForeColor = System.Drawing.Color.FromArgb(156, 39, 176)
             };
+            lblPendingJobs.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             statsPanel.Controls.Add(lblPendingJobs);
 
-            // Toplam Tamamlanan İş
+            // Toplam Tamamlanan İş (Bekleyen İşler yanına alındı)
             var lblCompletedJobsLabel = new LabelControl
             {
                 Text = "Tamamlanan İş:",
-                Location = new System.Drawing.Point(25, 70),
+                Location = new System.Drawing.Point(825, 45),
                 Size = new System.Drawing.Size(120, 20),
                 Font = new System.Drawing.Font("Segoe UI", 9F),
                 ForeColor = System.Drawing.Color.FromArgb(100, 100, 100),
                 Name = "lblCompletedJobsLabel"
             };
+            lblCompletedJobsLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             statsPanel.Controls.Add(lblCompletedJobsLabel);
 
             var lblCompletedJobs = new LabelControl
             {
                 Text = "0",
-                Location = new System.Drawing.Point(155, 70),
-                Size = new System.Drawing.Size(50, 25),
+                Location = new System.Drawing.Point(945, 40),
+                Size = new System.Drawing.Size(50, 20),
                 Font = new System.Drawing.Font("Segoe UI", 13F, System.Drawing.FontStyle.Bold),
                 ForeColor = System.Drawing.Color.FromArgb(76, 175, 80),
                 Name = "lblCompletedJobs"
             };
+            lblCompletedJobs.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             statsPanel.Controls.Add(lblCompletedJobs);
 
-            // Toplam Kazanç (Butonun üzerinde)
+            // Toplam Kazanç (Butonun üzerinde - mesafe artırıldı)
             var lblTotalEarningsLabel = new LabelControl
             {
                 Text = "Toplam Kazanç:",
@@ -853,7 +903,8 @@ namespace PrinterAutomation.Forms
                 Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right,
                 Name = "lblTotalEarningsLabel"
             };
-            lblTotalEarningsLabel.Location = new System.Drawing.Point(statsPanel.Width - 190, 40);
+            lblTotalEarningsLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+            lblTotalEarningsLabel.Location = new System.Drawing.Point(statsPanel.Width - 190, 42);
             statsPanel.Controls.Add(lblTotalEarningsLabel);
 
             lblTotalEarnings = new LabelControl
@@ -865,7 +916,8 @@ namespace PrinterAutomation.Forms
                 Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right,
                 Name = "lblTotalEarnings"
             };
-            lblTotalEarnings.Location = new System.Drawing.Point(statsPanel.Width - 100, 40);
+            lblTotalEarnings.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+            lblTotalEarnings.Location = new System.Drawing.Point(statsPanel.Width - 80, 40);
             statsPanel.Controls.Add(lblTotalEarnings);
 
             // Kazanç Detayları Butonu
@@ -905,55 +957,62 @@ namespace PrinterAutomation.Forms
             GridColumn colId = gridViewPrinters.Columns.AddField("Id");
             colId.Caption = "ID";
             colId.VisibleIndex = 0;
-            colId.Width = 50;
+            colId.Width = 29;
             colId.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colId.AppearanceCell.Options.UseForeColor = true;
+            colId.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
 
             GridColumn colName = gridViewPrinters.Columns.AddField("Name");
             colName.Caption = "Yazıcı Adı";
             colName.VisibleIndex = 1;
-            colName.Width = 120;
+            colName.Width = 79;
             colName.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colName.AppearanceCell.Options.UseForeColor = true;
+            colName.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
 
             GridColumn colStatus = gridViewPrinters.Columns.AddField("Status");
             colStatus.Caption = "Durum";
             colStatus.VisibleIndex = 2;
-            colStatus.Width = 120;
+            colStatus.Width = 59;
             colStatus.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colStatus.AppearanceCell.Options.UseForeColor = true;
+            colStatus.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
 
             GridColumn colJob = gridViewPrinters.Columns.AddField("CurrentJobName");
             colJob.Caption = "Mevcut İş";
             colJob.VisibleIndex = 3;
-            colJob.Width = 150;
+            colJob.Width = 89;
             colJob.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colJob.AppearanceCell.Options.UseForeColor = true;
+            colJob.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
 
             GridColumn colProgress = gridViewPrinters.Columns.AddField("Progress");
             colProgress.Caption = "İlerleme %";
             colProgress.VisibleIndex = 4;
-            colProgress.Width = 90;
+            colProgress.Width = 54;
             colProgress.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
             colProgress.DisplayFormat.FormatString = "F1";
             colProgress.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colProgress.AppearanceCell.Options.UseForeColor = true;
+            colProgress.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
 
             GridColumn colFilament = gridViewPrinters.Columns.AddField("FilamentRemaining");
             colFilament.Caption = "Filament %";
             colFilament.VisibleIndex = 5;
-            colFilament.Width = 90;
+            colFilament.Width = 54;
             colFilament.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
             colFilament.DisplayFormat.FormatString = "F1";
             colFilament.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colFilament.AppearanceCell.Options.UseForeColor = true;
+            colFilament.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
 
             GridColumn colFilamentType = gridViewPrinters.Columns.AddField("FilamentType");
             colFilamentType.Caption = "Filament Tipi";
             colFilamentType.VisibleIndex = 6;
-            colFilamentType.Width = 100;
+            colFilamentType.Width = 64;
             colFilamentType.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colFilamentType.AppearanceCell.Options.UseForeColor = true;
+            colFilamentType.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
 
             gridViewPrinters.OptionsView.ShowGroupPanel = false;
             gridViewPrinters.OptionsView.ShowIndicator = true;
@@ -968,55 +1027,61 @@ namespace PrinterAutomation.Forms
             GridColumn colOrderId = gridViewOrders.Columns.AddField("Id");
             colOrderId.Caption = "ID";
             colOrderId.VisibleIndex = 0;
-            colOrderId.Width = 50;
+            colOrderId.Width = 28;
             colOrderId.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colOrderId.AppearanceCell.Options.UseForeColor = true;
+            colOrderId.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
 
             GridColumn colOrderNo = gridViewOrders.Columns.AddField("OrderNumber");
             colOrderNo.Caption = "Sipariş No";
             colOrderNo.VisibleIndex = 1;
-            colOrderNo.Width = 150;
+            colOrderNo.Width = 78;
             colOrderNo.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colOrderNo.AppearanceCell.Options.UseForeColor = true;
+            colOrderNo.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
 
             GridColumn colCustomer = gridViewOrders.Columns.AddField("CustomerName");
             colCustomer.Caption = "Müşteri";
             colCustomer.VisibleIndex = 2;
-            colCustomer.Width = 120;
+            colCustomer.Width = 68;
             colCustomer.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colCustomer.AppearanceCell.Options.UseForeColor = true;
+            colCustomer.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
 
             GridColumn colDate = gridViewOrders.Columns.AddField("OrderDate");
             colDate.Caption = "Tarih";
             colDate.VisibleIndex = 3;
-            colDate.Width = 120;
+            colDate.Width = 78;
             colDate.DisplayFormat.FormatType = DevExpress.Utils.FormatType.DateTime;
             colDate.DisplayFormat.FormatString = "dd.MM.yyyy HH:mm";
             colDate.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colDate.AppearanceCell.Options.UseForeColor = true;
+            colDate.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
 
             GridColumn colOrderStatus = gridViewOrders.Columns.AddField("Status");
             colOrderStatus.Caption = "Durum";
             colOrderStatus.VisibleIndex = 4;
-            colOrderStatus.Width = 100;
+            colOrderStatus.Width = 53;
             colOrderStatus.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colOrderStatus.AppearanceCell.Options.UseForeColor = true;
+            colOrderStatus.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
 
             GridColumn colTotalPrice = gridViewOrders.Columns.AddField("TotalPrice");
             colTotalPrice.Caption = "Toplam Fiyat";
             colTotalPrice.VisibleIndex = 5;
-            colTotalPrice.Width = 100;
+            colTotalPrice.Width = 63;
             colTotalPrice.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
             colTotalPrice.DisplayFormat.FormatString = "C2";
             colTotalPrice.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colTotalPrice.AppearanceCell.Options.UseForeColor = true;
+            colTotalPrice.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
 
             // Silme sütunu ekle (unbound column)
             GridColumn colDelete = new GridColumn();
             colDelete.FieldName = "DeleteAction";
             colDelete.Caption = "İşlem";
             colDelete.VisibleIndex = 6;
-            colDelete.Width = 80;
+            colDelete.Width = 48;
             colDelete.UnboundType = DevExpress.Data.UnboundColumnType.String;
             colDelete.OptionsColumn.AllowEdit = false;
             colDelete.OptionsColumn.ReadOnly = true;
@@ -1045,53 +1110,59 @@ namespace PrinterAutomation.Forms
             GridColumn colJobId = gridViewJobs.Columns.AddField("Id");
             colJobId.Caption = "İş ID";
             colJobId.VisibleIndex = 0;
-            colJobId.Width = 60;
+            colJobId.Width = 42;
             colJobId.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colJobId.AppearanceCell.Options.UseForeColor = true;
+            colJobId.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
 
             GridColumn colModel = gridViewJobs.Columns.AddField("ModelFileName");
             colModel.Caption = "Model Dosyası";
             colModel.VisibleIndex = 1;
-            colModel.Width = 150;
+            colModel.Width = 107;
             colModel.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colModel.AppearanceCell.Options.UseForeColor = true;
+            colModel.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
 
             GridColumn colPrinterId = gridViewJobs.Columns.AddField("PrinterId");
             colPrinterId.Caption = "Yazıcı ID";
             colPrinterId.VisibleIndex = 2;
-            colPrinterId.Width = 80;
+            colPrinterId.Width = 52;
             colPrinterId.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colPrinterId.AppearanceCell.Options.UseForeColor = true;
+            colPrinterId.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
 
             GridColumn colJobStatus = gridViewJobs.Columns.AddField("Status");
             colJobStatus.Caption = "Durum";
             colJobStatus.VisibleIndex = 3;
-            colJobStatus.Width = 100;
+            colJobStatus.Width = 62;
             colJobStatus.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colJobStatus.AppearanceCell.Options.UseForeColor = true;
+            colJobStatus.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
 
             GridColumn colJobProgress = gridViewJobs.Columns.AddField("Progress");
             colJobProgress.Caption = "İlerleme %";
             colJobProgress.VisibleIndex = 4;
-            colJobProgress.Width = 100;
+            colJobProgress.Width = 62;
             colJobProgress.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
             colJobProgress.DisplayFormat.FormatString = "F1";
             colJobProgress.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colJobProgress.AppearanceCell.Options.UseForeColor = true;
+            colJobProgress.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
 
             GridColumn colMaterial = gridViewJobs.Columns.AddField("Material");
             colMaterial.Caption = "Malzeme";
             colMaterial.VisibleIndex = 5;
-            colMaterial.Width = 80;
+            colMaterial.Width = 52;
             colMaterial.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colMaterial.AppearanceCell.Options.UseForeColor = true;
+            colMaterial.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
 
             // Silme sütunu ekle (unbound column)
             GridColumn colJobDelete = new GridColumn();
             colJobDelete.FieldName = "DeleteAction";
             colJobDelete.Caption = "İşlem";
             colJobDelete.VisibleIndex = 6;
-            colJobDelete.Width = 80;
+            colJobDelete.Width = 52;
             colJobDelete.UnboundType = DevExpress.Data.UnboundColumnType.String;
             colJobDelete.OptionsColumn.AllowEdit = false;
             colJobDelete.OptionsColumn.ReadOnly = true;
@@ -1191,14 +1262,36 @@ namespace PrinterAutomation.Forms
             {
                 var printers = _printerService.GetAllPrinters();
                 System.Diagnostics.Debug.WriteLine($"[MainForm] RefreshData() - {printers.Count} yazıcı yüklendi");
+                
+                // Yazıcı durumlarını kontrol et ve logla
+                int printingCount = 0;
                 foreach (var printer in printers)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[MainForm] Yazıcı #{printer.Id}: Status={printer.Status}, Job={printer.CurrentJobName}, Progress={printer.Progress:F1}%");
+                    System.Diagnostics.Debug.WriteLine($"[MainForm] Yazıcı #{printer.Id}: Status={printer.Status}, Job={printer.CurrentJobName ?? "(null)"}, Progress={printer.Progress:F1}%");
+                    if (printer.Status == PrinterStatus.Printing && !string.IsNullOrEmpty(printer.CurrentJobName))
+                    {
+                        printingCount++;
+                        System.Console.WriteLine($"[MainForm] ✓ Yazıcı #{printer.Id} Printing: Job={printer.CurrentJobName}, Progress={printer.Progress:F1}%");
+                    }
+                }
+                System.Console.WriteLine($"[MainForm] Toplam {printingCount} yazıcı Printing durumunda");
+                
+                // Grid'i güncelle
+                gridViewPrinters.BeginUpdate();
+                try
+                {
+                    // DataSource'u null yap ve tekrar ayarla - bu grid'in tam yenilenmesini sağlar
+                    gridControlPrinters.DataSource = null;
+                    gridControlPrinters.DataSource = printers;
+                }
+                finally
+                {
+                    gridViewPrinters.EndUpdate();
                 }
                 
-                gridViewPrinters.BeginUpdate();
-                gridControlPrinters.DataSource = printers;
-                gridViewPrinters.EndUpdate();
+                // Grid'i yenile - yazıcı durumlarının görünmesi için
+                gridControlPrinters.RefreshDataSource();
+                gridViewPrinters.RefreshData();
                 
                 // Yazıcı iconlarını güncelle
                 UpdatePrinterIcons();
@@ -1206,6 +1299,7 @@ namespace PrinterAutomation.Forms
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Printers grid error: {ex.Message}");
+                System.Console.WriteLine($"[MainForm] ✗ Printers grid error: {ex.Message}");
             }
 
             try
@@ -1366,6 +1460,183 @@ namespace PrinterAutomation.Forms
                 "Sipariş Alındı",
                 System.Windows.Forms.MessageBoxButtons.OK,
                 _mongoDbConnected ? System.Windows.Forms.MessageBoxIcon.Information : System.Windows.Forms.MessageBoxIcon.Warning);
+        }
+
+        private void BtnShowModels_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Modelleri gösteren form oluştur
+                var modelsForm = new System.Windows.Forms.Form
+                {
+                    Text = "📦 Modeller",
+                    Size = new System.Drawing.Size(800, 600),
+                    StartPosition = System.Windows.Forms.FormStartPosition.CenterParent,
+                    FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog,
+                    MaximizeBox = false,
+                    MinimizeBox = false,
+                    BackColor = System.Drawing.Color.FromArgb(245, 247, 250)
+                };
+
+                // Model listesi için ListBox
+                var listBoxModels = new System.Windows.Forms.ListBox
+                {
+                    Location = new System.Drawing.Point(20, 20),
+                    Size = new System.Drawing.Size(750, 450),
+                    Font = new System.Drawing.Font("Segoe UI", 10F),
+                    BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+                };
+                modelsForm.Controls.Add(listBoxModels);
+
+                // Modelleri yükle
+                try
+                {
+                    var modelPath = GetModelFolderPath();
+                    if (!string.IsNullOrEmpty(modelPath) && Directory.Exists(modelPath))
+                    {
+                        var subfolders = Directory.GetDirectories(modelPath);
+                        foreach (var subfolder in subfolders)
+                        {
+                            var folderName = Path.GetFileName(subfolder);
+                            var stlFiles = Directory.GetFiles(subfolder, "*.stl");
+                            
+                            if (stlFiles.Length > 0)
+                            {
+                                listBoxModels.Items.Add($"📁 {folderName}/");
+                                foreach (var stlFile in stlFiles)
+                                {
+                                    var fileName = Path.GetFileName(stlFile);
+                                    listBoxModels.Items.Add($"   └─ {fileName}");
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Varsayılan modeller
+                        listBoxModels.Items.Add("📁 octo/");
+                        listBoxModels.Items.Add("   └─ articulatedcuteoctopus.stl");
+                        listBoxModels.Items.Add("📁 shark/");
+                        listBoxModels.Items.Add("   └─ body.stl");
+                        listBoxModels.Items.Add("   └─ head_easy_press_in.stl");
+                        listBoxModels.Items.Add("   └─ head_hard_press_in.stl");
+                        listBoxModels.Items.Add("📁 whist/");
+                        listBoxModels.Items.Add("   └─ v29d_engraved.stl");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Modeller yüklenirken hata: {ex.Message}");
+                    listBoxModels.Items.Add("⚠ Modeller yüklenirken hata oluştu: " + ex.Message);
+                }
+
+                // Blender AI ile Model Oluştur butonu
+                var btnBlenderAI = new SimpleButton
+                {
+                    Text = "🎨 Blender AI ile Model Oluştur",
+                    Location = new System.Drawing.Point(20, 490),
+                    Size = new System.Drawing.Size(300, 50),
+                    Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold)
+                };
+                btnBlenderAI.Appearance.BackColor = System.Drawing.Color.FromArgb(255, 152, 0);
+                btnBlenderAI.Appearance.ForeColor = System.Drawing.Color.White;
+                btnBlenderAI.Appearance.Options.UseBackColor = true;
+                btnBlenderAI.Appearance.Options.UseForeColor = true;
+                btnBlenderAI.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(255, 167, 38);
+                btnBlenderAI.AppearanceHovered.Options.UseBackColor = true;
+                btnBlenderAI.LookAndFeel.UseDefaultLookAndFeel = false;
+                btnBlenderAI.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+                btnBlenderAI.Click += (s, args) =>
+                {
+                    try
+                    {
+                        var blenderPath = @"C:\Users\semih\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Blender\Blender 4.5.lnk";
+                        
+                        if (File.Exists(blenderPath))
+                        {
+                            // .lnk dosyasını açmak için Shell32 kullan
+                            Process.Start(new ProcessStartInfo
+                            {
+                                FileName = blenderPath,
+                                UseShellExecute = true
+                            });
+                            
+                            XtraMessageBox.Show(
+                                "Blender başlatılıyor...",
+                                "Blender",
+                                System.Windows.Forms.MessageBoxButtons.OK,
+                                System.Windows.Forms.MessageBoxIcon.Information);
+                        }
+                        else
+                        {
+                            XtraMessageBox.Show(
+                                $"Blender bulunamadı!\n\nYol: {blenderPath}\n\nLütfen Blender'ın kurulu olduğundan emin olun.",
+                                "Hata",
+                                System.Windows.Forms.MessageBoxButtons.OK,
+                                System.Windows.Forms.MessageBoxIcon.Error);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        XtraMessageBox.Show(
+                            $"Blender başlatılırken hata oluştu:\n\n{ex.Message}",
+                            "Hata",
+                            System.Windows.Forms.MessageBoxButtons.OK,
+                            System.Windows.Forms.MessageBoxIcon.Error);
+                    }
+                };
+                modelsForm.Controls.Add(btnBlenderAI);
+
+                // Kapat butonu
+                var btnClose = new SimpleButton
+                {
+                    Text = "Kapat",
+                    Location = new System.Drawing.Point(650, 490),
+                    Size = new System.Drawing.Size(120, 50),
+                    Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold)
+                };
+                btnClose.Appearance.BackColor = System.Drawing.Color.FromArgb(158, 158, 158);
+                btnClose.Appearance.ForeColor = System.Drawing.Color.White;
+                btnClose.Appearance.Options.UseBackColor = true;
+                btnClose.Appearance.Options.UseForeColor = true;
+                btnClose.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(189, 189, 189);
+                btnClose.AppearanceHovered.Options.UseBackColor = true;
+                btnClose.LookAndFeel.UseDefaultLookAndFeel = false;
+                btnClose.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+                btnClose.Click += (s, args) => modelsForm.Close();
+                modelsForm.Controls.Add(btnClose);
+
+                // Formu göster
+                modelsForm.ShowDialog(this);
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show(
+                    $"Modeller gösterilirken hata oluştu:\n\n{ex.Message}",
+                    "Hata",
+                    System.Windows.Forms.MessageBoxButtons.OK,
+                    System.Windows.Forms.MessageBoxIcon.Error);
+            }
+        }
+
+        private string GetModelFolderPath()
+        {
+            try
+            {
+                var paths = new[]
+                {
+                    Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "model")),
+                    Path.Combine(Directory.GetCurrentDirectory(), "model"),
+                    Path.Combine(Directory.GetParent(Directory.GetCurrentDirectory())?.FullName ?? "", "model")
+                };
+
+                return paths.FirstOrDefault(Directory.Exists);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Model klasörü bulunurken hata: {ex.Message}");
+                return null;
+            }
         }
 
         private void BtnClearDatabase_Click(object sender, EventArgs e)
@@ -1761,38 +2032,38 @@ namespace PrinterAutomation.Forms
                     Location = new System.Drawing.Point(0, 0),
                     Size = new System.Drawing.Size(860, 30),
                     Font = new System.Drawing.Font("Segoe UI", 16F, System.Drawing.FontStyle.Bold),
-                    ForeColor = _currentTheme == ThemeMode.Dark ? 
-                        System.Drawing.Color.FromArgb(129, 212, 250) : 
-                        System.Drawing.Color.FromArgb(63, 81, 181)
+                    ForeColor = System.Drawing.Color.FromArgb(255, 193, 7) // Sarı renk
                 };
                 lblTitle.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
                 mainPanel.Controls.Add(lblTitle);
 
-                // Özet Kartları (Üst kısım)
+                // Özet Kartları (Üst kısım - ortalanmış)
                 int cardY = 40;
                 int cardWidth = 200;
                 int cardHeight = 120;
                 int cardSpacing = 15;
+                int totalCardsWidth = (cardWidth * 4) + (cardSpacing * 3);
+                int cardsStartX = (860 - totalCardsWidth) / 2; // Kartları ortala
 
-                // Toplam Gelir Kartı
+                // Toplam Gelir Kartı (ortalanmış)
                 var revenueCard = CreateSummaryCard("Toplam Gelir", totalRevenue.ToString("N2") + " TL", 
-                    System.Drawing.Color.FromArgb(33, 150, 243), 0, cardY, cardWidth, cardHeight);
+                    System.Drawing.Color.FromArgb(33, 150, 243), cardsStartX, cardY, cardWidth, cardHeight);
                 mainPanel.Controls.Add(revenueCard);
 
-                // Toplam Maliyet Kartı
+                // Toplam Maliyet Kartı (ortalanmış)
                 var costCard = CreateSummaryCard("Toplam Maliyet", totalCost.ToString("N2") + " TL", 
-                    System.Drawing.Color.FromArgb(244, 67, 54), cardWidth + cardSpacing, cardY, cardWidth, cardHeight);
+                    System.Drawing.Color.FromArgb(244, 67, 54), cardsStartX + cardWidth + cardSpacing, cardY, cardWidth, cardHeight);
                 mainPanel.Controls.Add(costCard);
 
-                // Net Kazanç Kartı
+                // Net Kazanç Kartı (ortalanmış)
                 var profitCard = CreateSummaryCard("Net Kazanç", netProfit.ToString("N2") + " TL", 
-                    System.Drawing.Color.FromArgb(76, 175, 80), (cardWidth + cardSpacing) * 2, cardY, cardWidth, cardHeight);
+                    System.Drawing.Color.FromArgb(76, 175, 80), cardsStartX + (cardWidth + cardSpacing) * 2, cardY, cardWidth, cardHeight);
                 mainPanel.Controls.Add(profitCard);
 
-                // Kar/Zarar Kartı
+                // Kar/Zarar Kartı (ortalanmış)
                 var profitMarginCard = CreateSummaryCard("Kar Marjı", profitMargin.ToString("F1") + " %", 
-                    netProfit >= 0 ? System.Drawing.Color.FromArgb(76, 175, 80) : System.Drawing.Color.FromArgb(244, 67, 54),
-                    (cardWidth + cardSpacing) * 3, cardY, cardWidth, cardHeight);
+                    netProfit >= 0 ? System.Drawing.Color.FromArgb(27, 94, 32) : System.Drawing.Color.FromArgb(244, 67, 54), // Daha koyu yeşil
+                    cardsStartX + (cardWidth + cardSpacing) * 3, cardY, cardWidth, cardHeight);
                 mainPanel.Controls.Add(profitMarginCard);
 
                 // Sipariş Sayısı Bilgisi
@@ -1809,11 +2080,14 @@ namespace PrinterAutomation.Forms
                 lblOrderCount.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
                 mainPanel.Controls.Add(lblOrderCount);
 
-                // Grid için Panel
+                // Grid için Panel (ortalanmış)
+                int gridPanelWidth = 840;
+                int gridPanelHeight = 350;
+                int gridPanelX = (860 - gridPanelWidth) / 2; // Ortala
                 var gridPanel = new System.Windows.Forms.Panel
                 {
-                    Location = new System.Drawing.Point(0, cardY + cardHeight + 55),
-                    Size = new System.Drawing.Size(860, 350),
+                    Location = new System.Drawing.Point(gridPanelX, cardY + cardHeight + 55),
+                    Size = new System.Drawing.Size(gridPanelWidth, gridPanelHeight),
                     Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | 
                              System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right,
                     BackColor = _currentTheme == ThemeMode.Dark ? 
@@ -1848,12 +2122,38 @@ namespace PrinterAutomation.Forms
                 // Grid tema ayarları
                 if (_currentTheme == ThemeMode.Dark)
                 {
-                    ApplyDarkThemeToGrid(gridView, System.Drawing.Color.FromArgb(35, 35, 35), System.Drawing.Color.FromArgb(45, 45, 45));
+                    if (gridView.GridControl != null)
+                    {
+                        gridView.GridControl.BackColor = System.Drawing.Color.FromArgb(30, 30, 30);
+                    }
+                    gridView.Appearance.Empty.BackColor = System.Drawing.Color.FromArgb(30, 30, 30);
+                    gridView.Appearance.Empty.Options.UseBackColor = true;
+                    gridView.Appearance.Row.ForeColor = System.Drawing.Color.FromArgb(230, 230, 230);
+                    gridView.Appearance.Row.BackColor = System.Drawing.Color.FromArgb(35, 35, 35);
+                    gridView.Appearance.Row.Options.UseForeColor = true;
+                    gridView.Appearance.Row.Options.UseBackColor = true;
                 }
                 else
                 {
-                    ApplyLightThemeToGrid(gridView, System.Drawing.Color.White, System.Drawing.Color.FromArgb(249, 250, 252));
+                    if (gridView.GridControl != null)
+                    {
+                        gridView.GridControl.BackColor = System.Drawing.Color.FromArgb(245, 247, 250);
+                    }
+                    gridView.Appearance.Empty.BackColor = System.Drawing.Color.FromArgb(245, 247, 250);
+                    gridView.Appearance.Empty.Options.UseBackColor = true;
+                    gridView.Appearance.Row.ForeColor = System.Drawing.Color.Black;
+                    gridView.Appearance.Row.BackColor = System.Drawing.Color.White;
+                    gridView.Appearance.Row.Options.UseForeColor = true;
+                    gridView.Appearance.Row.Options.UseBackColor = true;
                 }
+                
+                // SÜTUN BAŞLIKLARINI MAVİ YAP - ÖNCE HeaderPanel
+                gridView.Appearance.HeaderPanel.BackColor = System.Drawing.Color.FromArgb(33, 150, 243);
+                gridView.Appearance.HeaderPanel.ForeColor = System.Drawing.Color.White;
+                gridView.Appearance.HeaderPanel.Options.UseBackColor = true;
+                gridView.Appearance.HeaderPanel.Options.UseForeColor = true;
+                gridView.Appearance.HeaderPanel.BorderColor = System.Drawing.Color.FromArgb(25, 118, 210);
+                gridView.Appearance.HeaderPanel.Options.UseBorderColor = true;
 
                 // Grid Sütunları
                 var colSiparisNo = gridView.Columns.AddField("SiparişNo");
@@ -1889,6 +2189,15 @@ namespace PrinterAutomation.Forms
                 colDurum.Caption = "Durum";
                 colDurum.VisibleIndex = 5;
                 colDurum.Width = 100;
+                
+                // TÜM SÜTUN BAŞLIKLARINI MAVİ YAP
+                foreach (DevExpress.XtraGrid.Columns.GridColumn col in gridView.Columns)
+                {
+                    col.AppearanceHeader.BackColor = System.Drawing.Color.FromArgb(33, 150, 243);
+                    col.AppearanceHeader.ForeColor = System.Drawing.Color.White;
+                    col.AppearanceHeader.Options.UseBackColor = true;
+                    col.AppearanceHeader.Options.UseForeColor = true;
+                }
 
                 // Kapat Butonu
                 var closeButton = new SimpleButton
@@ -2012,6 +2321,13 @@ namespace PrinterAutomation.Forms
                 btnAddPrinter.Appearance.BackColor = System.Drawing.Color.FromArgb(40, 120, 200);
                 btnAddPrinter.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(50, 130, 210);
             }
+            
+            // Modelleri göster butonu (koyu tema)
+            if (btnShowModels != null)
+            {
+                btnShowModels.Appearance.BackColor = System.Drawing.Color.FromArgb(140, 30, 160);
+                btnShowModels.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(160, 50, 180);
+            }
 
             // Tamamlanan siparişleri sil butonu (koyu tema)
             if (btnDeleteCompletedOrders != null)
@@ -2102,6 +2418,13 @@ namespace PrinterAutomation.Forms
             {
                 btnAddPrinter.Appearance.BackColor = System.Drawing.Color.FromArgb(33, 150, 243);
                 btnAddPrinter.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(30, 136, 229);
+            }
+            
+            // Modelleri göster butonu (açık tema)
+            if (btnShowModels != null)
+            {
+                btnShowModels.Appearance.BackColor = System.Drawing.Color.FromArgb(156, 39, 176);
+                btnShowModels.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(171, 71, 188);
             }
 
             // Tamamlanan siparişleri sil butonu (açık tema)
@@ -2652,19 +2975,68 @@ namespace PrinterAutomation.Forms
 
                 if (isNew)
                 {
-                    // Yeni panel için kontrolleri oluştur (ikonlar çok küçük, yazılar tam gözüksün)
-                    var iconLabel = new LabelControl
+                    // Yeni panel için kontrolleri oluştur - resim ikonu kullan
+                    // İkon seçimi: Printing durumunda green.png, koyu temada white.png, diğer durumlarda print.png
+                    System.Windows.Forms.PictureBox iconPictureBox = null;
+                    try
                     {
-                        Text = iconText,
-                        Location = new System.Drawing.Point(45, 2),
-                        Size = new System.Drawing.Size(30, 22),
-                        Font = new System.Drawing.Font("Segoe UI", 14F),
-                        ForeColor = iconColor,
-                        Name = "iconLabel"
-                    };
-                    iconLabel.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
-                    iconLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
-                    iconPanel.Controls.Add(iconLabel);
+                        string imageFileName;
+                        if (printer.Status == PrinterStatus.Printing)
+                        {
+                            // Aktif yazıcılar için her iki temada da green.png
+                            imageFileName = "green.png";
+                        }
+                        else if (_currentTheme == ThemeMode.Dark)
+                        {
+                            // Koyu temada white.png
+                            imageFileName = "white.png";
+                        }
+                        else
+                        {
+                            // Açık temada print.png
+                            imageFileName = "print.png";
+                        }
+                        
+                        string imagePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "image", imageFileName);
+                        if (!System.IO.File.Exists(imagePath))
+                        {
+                            // Alternatif yol dene
+                            imagePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "image", imageFileName);
+                        }
+                        if (System.IO.File.Exists(imagePath))
+                        {
+                            iconPictureBox = new System.Windows.Forms.PictureBox
+                            {
+                                Location = new System.Drawing.Point(35, 2),
+                                Size = new System.Drawing.Size(50, 30),
+                                SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom,
+                                Name = "iconPictureBox"
+                            };
+                            iconPictureBox.Image = System.Drawing.Image.FromFile(imagePath);
+                            iconPanel.Controls.Add(iconPictureBox);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Resim yüklenirken hata: {ex.Message}");
+                    }
+                    
+                    // Eğer resim yüklenemediyse, eski emoji ikonunu kullan
+                    if (iconPictureBox == null)
+                    {
+                        var iconLabel = new LabelControl
+                        {
+                            Text = iconText,
+                            Location = new System.Drawing.Point(45, 2),
+                            Size = new System.Drawing.Size(30, 22),
+                            Font = new System.Drawing.Font("Segoe UI", 14F),
+                            ForeColor = iconColor,
+                            Name = "iconLabel"
+                        };
+                        iconLabel.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+                        iconLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+                        iconPanel.Controls.Add(iconLabel);
+                    }
 
                     var nameLabel = new LabelControl
                     {
@@ -2706,9 +3078,85 @@ namespace PrinterAutomation.Forms
                         iconPanel.Margin = new System.Windows.Forms.Padding(6, 4, 6, 4);
                         iconPanel.Padding = new System.Windows.Forms.Padding(3);
                         
-                        // Mevcut kontrollerin konumlarını güncelle (ikonlar çok küçük)
+                        // Mevcut kontrollerin konumlarını güncelle - resim ikonu kullan
+                        var iconPictureBox = iconPanel.Controls.OfType<System.Windows.Forms.PictureBox>().FirstOrDefault(c => c.Name == "iconPictureBox");
                         var iconLabel = iconPanel.Controls.OfType<LabelControl>().FirstOrDefault(c => c.Name == "iconLabel");
-                        if (iconLabel != null)
+                        
+                        // İkon seçimi: Printing durumunda green.png, koyu temada white.png, diğer durumlarda print.png
+                        string imageFileName;
+                        if (printer.Status == PrinterStatus.Printing)
+                        {
+                            imageFileName = "green.png";
+                        }
+                        else if (_currentTheme == ThemeMode.Dark)
+                        {
+                            imageFileName = "white.png";
+                        }
+                        else
+                        {
+                            imageFileName = "print.png";
+                        }
+                        
+                        // Eğer PictureBox yoksa ve Label varsa, PictureBox'a dönüştür
+                        if (iconPictureBox == null && iconLabel != null)
+                        {
+                            iconPanel.Controls.Remove(iconLabel);
+                            iconLabel.Dispose();
+                            
+                            try
+                            {
+                                string imagePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "image", imageFileName);
+                                if (!System.IO.File.Exists(imagePath))
+                                {
+                                    imagePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "image", imageFileName);
+                                }
+                                if (System.IO.File.Exists(imagePath))
+                                {
+                                    iconPictureBox = new System.Windows.Forms.PictureBox
+                                    {
+                                        Location = new System.Drawing.Point(40, 2),
+                                        Size = new System.Drawing.Size(40, 22),
+                                        SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom,
+                                        Name = "iconPictureBox"
+                                    };
+                                    iconPictureBox.Image = System.Drawing.Image.FromFile(imagePath);
+                                    iconPanel.Controls.Add(iconPictureBox);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Resim yüklenirken hata: {ex.Message}");
+                            }
+                        }
+                        // Eğer PictureBox varsa, resmi güncelle
+                        else if (iconPictureBox != null)
+                        {
+                            try
+                            {
+                                string imagePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "image", imageFileName);
+                                if (!System.IO.File.Exists(imagePath))
+                                {
+                                    imagePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "image", imageFileName);
+                                }
+                                if (System.IO.File.Exists(imagePath))
+                                {
+                                    // Eski resmi dispose et
+                                    if (iconPictureBox.Image != null)
+                                    {
+                                        iconPictureBox.Image.Dispose();
+                                    }
+                                    iconPictureBox.Image = System.Drawing.Image.FromFile(imagePath);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Resim güncellenirken hata: {ex.Message}");
+                            }
+                            iconPictureBox.Location = new System.Drawing.Point(35, 2);
+                            iconPictureBox.Size = new System.Drawing.Size(50, 30);
+                        }
+                        // Eğer hala Label varsa (resim yüklenemediyse), güncelle
+                        else if (iconLabel != null)
                         {
                             iconLabel.Location = new System.Drawing.Point(45, 2);
                             iconLabel.Size = new System.Drawing.Size(30, 22);
@@ -2746,9 +3194,85 @@ namespace PrinterAutomation.Forms
                     }
                     else
                     {
-                        // Mevcut kontrolleri güncelle (ikonlar çok küçük, yazılar tam gözüksün)
+                        // Mevcut kontrolleri güncelle - resim ikonu kullan
+                        var iconPictureBoxUpdate = iconPanel.Controls.OfType<System.Windows.Forms.PictureBox>().FirstOrDefault(c => c.Name == "iconPictureBox");
                         var iconLabelUpdate = iconPanel.Controls.OfType<LabelControl>().FirstOrDefault(c => c.Name == "iconLabel");
-                        if (iconLabelUpdate != null)
+                        
+                        // İkon seçimi: Printing durumunda green.png, koyu temada white.png, diğer durumlarda print.png
+                        string imageFileName;
+                        if (printer.Status == PrinterStatus.Printing)
+                        {
+                            imageFileName = "green.png";
+                        }
+                        else if (_currentTheme == ThemeMode.Dark)
+                        {
+                            imageFileName = "white.png";
+                        }
+                        else
+                        {
+                            imageFileName = "print.png";
+                        }
+                        
+                        // Eğer PictureBox yoksa ve Label varsa, PictureBox'a dönüştür
+                        if (iconPictureBoxUpdate == null && iconLabelUpdate != null)
+                        {
+                            iconPanel.Controls.Remove(iconLabelUpdate);
+                            iconLabelUpdate.Dispose();
+                            
+                            try
+                            {
+                                string imagePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "image", imageFileName);
+                                if (!System.IO.File.Exists(imagePath))
+                                {
+                                    imagePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "image", imageFileName);
+                                }
+                                if (System.IO.File.Exists(imagePath))
+                                {
+                                    iconPictureBoxUpdate = new System.Windows.Forms.PictureBox
+                                    {
+                                        Location = new System.Drawing.Point(40, 2),
+                                        Size = new System.Drawing.Size(40, 22),
+                                        SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom,
+                                        Name = "iconPictureBox"
+                                    };
+                                    iconPictureBoxUpdate.Image = System.Drawing.Image.FromFile(imagePath);
+                                    iconPanel.Controls.Add(iconPictureBoxUpdate);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Resim yüklenirken hata: {ex.Message}");
+                            }
+                        }
+                        // Eğer PictureBox varsa, resmi güncelle
+                        else if (iconPictureBoxUpdate != null)
+                        {
+                            try
+                            {
+                                string imagePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "image", imageFileName);
+                                if (!System.IO.File.Exists(imagePath))
+                                {
+                                    imagePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "image", imageFileName);
+                                }
+                                if (System.IO.File.Exists(imagePath))
+                                {
+                                    // Eski resmi dispose et
+                                    if (iconPictureBoxUpdate.Image != null)
+                                    {
+                                        iconPictureBoxUpdate.Image.Dispose();
+                                    }
+                                    iconPictureBoxUpdate.Image = System.Drawing.Image.FromFile(imagePath);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Resim güncellenirken hata: {ex.Message}");
+                            }
+                            iconPictureBoxUpdate.Location = new System.Drawing.Point(35, 2);
+                            iconPictureBoxUpdate.Size = new System.Drawing.Size(50, 30);
+                        }
+                        // Eğer hala Label varsa (resim yüklenemediyse), güncelle
+                        else if (iconLabelUpdate != null)
                         {
                             iconLabelUpdate.Location = new System.Drawing.Point(45, 2);
                             iconLabelUpdate.Size = new System.Drawing.Size(30, 22);
@@ -3230,12 +3754,12 @@ namespace PrinterAutomation.Forms
             {
                 _isDetailsFormOpen = true;
                 
-                // Yazıcı detayları formu oluştur (daha büyük)
+                // Yazıcı detayları formu oluştur (daha kompakt - boşluklar azaltıldı)
                 var detailsForm = new XtraForm
                 {
                     Text = $"🖨️ {printer.Name} - Detaylar",
-                    Size = new System.Drawing.Size(700, 650),
-                    StartPosition = System.Windows.Forms.FormStartPosition.CenterParent,
+                    Size = new System.Drawing.Size(780, 720), // Genişlik daha da küçültüldü (795 -> 780)
+                    StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen, // Tam ortada
                     FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog,
                     MaximizeBox = false,
                     MinimizeBox = false,
@@ -3244,25 +3768,28 @@ namespace PrinterAutomation.Forms
                         System.Drawing.Color.FromArgb(245, 247, 250)
                 };
 
-                // Ana Panel
+                // Ana Panel (padding azaltıldı)
                 var mainPanel = new System.Windows.Forms.Panel
                 {
                     Dock = System.Windows.Forms.DockStyle.Fill,
-                    Padding = new System.Windows.Forms.Padding(20),
+                    Padding = new System.Windows.Forms.Padding(10), // 20'den 10'a düşürüldü
                     BackColor = _currentTheme == ThemeMode.Dark ? 
                         System.Drawing.Color.FromArgb(30, 30, 30) : 
                         System.Drawing.Color.FromArgb(245, 247, 250)
                 };
                 detailsForm.Controls.Add(mainPanel);
 
-                int yPos = 20;
+                int yPos = 10; // 20'den 10'a düşürüldü
+                int contentWidth = 650; // İçerik genişliği aynı kaldı
+                int availableWidth = mainPanel.Width - (mainPanel.Padding.Left + mainPanel.Padding.Right);
+                int startX = (availableWidth - contentWidth) / 2; // Ortala
 
                 // Başlık
                 var lblTitle = new LabelControl
                 {
                     Text = $"🖨️ {printer.Name}",
-                    Location = new System.Drawing.Point(0, yPos),
-                    Size = new System.Drawing.Size(640, 35),
+                    Location = new System.Drawing.Point(startX, yPos),
+                    Size = new System.Drawing.Size(contentWidth, 35),
                     Font = new System.Drawing.Font("Segoe UI", 18F, System.Drawing.FontStyle.Bold),
                     ForeColor = _currentTheme == ThemeMode.Dark ? 
                         System.Drawing.Color.FromArgb(240, 240, 240) : 
@@ -3270,7 +3797,7 @@ namespace PrinterAutomation.Forms
                 };
                 lblTitle.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
                 mainPanel.Controls.Add(lblTitle);
-                yPos += 50;
+                yPos += 40; // 50'den 40'a düşürüldü (boşluk azaltıldı)
 
                 // Durum bilgisi
                 string statusText = "";
@@ -3302,40 +3829,43 @@ namespace PrinterAutomation.Forms
                 var lblStatus = new LabelControl
                 {
                     Text = $"Durum: {statusText}",
-                    Location = new System.Drawing.Point(0, yPos),
-                    Size = new System.Drawing.Size(640, 25),
+                    Location = new System.Drawing.Point(startX, yPos),
+                    Size = new System.Drawing.Size(contentWidth, 25),
                     Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold),
                     ForeColor = statusColor
                 };
                 lblStatus.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
                 mainPanel.Controls.Add(lblStatus);
-                yPos += 40;
+                yPos += 35; // 40'tan 35'e düşürüldü (boşluk azaltıldı)
 
-                // Detay bilgileri paneli (Scrollable)
+                // Detay bilgileri paneli (Scrollbar'ı kaldırmak için yükseklik artırıldı)
+                // Form yüksekliği 750, başlık ve durum için ~110px, padding için 40px, kapat butonu için ~80px
+                // Kalan alan: 750 - 110 - 40 - 80 = 520px
+                int scrollPanelHeight = detailsForm.Height - yPos - 100; // Alt boşluk artırıldı (80 -> 100)
                 var scrollPanel = new System.Windows.Forms.Panel
                 {
-                    Location = new System.Drawing.Point(0, yPos),
-                    Size = new System.Drawing.Size(640, 450),
+                    Location = new System.Drawing.Point(startX, yPos),
+                    Size = new System.Drawing.Size(contentWidth, scrollPanelHeight),
                     BackColor = _currentTheme == ThemeMode.Dark ? 
                         System.Drawing.Color.FromArgb(30, 30, 30) : 
                         System.Drawing.Color.FromArgb(245, 247, 250),
-                    AutoScroll = true
+                    AutoScroll = false // Scrollbar'ı kapat - içerik yüksekliğine göre ayarlanacak
                 };
                 mainPanel.Controls.Add(scrollPanel);
 
                 var detailsPanel = new System.Windows.Forms.Panel
                 {
                     Location = new System.Drawing.Point(0, 0),
-                    Size = new System.Drawing.Size(620, 600),
+                    Size = new System.Drawing.Size(contentWidth, scrollPanelHeight), // Başlangıçta scrollPanel yüksekliği
                     BackColor = _currentTheme == ThemeMode.Dark ? 
                         System.Drawing.Color.FromArgb(40, 40, 40) : 
                         System.Drawing.Color.White,
                     BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle,
-                    Padding = new System.Windows.Forms.Padding(15)
+                    Padding = new System.Windows.Forms.Padding(10) // 15'ten 10'a düşürüldü
                 };
                 scrollPanel.Controls.Add(detailsPanel);
 
-                int detailY = 15;
+                int detailY = 10; // Padding azaldığı için 15'ten 10'a düşürüldü
 
                 // Yazıcı ID
                 CreateDetailRow(detailsPanel, "Yazıcı ID:", printer.Id.ToString(), detailY);
@@ -3369,10 +3899,11 @@ namespace PrinterAutomation.Forms
                 // Arıza Göstergesi
                 if (printer.Status == PrinterStatus.Error)
                 {
+                    int errorPanelWidth = detailsPanel.Width - 20; // Padding için
                     var errorPanel = new System.Windows.Forms.Panel
                     {
                         Location = new System.Drawing.Point(10, detailY),
-                        Size = new System.Drawing.Size(590, 50),
+                        Size = new System.Drawing.Size(errorPanelWidth, 50),
                         BackColor = System.Drawing.Color.FromArgb(60, 30, 30),
                         BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle,
                         Padding = new System.Windows.Forms.Padding(10)
@@ -3383,7 +3914,7 @@ namespace PrinterAutomation.Forms
                     {
                         Text = "🔴 ARIZA TESPİT EDİLDİ",
                         Location = new System.Drawing.Point(10, 10),
-                        Size = new System.Drawing.Size(570, 30),
+                        Size = new System.Drawing.Size(errorPanelWidth - 20, 30),
                         Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold),
                         ForeColor = System.Drawing.Color.FromArgb(255, 138, 128)
                     };
@@ -3396,33 +3927,6 @@ namespace PrinterAutomation.Forms
                 CreateDetailRow(detailsPanel, "Mevcut İş:", printer.CurrentJobName ?? "Yok", detailY);
                 detailY += 30;
 
-                // İlerleme (Progress Bar ile)
-                if (printer.Status == PrinterStatus.Printing)
-                {
-                    CreateDetailRow(detailsPanel, "İlerleme:", $"%{printer.Progress:F1}", detailY);
-                    detailY += 30;
-                    
-                    // Progress Bar
-                    var progressPanel = new System.Windows.Forms.Panel
-                    {
-                        Location = new System.Drawing.Point(220, detailY - 25),
-                        Size = new System.Drawing.Size(380, 20),
-                        BackColor = _currentTheme == ThemeMode.Dark ? 
-                            System.Drawing.Color.FromArgb(50, 50, 50) : 
-                            System.Drawing.Color.FromArgb(230, 230, 230),
-                        BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
-                    };
-                    detailsPanel.Controls.Add(progressPanel);
-
-                    var progressFill = new System.Windows.Forms.Panel
-                    {
-                        Location = new System.Drawing.Point(0, 0),
-                        Size = new System.Drawing.Size((int)(380 * (printer.Progress / 100.0)), 20),
-                        BackColor = System.Drawing.Color.FromArgb(76, 175, 80)
-                    };
-                    progressPanel.Controls.Add(progressFill);
-                    detailY += 10;
-                }
 
                 // Filament Bilgileri
                 CreateDetailRow(detailsPanel, "Filament Tipi:", printer.FilamentType, detailY);
@@ -3479,11 +3983,12 @@ namespace PrinterAutomation.Forms
                 }
 
                 // Yazıcı İstatistikleri Başlığı
+                int headerWidth = detailsPanel.Width - 20; // Padding için
                 var statsHeader = new LabelControl
                 {
                     Text = "📊 YAZICI İSTATİSTİKLERİ",
                     Location = new System.Drawing.Point(10, detailY),
-                    Size = new System.Drawing.Size(590, 25),
+                    Size = new System.Drawing.Size(headerWidth, 25),
                     Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold),
                     ForeColor = _currentTheme == ThemeMode.Dark ? 
                         System.Drawing.Color.FromArgb(200, 200, 200) : 
@@ -3513,7 +4018,7 @@ namespace PrinterAutomation.Forms
                 {
                     Text = "⚠️ MEVCUT HATA DURUMU",
                     Location = new System.Drawing.Point(10, detailY),
-                    Size = new System.Drawing.Size(590, 25),
+                    Size = new System.Drawing.Size(headerWidth, 25),
                     Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold),
                     ForeColor = _currentTheme == ThemeMode.Dark ? 
                         System.Drawing.Color.FromArgb(200, 200, 200) : 
@@ -3543,7 +4048,7 @@ namespace PrinterAutomation.Forms
                         {
                             Text = "📋 SON İŞLER",
                             Location = new System.Drawing.Point(10, detailY),
-                            Size = new System.Drawing.Size(590, 25),
+                            Size = new System.Drawing.Size(headerWidth, 25),
                             Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold),
                             ForeColor = _currentTheme == ThemeMode.Dark ? 
                                 System.Drawing.Color.FromArgb(200, 200, 200) : 
@@ -3567,8 +4072,19 @@ namespace PrinterAutomation.Forms
                     }
                 }
 
-                // Panel yüksekliğini ayarla
-                detailsPanel.Height = detailY + 20;
+                // Panel yüksekliğini içeriğe göre ayarla
+                int calculatedHeight = detailY + 20;
+                
+                // Eğer içerik scrollPanel'den büyükse, scrollPanel'i büyüt (scrollbar olmaması için)
+                if (calculatedHeight > scrollPanelHeight)
+                {
+                    scrollPanel.Height = calculatedHeight + 10; // 10px padding
+                    detailsPanel.Height = calculatedHeight;
+                }
+                else
+                {
+                    detailsPanel.Height = calculatedHeight;
+                }
 
                 // Kapat Butonu
                 var closeButton = new SimpleButton
@@ -3612,11 +4128,14 @@ namespace PrinterAutomation.Forms
 
         private void CreateDetailRow(System.Windows.Forms.Panel panel, string label, string value, int y)
         {
+            int labelWidth = 180;
+            int valueWidth = panel.Width - labelWidth - 30; // 30 = padding + spacing
+            
             var lblLabel = new LabelControl
             {
                 Text = label,
                 Location = new System.Drawing.Point(10, y),
-                Size = new System.Drawing.Size(200, 20),
+                Size = new System.Drawing.Size(labelWidth, 20),
                 Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold),
                 ForeColor = _currentTheme == ThemeMode.Dark ? 
                     System.Drawing.Color.FromArgb(180, 180, 180) : 
@@ -3627,8 +4146,8 @@ namespace PrinterAutomation.Forms
             var lblValue = new LabelControl
             {
                 Text = value,
-                Location = new System.Drawing.Point(220, y),
-                Size = new System.Drawing.Size(380, 20),
+                Location = new System.Drawing.Point(10 + labelWidth + 10, y),
+                Size = new System.Drawing.Size(valueWidth, 20),
                 Font = new System.Drawing.Font("Segoe UI", 10F),
                 ForeColor = _currentTheme == ThemeMode.Dark ? 
                     System.Drawing.Color.FromArgb(240, 240, 240) : 
@@ -3639,11 +4158,14 @@ namespace PrinterAutomation.Forms
 
         private void CreateDetailRowColored(System.Windows.Forms.Panel panel, string label, string value, System.Drawing.Color valueColor, int y)
         {
+            int labelWidth = 180;
+            int valueWidth = panel.Width - labelWidth - 30; // 30 = padding + spacing
+            
             var lblLabel = new LabelControl
             {
                 Text = label,
                 Location = new System.Drawing.Point(10, y),
-                Size = new System.Drawing.Size(200, 20),
+                Size = new System.Drawing.Size(labelWidth, 20),
                 Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold),
                 ForeColor = _currentTheme == ThemeMode.Dark ? 
                     System.Drawing.Color.FromArgb(180, 180, 180) : 
@@ -3654,8 +4176,8 @@ namespace PrinterAutomation.Forms
             var lblValue = new LabelControl
             {
                 Text = value,
-                Location = new System.Drawing.Point(220, y),
-                Size = new System.Drawing.Size(380, 20),
+                Location = new System.Drawing.Point(10 + labelWidth + 10, y),
+                Size = new System.Drawing.Size(valueWidth, 20),
                 Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold),
                 ForeColor = valueColor
             };
@@ -3938,6 +4460,11 @@ namespace PrinterAutomation.Forms
                 {
                     btnClearDatabase.Left = btnSimulateOrder.Left - btnClearDatabase.Width - 10;
                 }
+                
+                if (btnShowModels != null)
+                {
+                    btnShowModels.Left = btnClearDatabase != null ? btnClearDatabase.Left - btnShowModels.Width - 10 : btnSimulateOrder.Left - btnShowModels.Width - 10;
+                }
             }
             
             // Tamamlanan siparişleri sil butonunu siparişler başlık panelinde güncelle
@@ -3971,6 +4498,9 @@ namespace PrinterAutomation.Forms
                 gridControlOrders.Width = gridWidth;
                 gridControlJobs.Left = gridControlOrders.Right + spacing;
                 gridControlJobs.Width = this.ClientSize.Width - gridControlJobs.Left - 20;
+
+                // Sütun genişliklerini grid genişliğine göre ayarla
+                UpdateGridColumnWidths();
 
                 // Header panellerini güncelle
                 if (printersHeaderPanel != null)
@@ -4036,13 +4566,167 @@ namespace PrinterAutomation.Forms
             }
         }
 
+        private void UpdateGridColumnWidths()
+        {
+            // Printers Grid sütun genişliklerini ayarla
+            if (gridViewPrinters != null && gridControlPrinters != null)
+            {
+                int gridWidth = gridControlPrinters.Width;
+                int minTotalWidth = 428; // Minimum toplam genişlik (29+79+59+89+54+54+64 = 428)
+                int indicatorWidth = 20; // Grid indicator genişliği
+                int availableWidth = gridWidth - indicatorWidth;
+
+                if (availableWidth > 0)
+                {
+                    // Sütunları grid genişliğine göre orantılı olarak ayarla
+                    double scaleFactor = (double)availableWidth / minTotalWidth;
+                    
+                    if (gridViewPrinters.Columns["Id"] != null)
+                        gridViewPrinters.Columns["Id"].Width = Math.Max(20, (int)(29 * scaleFactor));
+                    if (gridViewPrinters.Columns["Name"] != null)
+                        gridViewPrinters.Columns["Name"].Width = Math.Max(50, (int)(79 * scaleFactor));
+                    if (gridViewPrinters.Columns["Status"] != null)
+                        gridViewPrinters.Columns["Status"].Width = Math.Max(40, (int)(59 * scaleFactor));
+                    if (gridViewPrinters.Columns["CurrentJobName"] != null)
+                        gridViewPrinters.Columns["CurrentJobName"].Width = Math.Max(60, (int)(89 * scaleFactor));
+                    if (gridViewPrinters.Columns["Progress"] != null)
+                        gridViewPrinters.Columns["Progress"].Width = Math.Max(40, (int)(54 * scaleFactor));
+                    if (gridViewPrinters.Columns["FilamentRemaining"] != null)
+                        gridViewPrinters.Columns["FilamentRemaining"].Width = Math.Max(40, (int)(54 * scaleFactor));
+                    if (gridViewPrinters.Columns["FilamentType"] != null)
+                        gridViewPrinters.Columns["FilamentType"].Width = Math.Max(45, (int)(64 * scaleFactor));
+                }
+            }
+
+            // Orders Grid sütun genişliklerini ayarla
+            if (gridViewOrders != null && gridControlOrders != null)
+            {
+                int gridWidth = gridControlOrders.Width;
+                int minTotalWidth = 417; // Minimum toplam genişlik (28+78+68+78+53+63+48 = 416, yuvarlama ile 417)
+                int indicatorWidth = 20; // Grid indicator genişliği
+                int availableWidth = gridWidth - indicatorWidth;
+
+                if (availableWidth > 0)
+                {
+                    // Sütunları grid genişliğine göre orantılı olarak ayarla
+                    double scaleFactor = (double)availableWidth / minTotalWidth;
+                    
+                    if (gridViewOrders.Columns["Id"] != null)
+                        gridViewOrders.Columns["Id"].Width = Math.Max(20, (int)(28 * scaleFactor));
+                    if (gridViewOrders.Columns["OrderNumber"] != null)
+                        gridViewOrders.Columns["OrderNumber"].Width = Math.Max(50, (int)(78 * scaleFactor));
+                    if (gridViewOrders.Columns["CustomerName"] != null)
+                        gridViewOrders.Columns["CustomerName"].Width = Math.Max(45, (int)(68 * scaleFactor));
+                    if (gridViewOrders.Columns["OrderDate"] != null)
+                        gridViewOrders.Columns["OrderDate"].Width = Math.Max(50, (int)(78 * scaleFactor));
+                    if (gridViewOrders.Columns["Status"] != null)
+                        gridViewOrders.Columns["Status"].Width = Math.Max(35, (int)(53 * scaleFactor));
+                    if (gridViewOrders.Columns["TotalPrice"] != null)
+                        gridViewOrders.Columns["TotalPrice"].Width = Math.Max(45, (int)(63 * scaleFactor));
+                    if (gridViewOrders.Columns["DeleteAction"] != null)
+                        gridViewOrders.Columns["DeleteAction"].Width = Math.Max(35, (int)(48 * scaleFactor));
+                }
+            }
+
+            // Jobs Grid sütun genişliklerini ayarla
+            if (gridViewJobs != null && gridControlJobs != null)
+            {
+                int gridWidth = gridControlJobs.Width;
+                int minTotalWidth = 429; // Minimum toplam genişlik (42+107+52+62+62+52+52 = 429)
+                int indicatorWidth = 20; // Grid indicator genişliği
+                int availableWidth = gridWidth - indicatorWidth;
+
+                if (availableWidth > 0)
+                {
+                    // Sütunları grid genişliğine göre orantılı olarak ayarla
+                    double scaleFactor = (double)availableWidth / minTotalWidth;
+                    
+                    if (gridViewJobs.Columns["Id"] != null)
+                        gridViewJobs.Columns["Id"].Width = Math.Max(30, (int)(42 * scaleFactor));
+                    if (gridViewJobs.Columns["ModelFileName"] != null)
+                        gridViewJobs.Columns["ModelFileName"].Width = Math.Max(70, (int)(107 * scaleFactor));
+                    if (gridViewJobs.Columns["PrinterId"] != null)
+                        gridViewJobs.Columns["PrinterId"].Width = Math.Max(35, (int)(52 * scaleFactor));
+                    if (gridViewJobs.Columns["Status"] != null)
+                        gridViewJobs.Columns["Status"].Width = Math.Max(45, (int)(62 * scaleFactor));
+                    if (gridViewJobs.Columns["Progress"] != null)
+                        gridViewJobs.Columns["Progress"].Width = Math.Max(45, (int)(62 * scaleFactor));
+                    if (gridViewJobs.Columns["Material"] != null)
+                        gridViewJobs.Columns["Material"].Width = Math.Max(35, (int)(52 * scaleFactor));
+                    if (gridViewJobs.Columns["DeleteAction"] != null)
+                        gridViewJobs.Columns["DeleteAction"].Width = Math.Max(35, (int)(52 * scaleFactor));
+                }
+            }
+        }
+
         protected override void OnFormClosing(System.Windows.Forms.FormClosingEventArgs e)
         {
+            // Timer'ı durdur
             if (_refreshTimer != null)
             {
                 _refreshTimer.Stop();
                 _refreshTimer.Dispose();
             }
+            
+            // Program kapanırken tüm yazıcıların durumlarını veritabanına kaydet
+            // ÖNCE yazıcı durumlarını al (timer durmadan önce)
+            if (_printerService != null && _mongoDbService != null && _mongoDbService.IsConnected())
+            {
+                try
+                {
+                    var printers = _printerService.GetAllPrinters();
+                    var printerCollection = _mongoDbService.GetCollection<Printer>("printers");
+                    
+                    System.Diagnostics.Debug.WriteLine($"[MainForm] Program kapanıyor, {printers.Count} yazıcının durumu kaydediliyor...");
+                    System.Console.WriteLine($"[MainForm] Program kapanıyor, {printers.Count} yazıcının durumu kaydediliyor...");
+                    
+                    foreach (var printer in printers)
+                    {
+                        try
+                        {
+                            // Yazıcı durumunu console'a yazdır (debug için)
+                            System.Diagnostics.Debug.WriteLine($"[MainForm] Yazıcı #{printer.Id} durumu: Status={printer.Status}, Job={printer.CurrentJobName ?? "(null)"}, Progress={printer.Progress:F1}%");
+                            System.Console.WriteLine($"[MainForm] Yazıcı #{printer.Id} durumu: Status={printer.Status}, Job={printer.CurrentJobName ?? "(null)"}, Progress={printer.Progress:F1}%");
+                            
+                            var filter = Builders<Printer>.Filter.Eq(p => p.Id, printer.Id);
+                            var update = Builders<Printer>.Update
+                                .Set(p => p.Status, printer.Status)
+                                .Set(p => p.CurrentJobName, printer.CurrentJobName)
+                                .Set(p => p.JobStartTime, printer.JobStartTime)
+                                .Set(p => p.JobEndTime, printer.JobEndTime)
+                                .Set(p => p.Progress, printer.Progress)
+                                .Set(p => p.FilamentRemaining, printer.FilamentRemaining)
+                                .Set(p => p.JobStartFilament, printer.JobStartFilament);
+                            var result = printerCollection.UpdateOne(filter, update);
+                            
+                            if (result.ModifiedCount > 0)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[MainForm] ✓ Yazıcı #{printer.Id} durumu kaydedildi: Status={printer.Status}");
+                                System.Console.WriteLine($"[MainForm] ✓ Yazıcı #{printer.Id} durumu kaydedildi: Status={printer.Status}");
+                            }
+                            else
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[MainForm] ⚠ Yazıcı #{printer.Id} durumu kaydedilemedi (ModifiedCount=0)");
+                                System.Console.WriteLine($"[MainForm] ⚠ Yazıcı #{printer.Id} durumu kaydedilemedi (ModifiedCount=0)");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[MainForm] Yazıcı #{printer.Id} durumu kaydedilirken hata: {ex.Message}");
+                            System.Console.WriteLine($"[MainForm] Yazıcı #{printer.Id} durumu kaydedilirken hata: {ex.Message}");
+                        }
+                    }
+                    
+                    System.Diagnostics.Debug.WriteLine($"[MainForm] Tüm yazıcı durumları veritabanına kaydedildi");
+                    System.Console.WriteLine($"[MainForm] Tüm yazıcı durumları veritabanına kaydedildi");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[MainForm] Yazıcı durumları kaydedilirken genel hata: {ex.Message}");
+                    System.Console.WriteLine($"[MainForm] Yazıcı durumları kaydedilirken genel hata: {ex.Message}");
+                }
+            }
+            
             base.OnFormClosing(e);
         }
     }
