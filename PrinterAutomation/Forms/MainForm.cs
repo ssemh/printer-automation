@@ -45,9 +45,11 @@ namespace PrinterAutomation.Forms
         private SimpleButton btnSimulateOrder;
         private SimpleButton btnToggleTheme;
         private SimpleButton btnAddPrinter;
+        private SimpleButton btnSettings;
+        private System.Windows.Forms.Panel settingsPanel;
+        private bool _settingsPanelVisible = false;
         private SimpleButton btnDeleteCompletedOrders;
         private SimpleButton btnDeleteCompletedJobs;
-        private SimpleButton btnClearDatabase;
         private SimpleButton btnShowEarnings;
         private SimpleButton btnShowModels;
         private LabelControl lblStatus;
@@ -257,6 +259,9 @@ namespace PrinterAutomation.Forms
                     RefreshData();
                     System.Diagnostics.Debug.WriteLine("[MainForm] 1. RefreshData() çağrıldı (1 saniye sonra)");
                     
+                    // Sipariş durumlarını kontrol et (program başlatıldığında)
+                    CheckOrderStatusesOnStartup();
+                    
                     // Bir kez daha güncelle
                     var refreshTimer2 = new System.Windows.Forms.Timer();
                     refreshTimer2.Interval = 2000; // 2 saniye daha bekle
@@ -331,30 +336,73 @@ namespace PrinterAutomation.Forms
             lblStatus.Appearance.Options.UseBackColor = true;
             titlePanel.Controls.Add(lblStatus);
 
-            // Tema Değiştirme Butonu (Modern tasarım)
+            // Ayarlar Butonu (Küçük ikon butonu)
+            btnSettings = new SimpleButton
+            {
+                Text = "⚙️",
+                Size = new System.Drawing.Size(45, 45),
+                Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right,
+                Font = new System.Drawing.Font("Segoe UI", 18F, System.Drawing.FontStyle.Bold),
+                ShowFocusRectangle = DevExpress.Utils.DefaultBoolean.False
+            };
+            btnSettings.Appearance.BackColor = System.Drawing.Color.FromArgb(255, 193, 7);
+            btnSettings.Appearance.ForeColor = System.Drawing.Color.White;
+            btnSettings.Appearance.BorderColor = System.Drawing.Color.FromArgb(255, 160, 0);
+            btnSettings.Appearance.Options.UseBackColor = true;
+            btnSettings.Appearance.Options.UseForeColor = true;
+            btnSettings.Appearance.Options.UseBorderColor = true;
+            btnSettings.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(255, 202, 40);
+            btnSettings.AppearanceHovered.BorderColor = System.Drawing.Color.FromArgb(255, 180, 20);
+            btnSettings.AppearanceHovered.Options.UseBackColor = true;
+            btnSettings.AppearanceHovered.Options.UseBorderColor = true;
+            btnSettings.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(255, 160, 0);
+            btnSettings.AppearancePressed.Options.UseBackColor = true;
+            btnSettings.LookAndFeel.UseDefaultLookAndFeel = false;
+            btnSettings.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+            btnSettings.Click += BtnSettings_Click;
+            titlePanel.Controls.Add(btnSettings);
+            btnSettings.Location = new System.Drawing.Point(titlePanel.Width - btnSettings.Width - 20, 20);
+
+            // Ayarlar Paneli (Popup)
+            settingsPanel = new System.Windows.Forms.Panel
+            {
+                Size = new System.Drawing.Size(200, 100),
+                BackColor = System.Drawing.Color.FromArgb(245, 247, 250),
+                BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle,
+                Visible = false
+            };
+            this.Controls.Add(settingsPanel);
+            settingsPanel.BringToFront();
+
+            // Ayarlar Paneli Başlık
+            var lblSettingsTitle = new LabelControl
+            {
+                Text = "⚙️ Ayarlar",
+                Location = new System.Drawing.Point(10, 10),
+                Size = new System.Drawing.Size(180, 25),
+                Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold),
+                ForeColor = System.Drawing.Color.FromArgb(33, 33, 33)
+            };
+            settingsPanel.Controls.Add(lblSettingsTitle);
+
+            // Tema Değiştirme Butonu (Ayarlar panelinde)
             btnToggleTheme = new SimpleButton
             {
                 Text = "🌙 Koyu Tema",
-                Size = new System.Drawing.Size(150, 48),
-                Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right,
-                Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold)
+                Location = new System.Drawing.Point(10, 40),
+                Size = new System.Drawing.Size(180, 35),
+                Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold)
             };
             btnToggleTheme.Appearance.BackColor = System.Drawing.Color.FromArgb(33, 33, 33);
             btnToggleTheme.Appearance.ForeColor = System.Drawing.Color.White;
-            btnToggleTheme.Appearance.BorderColor = System.Drawing.Color.FromArgb(66, 66, 66);
             btnToggleTheme.Appearance.Options.UseBackColor = true;
             btnToggleTheme.Appearance.Options.UseForeColor = true;
-            btnToggleTheme.Appearance.Options.UseBorderColor = true;
             btnToggleTheme.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(66, 66, 66);
-            btnToggleTheme.AppearanceHovered.BorderColor = System.Drawing.Color.FromArgb(100, 100, 100);
             btnToggleTheme.AppearanceHovered.Options.UseBackColor = true;
-            btnToggleTheme.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(20, 20, 20);
-            btnToggleTheme.AppearancePressed.Options.UseBackColor = true;
             btnToggleTheme.LookAndFeel.UseDefaultLookAndFeel = false;
             btnToggleTheme.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
             btnToggleTheme.Click += BtnToggleTheme_Click;
-            titlePanel.Controls.Add(btnToggleTheme);
-            btnToggleTheme.Location = new System.Drawing.Point(titlePanel.Width - btnToggleTheme.Width - 20, 20);
+            settingsPanel.Controls.Add(btnToggleTheme);
 
             // Yeni Yazıcı Ekle Button (Modern tasarım)
             btnAddPrinter = new SimpleButton
@@ -403,33 +451,8 @@ namespace PrinterAutomation.Forms
             btnSimulateOrder.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
             btnSimulateOrder.Click += BtnSimulateOrder_Click;
             titlePanel.Controls.Add(btnSimulateOrder);
-            btnAddPrinter.Location = new System.Drawing.Point(btnToggleTheme.Left - btnAddPrinter.Width - 10, 20);
+            btnAddPrinter.Location = new System.Drawing.Point(btnSettings.Left - btnAddPrinter.Width - 10, 20);
             btnSimulateOrder.Location = new System.Drawing.Point(btnAddPrinter.Left - btnSimulateOrder.Width - 10, 20);
-
-            // Veritabanını Temizle Butonu (Modern tasarım)
-            btnClearDatabase = new SimpleButton
-            {
-                Text = "🗑️ Veritabanını Temizle",
-                Size = new System.Drawing.Size(210, 48),
-                Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right,
-                Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold)
-            };
-            btnClearDatabase.Appearance.BackColor = System.Drawing.Color.FromArgb(244, 67, 54);
-            btnClearDatabase.Appearance.ForeColor = System.Drawing.Color.White;
-            btnClearDatabase.Appearance.BorderColor = System.Drawing.Color.FromArgb(211, 47, 47);
-            btnClearDatabase.Appearance.Options.UseBackColor = true;
-            btnClearDatabase.Appearance.Options.UseForeColor = true;
-            btnClearDatabase.Appearance.Options.UseBorderColor = true;
-            btnClearDatabase.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(229, 57, 53);
-            btnClearDatabase.AppearanceHovered.BorderColor = System.Drawing.Color.FromArgb(250, 80, 70);
-            btnClearDatabase.AppearanceHovered.Options.UseBackColor = true;
-            btnClearDatabase.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(198, 40, 40);
-            btnClearDatabase.AppearancePressed.Options.UseBackColor = true;
-            btnClearDatabase.LookAndFeel.UseDefaultLookAndFeel = false;
-            btnClearDatabase.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
-            btnClearDatabase.Click += BtnClearDatabase_Click;
-            titlePanel.Controls.Add(btnClearDatabase);
-            btnClearDatabase.Location = new System.Drawing.Point(btnSimulateOrder.Left - btnClearDatabase.Width - 10, 20);
 
             // Modelleri Göster Butonu (Modern tasarım)
             btnShowModels = new SimpleButton
@@ -454,7 +477,7 @@ namespace PrinterAutomation.Forms
             btnShowModels.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
             btnShowModels.Click += BtnShowModels_Click;
             titlePanel.Controls.Add(btnShowModels);
-            btnShowModels.Location = new System.Drawing.Point(btnClearDatabase.Left - btnShowModels.Width - 10, 20);
+            btnShowModels.Location = new System.Drawing.Point(btnSimulateOrder.Left - btnShowModels.Width - 10, 20);
 
             // Printers Grid Başlık Panel
             printersHeaderPanel = new System.Windows.Forms.Panel
@@ -1205,6 +1228,16 @@ namespace PrinterAutomation.Forms
                 this.Invoke(new Action(() =>
                 {
                     RefreshData();
+                    
+                    // Sipariş tamamlandı mı kontrol et ve kazancı güncelle
+                    var order = _orderService.GetOrder(e.Job.OrderId);
+                    if (order != null && order.Status == OrderStatus.Completed)
+                    {
+                        // Kazancı güncelle
+                        UpdateStatistics();
+                        System.Diagnostics.Debug.WriteLine($"[MainForm] Sipariş #{order.Id} tamamlandı, kazanç güncellendi: {order.TotalPrice} TL");
+                    }
+                    
                     lblStatus.Text = $"✓ İş tamamlandı: {e.Job.ModelFileName}";
                     lblStatus.ForeColor = System.Drawing.Color.FromArgb(129, 199, 132);
                 }));
@@ -1413,6 +1446,53 @@ namespace PrinterAutomation.Forms
             }
         }
 
+        private void CheckOrderStatusesOnStartup()
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("[MainForm] Program başlatıldığında sipariş durumları kontrol ediliyor...");
+                
+                var orders = _orderService.GetAllOrders();
+                var jobs = _jobAssignmentService.GetAllJobs();
+                int updatedCount = 0;
+                
+                foreach (var order in orders)
+                {
+                    // Sadece Pending veya Processing durumundaki siparişleri kontrol et
+                    if (order.Status == OrderStatus.Pending || order.Status == OrderStatus.Processing)
+                    {
+                        // Bu siparişe ait tüm işleri bul
+                        var orderJobs = jobs.Where(j => j.OrderId == order.Id).ToList();
+                        
+                        if (orderJobs.Count > 0)
+                        {
+                            // Tüm işler tamamlandı mı kontrol et
+                            bool allCompleted = orderJobs.All(j => j.Status == JobStatus.Completed);
+                            
+                            if (allCompleted)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[MainForm] Sipariş #{order.Id} - Tüm {orderJobs.Count} iş tamamlandı, durum Completed olarak güncelleniyor");
+                                _orderService.UpdateOrderStatus(order.Id, OrderStatus.Completed);
+                                updatedCount++;
+                            }
+                        }
+                    }
+                }
+                
+                if (updatedCount > 0)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[MainForm] ✓ {updatedCount} sipariş durumu Completed olarak güncellendi");
+                    System.Console.WriteLine($"[MainForm] ✓ {updatedCount} sipariş durumu Completed olarak güncellendi");
+                    // Kazancı güncelle
+                    UpdateStatistics();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainForm] Sipariş durumları kontrol edilirken hata: {ex.Message}");
+            }
+        }
+
         private void StartRefreshTimer()
         {
             _refreshTimer = new System.Windows.Forms.Timer();
@@ -1475,7 +1555,9 @@ namespace PrinterAutomation.Forms
                     FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog,
                     MaximizeBox = false,
                     MinimizeBox = false,
-                    BackColor = System.Drawing.Color.FromArgb(245, 247, 250)
+                    BackColor = _currentTheme == ThemeMode.Dark ? 
+                        System.Drawing.Color.FromArgb(30, 30, 30) : 
+                        System.Drawing.Color.FromArgb(245, 247, 250)
                 };
 
                 // Model listesi için ListBox
@@ -1484,11 +1566,20 @@ namespace PrinterAutomation.Forms
                     Location = new System.Drawing.Point(20, 20),
                     Size = new System.Drawing.Size(750, 450),
                     Font = new System.Drawing.Font("Segoe UI", 10F),
-                    BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+                    BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle,
+                    BackColor = _currentTheme == ThemeMode.Dark ? 
+                        System.Drawing.Color.FromArgb(40, 40, 40) : 
+                        System.Drawing.Color.White,
+                    ForeColor = _currentTheme == ThemeMode.Dark ? 
+                        System.Drawing.Color.White : 
+                        System.Drawing.Color.Black
                 };
+                
                 modelsForm.Controls.Add(listBoxModels);
 
-                // Modelleri yükle
+                // Modelleri yükle - dosya yollarını saklamak için Dictionary kullan
+                var modelFilePaths = new Dictionary<string, string>(); // Görünen metin -> Tam dosya yolu
+                
                 try
                 {
                     var modelPath = GetModelFolderPath();
@@ -1506,14 +1597,18 @@ namespace PrinterAutomation.Forms
                                 foreach (var stlFile in stlFiles)
                                 {
                                     var fileName = Path.GetFileName(stlFile);
-                                    listBoxModels.Items.Add($"   └─ {fileName}");
+                                    var displayText = $"   └─ {fileName}";
+                                    listBoxModels.Items.Add(displayText);
+                                    // Dosya yolunu sakla
+                                    modelFilePaths[displayText] = stlFile;
+                                    System.Diagnostics.Debug.WriteLine($"[MainForm] Model eklendi: {displayText} -> {stlFile}");
                                 }
                             }
                         }
                     }
                     else
                     {
-                        // Varsayılan modeller
+                        // Varsayılan modeller (dosya yolu yok, sadece gösterim)
                         listBoxModels.Items.Add("📁 octo/");
                         listBoxModels.Items.Add("   └─ articulatedcuteoctopus.stl");
                         listBoxModels.Items.Add("📁 shark/");
@@ -1530,13 +1625,160 @@ namespace PrinterAutomation.Forms
                     listBoxModels.Items.Add("⚠ Modeller yüklenirken hata oluştu: " + ex.Message);
                 }
 
+                // AI Model Analiz Butonu
+                var btnAIAnalysis = new SimpleButton
+                {
+                    Text = "🤖 AI ile Model Analiz Et",
+                    Location = new System.Drawing.Point(20, 490),
+                    Size = new System.Drawing.Size(250, 50),
+                    Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold)
+                };
+                btnAIAnalysis.Appearance.BackColor = System.Drawing.Color.FromArgb(63, 81, 181);
+                btnAIAnalysis.Appearance.ForeColor = System.Drawing.Color.White;
+                btnAIAnalysis.Appearance.Options.UseBackColor = true;
+                btnAIAnalysis.Appearance.Options.UseForeColor = true;
+                btnAIAnalysis.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(92, 107, 192);
+                btnAIAnalysis.AppearanceHovered.Options.UseBackColor = true;
+                btnAIAnalysis.LookAndFeel.UseDefaultLookAndFeel = false;
+                btnAIAnalysis.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+                btnAIAnalysis.Click += (s, args) =>
+                {
+                    try
+                    {
+                        // Seçili modeli al
+                        if (listBoxModels.SelectedItem == null)
+                        {
+                            XtraMessageBox.Show(
+                                "Lütfen analiz etmek için bir model seçin!",
+                                "Uyarı",
+                                System.Windows.Forms.MessageBoxButtons.OK,
+                                System.Windows.Forms.MessageBoxIcon.Warning);
+                            return;
+                        }
+
+                        string selectedItem = listBoxModels.SelectedItem.ToString();
+                        if (selectedItem.StartsWith("📁") || !selectedItem.Contains("└─"))
+                        {
+                            XtraMessageBox.Show(
+                                "Lütfen bir model dosyası seçin (klasör değil)!",
+                                "Uyarı",
+                                System.Windows.Forms.MessageBoxButtons.OK,
+                                System.Windows.Forms.MessageBoxIcon.Warning);
+                            return;
+                        }
+
+                        // Dictionary'den dosya yolunu al
+                        string fullPath = null;
+                        if (modelFilePaths.ContainsKey(selectedItem))
+                        {
+                            fullPath = modelFilePaths[selectedItem];
+                            System.Diagnostics.Debug.WriteLine($"[MainForm] Dictionary'den dosya yolu bulundu: {fullPath}");
+                            System.Console.WriteLine($"[MainForm] Dictionary'den dosya yolu bulundu: {fullPath}");
+                        }
+                        else
+                        {
+                            // Dictionary'de yoksa, dosya adından ve model path'den oluştur
+                            string modelFileName = selectedItem.Replace("   └─ ", "").Trim();
+                            string modelPath = GetModelFolderPath();
+                            
+                            System.Diagnostics.Debug.WriteLine($"[MainForm] Dictionary'de bulunamadı, arama yapılıyor: {modelFileName}");
+                            System.Console.WriteLine($"[MainForm] Dictionary'de bulunamadı, arama yapılıyor: {modelFileName}");
+                            
+                            if (!string.IsNullOrEmpty(modelPath) && Directory.Exists(modelPath))
+                            {
+                                // Tüm klasörlerde ara
+                                var subfolders = Directory.GetDirectories(modelPath);
+                                foreach (var subfolder in subfolders)
+                                {
+                                    var stlFile = Path.Combine(subfolder, modelFileName);
+                                    System.Diagnostics.Debug.WriteLine($"[MainForm] Kontrol ediliyor: {stlFile}");
+                                    if (File.Exists(stlFile))
+                                    {
+                                        fullPath = stlFile;
+                                        System.Diagnostics.Debug.WriteLine($"[MainForm] Dosya bulundu: {fullPath}");
+                                        System.Console.WriteLine($"[MainForm] Dosya bulundu: {fullPath}");
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        if (string.IsNullOrEmpty(fullPath) || !File.Exists(fullPath))
+                        {
+                            XtraMessageBox.Show(
+                                $"Model dosyası bulunamadı!\n\nSeçili: {selectedItem}\n\nLütfen dosya yolunu kontrol edin.",
+                                "Hata",
+                                System.Windows.Forms.MessageBoxButtons.OK,
+                                System.Windows.Forms.MessageBoxIcon.Error);
+                            return;
+                        }
+                        
+                        System.Diagnostics.Debug.WriteLine($"[MainForm] Analiz için dosya yolu: {fullPath}");
+                        System.Console.WriteLine($"[MainForm] Analiz için dosya yolu: {fullPath}");
+
+                        // AI analiz servisi
+                        var analysisService = new Services.ModelAnalysisService();
+                        
+                        // Analiz yap (async işlem olduğu için biraz zaman alabilir)
+                        System.Diagnostics.Debug.WriteLine($"[MainForm] Model analizi başlatılıyor: {fullPath}");
+                        var result = analysisService.AnalyzeModel(fullPath);
+                        System.Diagnostics.Debug.WriteLine($"[MainForm] Model analizi tamamlandı. UsedAI: {result.UsedAI}");
+
+                        // Sonuçları göster
+                        string message = $"🤖 AI MODEL ANALİZ SONUÇLARI\n\n" +
+                            $"📦 Model: {result.ModelName}\n\n" +
+                            $"📊 TAHMİNLER:\n" +
+                            $"   • Filament: {result.EstimatedFilamentGrams:F1} g ({result.EstimatedFilamentMeters:F1} m)\n" +
+                            $"   • Baskı Süresi: {result.EstimatedPrintTimeHours:F2} saat\n\n" +
+                            $"💰 MALİYET ANALİZİ:\n" +
+                            $"   • Filament Maliyeti: {result.FilamentCost:F2} TL\n" +
+                            $"   • Toplam Maliyet: {result.TotalCost:F2} TL\n\n" +
+                            $"💵 ÖNERİLEN SATIŞ FİYATI:\n" +
+                            $"   🎯 {result.RecommendedPrice:F2} TL\n\n" +
+                            $"📈 Kar Marjı: %50 ({result.ProfitMargin:F2} TL)";
+                        
+                        if (!string.IsNullOrEmpty(result.GeminiAnalysis))
+                        {
+                            string wrappedAnalysis = WrapText(result.GeminiAnalysis, 70);
+                            if (result.UsedAI)
+                            {
+                                message += $"\n\n📋 DETAYLI ANALİZ:\n{wrappedAnalysis}";
+                            }
+                            else
+                            {
+                                message += $"\n\n⚠️ Gemini AI Durumu:\n{wrappedAnalysis}";
+                            }
+                        }
+                        else if (!result.UsedAI)
+                        {
+                            message += $"\n\n💡 Not: Gemini AI kullanmak için App.config dosyasına 'GeminiApiKey' ekleyin.";
+                        }
+
+                        // Her iki temada da aynı XtraMessageBox kullan
+                        XtraMessageBox.Show(
+                            message,
+                            "🤖 AI Model Analizi",
+                            System.Windows.Forms.MessageBoxButtons.OK,
+                            System.Windows.Forms.MessageBoxIcon.Information);
+                    }
+                    catch (Exception ex)
+                    {
+                        XtraMessageBox.Show(
+                            $"Model analiz edilirken hata oluştu:\n\n{ex.Message}",
+                            "Hata",
+                            System.Windows.Forms.MessageBoxButtons.OK,
+                            System.Windows.Forms.MessageBoxIcon.Error);
+                    }
+                };
+                modelsForm.Controls.Add(btnAIAnalysis);
+
                 // Blender AI ile Model Oluştur butonu
                 var btnBlenderAI = new SimpleButton
                 {
                     Text = "🎨 Blender AI ile Model Oluştur",
-                    Location = new System.Drawing.Point(20, 490),
-                    Size = new System.Drawing.Size(300, 50),
-                    Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold)
+                    Location = new System.Drawing.Point(280, 490),
+                    Size = new System.Drawing.Size(250, 50),
+                    Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold)
                 };
                 btnBlenderAI.Appearance.BackColor = System.Drawing.Color.FromArgb(255, 152, 0);
                 btnBlenderAI.Appearance.ForeColor = System.Drawing.Color.White;
@@ -1595,11 +1837,20 @@ namespace PrinterAutomation.Forms
                     Size = new System.Drawing.Size(120, 50),
                     Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold)
                 };
-                btnClose.Appearance.BackColor = System.Drawing.Color.FromArgb(158, 158, 158);
-                btnClose.Appearance.ForeColor = System.Drawing.Color.White;
+                if (_currentTheme == ThemeMode.Dark)
+                {
+                    btnClose.Appearance.BackColor = System.Drawing.Color.FromArgb(66, 66, 66);
+                    btnClose.Appearance.ForeColor = System.Drawing.Color.White;
+                    btnClose.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(80, 80, 80);
+                }
+                else
+                {
+                    btnClose.Appearance.BackColor = System.Drawing.Color.FromArgb(158, 158, 158);
+                    btnClose.Appearance.ForeColor = System.Drawing.Color.White;
+                    btnClose.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(189, 189, 189);
+                }
                 btnClose.Appearance.Options.UseBackColor = true;
                 btnClose.Appearance.Options.UseForeColor = true;
-                btnClose.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(189, 189, 189);
                 btnClose.AppearanceHovered.Options.UseBackColor = true;
                 btnClose.LookAndFeel.UseDefaultLookAndFeel = false;
                 btnClose.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
@@ -1636,61 +1887,6 @@ namespace PrinterAutomation.Forms
             {
                 System.Diagnostics.Debug.WriteLine($"Model klasörü bulunurken hata: {ex.Message}");
                 return null;
-            }
-        }
-
-        private void BtnClearDatabase_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                var result = XtraMessageBox.Show(
-                    "TÜM VERİTABANI VERİLERİ SİLİNECEK!\n\n" +
-                    "Bu işlem şunları silecek:\n" +
-                    "• Tüm siparişler\n" +
-                    "• Tüm yazdırma işleri\n" +
-                    "• Tüm yazıcılar\n\n" +
-                    "Model bilgileri korunacak.\n\n" +
-                    "Bu işlem geri alınamaz. Devam etmek istiyor musunuz?",
-                    "Veritabanını Temizle",
-                    System.Windows.Forms.MessageBoxButtons.YesNo,
-                    System.Windows.Forms.MessageBoxIcon.Warning);
-
-                if (result == System.Windows.Forms.DialogResult.Yes)
-                {
-                    if (_mongoDbService != null && _mongoDbService.IsConnected())
-                    {
-                        _mongoDbService.ClearAllData();
-                        
-                        // Servisleri yeniden başlat
-                        RefreshData();
-                        
-                        XtraMessageBox.Show(
-                            "Veritabanı başarıyla temizlendi.\n\n" +
-                            "Model bilgileri korundu.",
-                            "Başarılı",
-                            System.Windows.Forms.MessageBoxButtons.OK,
-                            System.Windows.Forms.MessageBoxIcon.Information);
-                        
-                        lblStatus.Text = "✓ Veritabanı temizlendi";
-                        lblStatus.ForeColor = System.Drawing.Color.FromArgb(129, 199, 132);
-                    }
-                    else
-                    {
-                        XtraMessageBox.Show(
-                            "MongoDB bağlantısı yok!",
-                            "Hata",
-                            System.Windows.Forms.MessageBoxButtons.OK,
-                            System.Windows.Forms.MessageBoxIcon.Error);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                XtraMessageBox.Show(
-                    $"Veritabanı temizlenirken hata oluştu:\n{ex.Message}",
-                    "Hata",
-                    System.Windows.Forms.MessageBoxButtons.OK,
-                    System.Windows.Forms.MessageBoxIcon.Error);
             }
         }
 
@@ -1861,10 +2057,28 @@ namespace PrinterAutomation.Forms
             }
         }
 
+        private void BtnSettings_Click(object sender, EventArgs e)
+        {
+            _settingsPanelVisible = !_settingsPanelVisible;
+            settingsPanel.Visible = _settingsPanelVisible;
+            
+            if (_settingsPanelVisible)
+            {
+                // Panel konumunu ayarla - butonun sağ altına hizala
+                int panelX = btnSettings.Right - settingsPanel.Width;
+                int panelY = btnSettings.Bottom + 5;
+                settingsPanel.Location = new System.Drawing.Point(panelX, panelY);
+                settingsPanel.BringToFront();
+            }
+        }
+
         private void BtnToggleTheme_Click(object sender, EventArgs e)
         {
             _currentTheme = _currentTheme == ThemeMode.Light ? ThemeMode.Dark : ThemeMode.Light;
             ApplyTheme();
+            // Ayarlar panelini kapat
+            _settingsPanelVisible = false;
+            settingsPanel.Visible = false;
         }
 
         private void BtnDeleteCompletedOrders_Click(object sender, EventArgs e)
@@ -2307,6 +2521,28 @@ namespace PrinterAutomation.Forms
                 titlePanel.BackColor = System.Drawing.Color.FromArgb(25, 25, 25);
             }
 
+            // Ayarlar butonu (koyu tema)
+            if (btnSettings != null)
+            {
+                btnSettings.Appearance.BackColor = System.Drawing.Color.FromArgb(255, 193, 7);
+                btnSettings.Appearance.BorderColor = System.Drawing.Color.FromArgb(255, 160, 0);
+                btnSettings.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(255, 202, 40);
+                btnSettings.AppearanceHovered.BorderColor = System.Drawing.Color.FromArgb(255, 180, 20);
+            }
+
+            // Ayarlar paneli (koyu tema)
+            if (settingsPanel != null)
+            {
+                settingsPanel.BackColor = System.Drawing.Color.FromArgb(40, 40, 40);
+                foreach (System.Windows.Forms.Control control in settingsPanel.Controls)
+                {
+                    if (control is LabelControl lbl)
+                    {
+                        lbl.ForeColor = System.Drawing.Color.White;
+                    }
+                }
+            }
+
             // Tema butonu
             if (btnToggleTheme != null)
             {
@@ -2403,6 +2639,28 @@ namespace PrinterAutomation.Forms
             if (titlePanel != null)
             {
                 titlePanel.BackColor = System.Drawing.Color.FromArgb(30, 136, 229);
+            }
+
+            // Ayarlar butonu (açık tema)
+            if (btnSettings != null)
+            {
+                btnSettings.Appearance.BackColor = System.Drawing.Color.FromArgb(255, 193, 7);
+                btnSettings.Appearance.BorderColor = System.Drawing.Color.FromArgb(255, 160, 0);
+                btnSettings.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(255, 202, 40);
+                btnSettings.AppearanceHovered.BorderColor = System.Drawing.Color.FromArgb(255, 180, 20);
+            }
+
+            // Ayarlar paneli (açık tema)
+            if (settingsPanel != null)
+            {
+                settingsPanel.BackColor = System.Drawing.Color.FromArgb(245, 247, 250);
+                foreach (System.Windows.Forms.Control control in settingsPanel.Controls)
+                {
+                    if (control is LabelControl lbl)
+                    {
+                        lbl.ForeColor = System.Drawing.Color.FromArgb(33, 33, 33);
+                    }
+                }
             }
 
             // Tema butonu
@@ -4450,20 +4708,23 @@ namespace PrinterAutomation.Forms
             }
 
             // Buton konumlarını güncelle
-            if (btnSimulateOrder != null && btnAddPrinter != null && btnToggleTheme != null && titlePanel != null)
+            if (btnSimulateOrder != null && btnAddPrinter != null && btnSettings != null && titlePanel != null)
             {
-                btnToggleTheme.Left = titlePanel.Width - btnToggleTheme.Width - 20;
-                btnAddPrinter.Left = btnToggleTheme.Left - btnAddPrinter.Width - 10;
+                btnSettings.Left = titlePanel.Width - btnSettings.Width - 20;
+                btnAddPrinter.Left = btnSettings.Left - btnAddPrinter.Width - 10;
                 btnSimulateOrder.Left = btnAddPrinter.Left - btnSimulateOrder.Width - 10;
                 
-                if (btnClearDatabase != null)
+                // Ayarlar panelinin konumunu güncelle
+                if (settingsPanel != null && settingsPanel.Visible)
                 {
-                    btnClearDatabase.Left = btnSimulateOrder.Left - btnClearDatabase.Width - 10;
+                    int panelX = btnSettings.Right - settingsPanel.Width;
+                    int panelY = btnSettings.Bottom + 5;
+                    settingsPanel.Location = new System.Drawing.Point(panelX, panelY);
                 }
                 
                 if (btnShowModels != null)
                 {
-                    btnShowModels.Left = btnClearDatabase != null ? btnClearDatabase.Left - btnShowModels.Width - 10 : btnSimulateOrder.Left - btnShowModels.Width - 10;
+                    btnShowModels.Left = btnSimulateOrder.Left - btnShowModels.Width - 10;
                 }
             }
             
@@ -4728,6 +4989,53 @@ namespace PrinterAutomation.Forms
             }
             
             base.OnFormClosing(e);
+        }
+
+        private string WrapText(string text, int maxWidth)
+        {
+            if (string.IsNullOrEmpty(text))
+                return text;
+
+            var lines = new System.Collections.Generic.List<string>();
+            var words = text.Split(new[] { ' ', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+            var currentLine = new System.Text.StringBuilder();
+
+            foreach (var word in words)
+            {
+                // Eğer kelime tek başına maxWidth'den uzunsa, zorla böl
+                if (word.Length > maxWidth)
+                {
+                    if (currentLine.Length > 0)
+                    {
+                        lines.Add(currentLine.ToString());
+                        currentLine.Clear();
+                    }
+                    // Uzun kelimeyi parçalara böl
+                    for (int i = 0; i < word.Length; i += maxWidth)
+                    {
+                        int length = Math.Min(maxWidth, word.Length - i);
+                        lines.Add(word.Substring(i, length));
+                    }
+                }
+                else
+                {
+                    // Mevcut satıra eklenebilir mi kontrol et
+                    int potentialLength = currentLine.Length + (currentLine.Length > 0 ? 1 : 0) + word.Length;
+                    if (potentialLength > maxWidth && currentLine.Length > 0)
+                    {
+                        lines.Add(currentLine.ToString());
+                        currentLine.Clear();
+                    }
+                    if (currentLine.Length > 0)
+                        currentLine.Append(" ");
+                    currentLine.Append(word);
+                }
+            }
+
+            if (currentLine.Length > 0)
+                lines.Add(currentLine.ToString());
+
+            return string.Join("\n", lines);
         }
     }
 }

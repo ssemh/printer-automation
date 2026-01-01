@@ -32,6 +32,8 @@ namespace PrinterAutomation.Services
             {
                 _jobsCollection = _mongoDbService.GetCollection<PrintJob>("printJobs");
                 LoadJobsFromDatabase();
+                // LoadJobsFromDatabase tamamlandıktan sonra sipariş durumlarını kontrol et
+                CheckAndUpdateOrderStatuses();
                 // LoadJobsFromDatabase tamamlandıktan sonra timer'ı başlat
                 // Bu sayede yazıcılar önce güncellenir, sonra timer kontrol eder
                 InitializeProgressTimer();
@@ -1083,9 +1085,15 @@ namespace PrinterAutomation.Services
             if (order != null)
             {
                 var orderJobs = _printJobs.Where(j => j.OrderId == order.Id).ToList();
-                if (orderJobs.All(j => j.Status == JobStatus.Completed))
+                bool allCompleted = orderJobs.All(j => j.Status == JobStatus.Completed);
+                
+                System.Diagnostics.Debug.WriteLine($"[JobAssignmentService] Sipariş #{order.Id} kontrolü: {orderJobs.Count} iş, {orderJobs.Count(j => j.Status == JobStatus.Completed)} tamamlandı, Tümü tamamlandı: {allCompleted}");
+                
+                if (allCompleted && order.Status != OrderStatus.Completed)
                 {
+                    System.Diagnostics.Debug.WriteLine($"[JobAssignmentService] ✓ Sipariş #{order.Id} tamamlandı! Durum güncelleniyor...");
                     _orderService.UpdateOrderStatus(order.Id, OrderStatus.Completed);
+                    System.Diagnostics.Debug.WriteLine($"[JobAssignmentService] ✓ Sipariş #{order.Id} durumu Completed olarak güncellendi. Toplam Fiyat: {order.TotalPrice} TL");
                 }
             }
 
@@ -1094,6 +1102,51 @@ namespace PrinterAutomation.Services
             
             // Kuyruktaki işleri kontrol et
             ProcessQueuedJobs();
+        }
+
+        private void CheckAndUpdateOrderStatuses()
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"[JobAssignmentService] Sipariş durumları kontrol ediliyor...");
+                
+                var allOrders = _orderService.GetAllOrders();
+                int updatedCount = 0;
+                
+                foreach (var order in allOrders)
+                {
+                    // Sadece Pending veya Processing durumundaki siparişleri kontrol et
+                    if (order.Status == OrderStatus.Pending || order.Status == OrderStatus.Processing)
+                    {
+                        // Bu siparişe ait tüm işleri bul
+                        var orderJobs = _printJobs.Where(j => j.OrderId == order.Id).ToList();
+                        
+                        if (orderJobs.Count > 0)
+                        {
+                            // Tüm işler tamamlandı mı kontrol et
+                            bool allCompleted = orderJobs.All(j => j.Status == JobStatus.Completed);
+                            
+                            if (allCompleted)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[JobAssignmentService] Sipariş #{order.Id} - Tüm {orderJobs.Count} iş tamamlandı, durum Completed olarak güncelleniyor");
+                                _orderService.UpdateOrderStatus(order.Id, OrderStatus.Completed);
+                                updatedCount++;
+                            }
+                        }
+                    }
+                }
+                
+                if (updatedCount > 0)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[JobAssignmentService] ✓ {updatedCount} sipariş durumu Completed olarak güncellendi");
+                    System.Console.WriteLine($"[JobAssignmentService] ✓ {updatedCount} sipariş durumu Completed olarak güncellendi");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[JobAssignmentService] Sipariş durumları kontrol edilirken hata: {ex.Message}");
+                System.Console.WriteLine($"[JobAssignmentService] Sipariş durumları kontrol edilirken hata: {ex.Message}");
+            }
         }
 
         public BindingList<PrintJob> GetAllJobs() => _printJobs;

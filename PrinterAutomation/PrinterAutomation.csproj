@@ -13,6 +13,7 @@
     <PackageReference Include="DevExpress.Win.Design" Version="25.1.5" />
     <PackageReference Include="DevExpress.Win" Version="25.1.5" />
     <PackageReference Include="MongoDB.Driver" Version="2.28.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 
   <ItemGroup>
