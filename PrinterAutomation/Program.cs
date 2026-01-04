@@ -27,9 +27,9 @@ namespace PrinterAutomation
                     // Alternatif olarak The Bezier skin'i de kullanılabilir:
                     // WindowsFormsSettings.DefaultLookAndFeel.SetSkinStyle("The Bezier");
                     
-                    // Modern ScrollUIMode - Windows 11 stili ince scrollbar'lar (auto-hide)
-                    WindowsFormsSettings.ScrollUIMode = DevExpress.XtraEditors.ScrollUIMode.Touch;
-                    // Touch modu modern görünüm sağlar (Modern değeri bazı sürümlerde mevcut olmayabilir)
+                    // Modern ScrollUIMode - Fluent Design stili scrollbar'lar
+                    WindowsFormsSettings.ScrollUIMode = DevExpress.XtraEditors.ScrollUIMode.Fluent;
+                    // Fluent modu en modern görünüm sağlar (Windows 11 Fluent Design)
                 }
                 catch (Exception ex)
                 {

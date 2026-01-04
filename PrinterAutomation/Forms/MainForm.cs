@@ -62,7 +62,7 @@ namespace PrinterAutomation.Forms
         private LabelControl lblActivePrinters;
         private LabelControl lblTotalOrders;
         private LabelControl lblPendingJobs;
-        private LabelControl lblTotalEarnings;
+        private System.Windows.Forms.Label lblTotalEarnings;
         private System.Windows.Forms.Panel titlePanel;
         private System.Windows.Forms.Panel printersHeaderPanel;
         private System.Windows.Forms.Panel ordersHeaderPanel;
@@ -304,12 +304,24 @@ namespace PrinterAutomation.Forms
             this.Text = "3D Yazıcı Otomasyon Sistemi";
             this.Size = new System.Drawing.Size(1500, 650);
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.BackColor = System.Drawing.Color.FromArgb(245, 247, 250);
+            this.BackColor = System.Drawing.Color.FromArgb(243, 243, 243); // Windows 11 arka plan rengi
             this.MinimumSize = new System.Drawing.Size(1200, 650);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
             this.WindowState = System.Windows.Forms.FormWindowState.Normal;
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.Sizable;
             this.Resize += MainForm_Resize;
+            
+            // Modern Fluent Design özellikleri (manuel)
+            try
+            {
+                // Form'a modern görünüm için özel ayarlar
+                // WXI skin zaten aktif, ScrollUIMode.Fluent de aktif
+                // Form'un kendisi için ek modernleştirmeler
+            }
+            catch
+            {
+                // Hata durumunda devam et
+            }
 
             // Başlık Panel (Modern gradient efekti için)
             titlePanel = new System.Windows.Forms.Panel
@@ -320,16 +332,33 @@ namespace PrinterAutomation.Forms
                 BackColor = System.Drawing.Color.Transparent,
                 Padding = new System.Windows.Forms.Padding(0, 0, 0, 5)
             };
-            // Gradient arka plan için Paint event'i
+            // Gradient arka plan için Paint event'i (tema kontrolü ile)
             titlePanel.Paint += (s, e) =>
             {
-                using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
-                    titlePanel.ClientRectangle,
-                    System.Drawing.Color.FromArgb(0, 120, 215), // Windows 11 mavi
-                    System.Drawing.Color.FromArgb(0, 100, 180), // Daha koyu mavi
-                    System.Drawing.Drawing2D.LinearGradientMode.Vertical))
+                var panel = s as System.Windows.Forms.Panel;
+                if (panel == null) return;
+                
+                System.Drawing.Color color1, color2;
+                if (_currentTheme == ThemeMode.Dark)
                 {
-                    e.Graphics.FillRectangle(brush, titlePanel.ClientRectangle);
+                    color1 = System.Drawing.Color.FromArgb(40, 40, 40);
+                    color2 = System.Drawing.Color.FromArgb(25, 25, 25);
+                }
+                else
+                {
+                    color1 = System.Drawing.Color.FromArgb(0, 120, 215); // Windows 11 mavi (soldan)
+                    color2 = System.Drawing.Color.FromArgb(177, 70, 194); // Mor (sağa)
+                }
+                
+                // Gradient brush'i panel'in tam boyutunda oluştur
+                var rect = new System.Drawing.Rectangle(0, 0, panel.Width, panel.Height);
+                using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
+                    new System.Drawing.Point(0, 0),
+                    new System.Drawing.Point(panel.Width, 0),
+                    color1,
+                    color2)) // Soldan sağa gradient (maviden mora)
+                {
+                    e.Graphics.FillRectangle(brush, rect);
                 }
             };
             this.Controls.Add(titlePanel);
@@ -379,17 +408,14 @@ namespace PrinterAutomation.Forms
             btnSettings.Appearance.BackColor = System.Drawing.Color.FromArgb(255, 255, 255);
             btnSettings.Appearance.ForeColor = System.Drawing.Color.FromArgb(0, 120, 215);
             btnSettings.Appearance.BorderColor = System.Drawing.Color.FromArgb(200, 200, 200);
-            btnSettings.Appearance.BorderOptions.Rounding = 25; // Yuvarlatılmış köşeler
             btnSettings.Appearance.Options.UseBackColor = true;
             btnSettings.Appearance.Options.UseForeColor = true;
             btnSettings.Appearance.Options.UseBorderColor = true;
             btnSettings.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(240, 240, 240);
             btnSettings.AppearanceHovered.BorderColor = System.Drawing.Color.FromArgb(0, 120, 215);
-            btnSettings.AppearanceHovered.BorderOptions.Rounding = 25;
             btnSettings.AppearanceHovered.Options.UseBackColor = true;
             btnSettings.AppearanceHovered.Options.UseBorderColor = true;
             btnSettings.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(230, 230, 230);
-            btnSettings.AppearancePressed.BorderOptions.Rounding = 25;
             btnSettings.AppearancePressed.Options.UseBackColor = true;
             // Vektör tabanlı skin kullan (WXI)
             btnSettings.LookAndFeel.UseDefaultLookAndFeel = true;
@@ -446,16 +472,16 @@ namespace PrinterAutomation.Forms
                 Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right,
                 Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold)
             };
-            btnAddPrinter.Appearance.BackColor = System.Drawing.Color.FromArgb(33, 150, 243);
+            btnAddPrinter.Appearance.BackColor = System.Drawing.Color.FromArgb(0, 120, 215);
             btnAddPrinter.Appearance.ForeColor = System.Drawing.Color.White;
-            btnAddPrinter.Appearance.BorderColor = System.Drawing.Color.FromArgb(25, 118, 210);
+            btnAddPrinter.Appearance.BorderColor = System.Drawing.Color.FromArgb(0, 100, 180);
             btnAddPrinter.Appearance.Options.UseBackColor = true;
             btnAddPrinter.Appearance.Options.UseForeColor = true;
             btnAddPrinter.Appearance.Options.UseBorderColor = true;
-            btnAddPrinter.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(30, 136, 229);
-            btnAddPrinter.AppearanceHovered.BorderColor = System.Drawing.Color.FromArgb(40, 150, 243);
+            btnAddPrinter.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(0, 100, 180);
+            btnAddPrinter.AppearanceHovered.BorderColor = System.Drawing.Color.FromArgb(0, 80, 160);
             btnAddPrinter.AppearanceHovered.Options.UseBackColor = true;
-            btnAddPrinter.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(25, 118, 210);
+            btnAddPrinter.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(0, 80, 160);
             btnAddPrinter.AppearancePressed.Options.UseBackColor = true;
             // Vektör tabanlı skin kullan (WXI)
             btnAddPrinter.LookAndFeel.UseDefaultLookAndFeel = true;
@@ -470,16 +496,16 @@ namespace PrinterAutomation.Forms
                 Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right,
                 Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold)
             };
-            btnSimulateOrder.Appearance.BackColor = System.Drawing.Color.FromArgb(76, 175, 80);
+            btnSimulateOrder.Appearance.BackColor = System.Drawing.Color.FromArgb(16, 124, 16);
             btnSimulateOrder.Appearance.ForeColor = System.Drawing.Color.White;
-            btnSimulateOrder.Appearance.BorderColor = System.Drawing.Color.FromArgb(56, 142, 60);
+            btnSimulateOrder.Appearance.BorderColor = System.Drawing.Color.FromArgb(12, 100, 12);
             btnSimulateOrder.Appearance.Options.UseBackColor = true;
             btnSimulateOrder.Appearance.Options.UseForeColor = true;
             btnSimulateOrder.Appearance.Options.UseBorderColor = true;
-            btnSimulateOrder.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(69, 160, 73);
-            btnSimulateOrder.AppearanceHovered.BorderColor = System.Drawing.Color.FromArgb(80, 180, 85);
+            btnSimulateOrder.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(20, 140, 20);
+            btnSimulateOrder.AppearanceHovered.BorderColor = System.Drawing.Color.FromArgb(16, 120, 16);
             btnSimulateOrder.AppearanceHovered.Options.UseBackColor = true;
-            btnSimulateOrder.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(56, 142, 60);
+            btnSimulateOrder.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(12, 100, 12);
             btnSimulateOrder.AppearancePressed.Options.UseBackColor = true;
             // Vektör tabanlı skin kullan (WXI)
             btnSimulateOrder.LookAndFeel.UseDefaultLookAndFeel = true;
@@ -496,16 +522,16 @@ namespace PrinterAutomation.Forms
                 Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right,
                 Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold)
             };
-            btnShowModels.Appearance.BackColor = System.Drawing.Color.FromArgb(156, 39, 176);
+            btnShowModels.Appearance.BackColor = System.Drawing.Color.FromArgb(177, 70, 194);
             btnShowModels.Appearance.ForeColor = System.Drawing.Color.White;
-            btnShowModels.Appearance.BorderColor = System.Drawing.Color.FromArgb(123, 31, 162);
+            btnShowModels.Appearance.BorderColor = System.Drawing.Color.FromArgb(150, 50, 170);
             btnShowModels.Appearance.Options.UseBackColor = true;
             btnShowModels.Appearance.Options.UseForeColor = true;
             btnShowModels.Appearance.Options.UseBorderColor = true;
-            btnShowModels.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(171, 71, 188);
-            btnShowModels.AppearanceHovered.BorderColor = System.Drawing.Color.FromArgb(180, 100, 200);
+            btnShowModels.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(190, 90, 210);
+            btnShowModels.AppearanceHovered.BorderColor = System.Drawing.Color.FromArgb(170, 70, 190);
             btnShowModels.AppearanceHovered.Options.UseBackColor = true;
-            btnShowModels.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(123, 31, 162);
+            btnShowModels.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(150, 50, 170);
             btnShowModels.AppearancePressed.Options.UseBackColor = true;
             // Vektör tabanlı skin kullan (WXI)
             btnShowModels.LookAndFeel.UseDefaultLookAndFeel = true;
@@ -513,32 +539,85 @@ namespace PrinterAutomation.Forms
             titlePanel.Controls.Add(btnShowModels);
             btnShowModels.Location = new System.Drawing.Point(btnSimulateOrder.Left - btnShowModels.Width - 10, 20);
 
-            // Content Panel (Tüm içerik)
+            // Content Panel (Tüm içerik - Modern gradient arka plan)
             contentPanel = new System.Windows.Forms.Panel
             {
                 Location = new System.Drawing.Point(0, 80),
                 Size = new System.Drawing.Size(this.ClientSize.Width, this.ClientSize.Height - 80),
-                Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right
+                Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right,
+                BackColor = System.Drawing.Color.Transparent
+            };
+            contentPanel.Paint += (s, e) =>
+            {
+                System.Drawing.Color color1, color2;
+                if (_currentTheme == ThemeMode.Dark)
+                {
+                    color1 = System.Drawing.Color.FromArgb(35, 35, 35);
+                    color2 = System.Drawing.Color.FromArgb(30, 30, 30);
+                }
+                else
+                {
+                    color1 = System.Drawing.Color.FromArgb(250, 250, 250);
+                    color2 = System.Drawing.Color.FromArgb(243, 243, 243);
+                }
+                using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
+                    contentPanel.ClientRectangle,
+                    color1,
+                    color2,
+                    System.Drawing.Drawing2D.LinearGradientMode.Vertical))
+                {
+                    e.Graphics.FillRectangle(brush, contentPanel.ClientRectangle);
+                }
             };
             this.Controls.Add(contentPanel);
             contentPanel.SendToBack();
 
-            // Printers Grid Başlık Panel
+            // Printers Grid Başlık Panel (Modern gradient)
             printersHeaderPanel = new System.Windows.Forms.Panel
             {
                 Location = new System.Drawing.Point(20, 15),
-                Size = new System.Drawing.Size(450, 35),
+                Size = new System.Drawing.Size(450, 40),
                 Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left,
-                BackColor = System.Drawing.Color.FromArgb(63, 81, 181)
+                BackColor = System.Drawing.Color.Transparent
+            };
+            printersHeaderPanel.Paint += (s, e) =>
+            {
+                System.Drawing.Color color1, color2;
+                if (_currentTheme == ThemeMode.Dark)
+                {
+                    color1 = System.Drawing.Color.FromArgb(50, 70, 150);
+                    color2 = System.Drawing.Color.FromArgb(40, 50, 120);
+                }
+                else
+                {
+                    color1 = System.Drawing.Color.FromArgb(0, 120, 215);
+                    color2 = System.Drawing.Color.FromArgb(0, 100, 180);
+                }
+                using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
+                    printersHeaderPanel.ClientRectangle,
+                    color1,
+                    color2,
+                    System.Drawing.Drawing2D.LinearGradientMode.Vertical))
+                {
+                    int radius = 8;
+                    using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                    {
+                        path.AddArc(0, 0, radius * 2, radius * 2, 180, 90);
+                        path.AddArc(printersHeaderPanel.Width - radius * 2, 0, radius * 2, radius * 2, 270, 90);
+                        path.AddLine(printersHeaderPanel.Width, printersHeaderPanel.Height, 0, printersHeaderPanel.Height);
+                        path.CloseAllFigures();
+                        e.Graphics.FillPath(brush, path);
+                    }
+                }
             };
             contentPanel.Controls.Add(printersHeaderPanel);
 
             lblPrinters = new LabelControl
             {
                 Text = "🖨️ 3D YAZICILAR",
-                Location = new System.Drawing.Point(10, 5),
+                Location = new System.Drawing.Point(15, 8),
                 Size = new System.Drawing.Size(430, 25),
-                Font = new System.Drawing.Font("Segoe UI", 13F, System.Drawing.FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Bold),
                 ForeColor = System.Drawing.Color.White
             };
             lblPrinters.Appearance.BackColor = System.Drawing.Color.Transparent;
@@ -550,7 +629,7 @@ namespace PrinterAutomation.Forms
             {
                 gridControlPrinters = new GridControl
                 {
-                    Location = new System.Drawing.Point(20, 50),
+                    Location = new System.Drawing.Point(20, 55),
                     Size = new System.Drawing.Size(450, 280),
                     Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left,
                     Visible = false
@@ -562,6 +641,10 @@ namespace PrinterAutomation.Forms
                 gridViewPrinters.PaintStyleName = "Flat";
                 gridViewPrinters.OptionsView.EnableAppearanceEvenRow = false;
                 gridViewPrinters.OptionsView.EnableAppearanceOddRow = false;
+                // Modern görünüm için satır yüksekliğini artır
+                gridViewPrinters.RowHeight = 35; // Varsayılan 20'den 35'e çıkarıldı
+                // Padding için
+                gridViewPrinters.OptionsView.RowAutoHeight = false;
                 // Tüm satırlar için siyah yazı
                 gridViewPrinters.Appearance.Row.ForeColor = System.Drawing.Color.Black;
                 gridViewPrinters.Appearance.Row.BackColor = System.Drawing.Color.White;
@@ -623,18 +706,48 @@ namespace PrinterAutomation.Forms
             ordersHeaderPanel = new System.Windows.Forms.Panel
             {
                 Location = new System.Drawing.Point(490, 15),
-                Size = new System.Drawing.Size(450, 35),
+                Size = new System.Drawing.Size(450, 40),
                 Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left,
-                BackColor = System.Drawing.Color.FromArgb(255, 152, 0)
+                BackColor = System.Drawing.Color.Transparent
+            };
+            ordersHeaderPanel.Paint += (s, e) =>
+            {
+                System.Drawing.Color color1, color2;
+                if (_currentTheme == ThemeMode.Dark)
+                {
+                    color1 = System.Drawing.Color.FromArgb(180, 120, 0);
+                    color2 = System.Drawing.Color.FromArgb(150, 90, 0);
+                }
+                else
+                {
+                    color1 = System.Drawing.Color.FromArgb(255, 185, 0);
+                    color2 = System.Drawing.Color.FromArgb(255, 140, 0);
+                }
+                using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
+                    ordersHeaderPanel.ClientRectangle,
+                    color1,
+                    color2,
+                    System.Drawing.Drawing2D.LinearGradientMode.Vertical))
+                {
+                    int radius = 8;
+                    using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                    {
+                        path.AddArc(0, 0, radius * 2, radius * 2, 180, 90);
+                        path.AddArc(ordersHeaderPanel.Width - radius * 2, 0, radius * 2, radius * 2, 270, 90);
+                        path.AddLine(ordersHeaderPanel.Width, ordersHeaderPanel.Height, 0, ordersHeaderPanel.Height);
+                        path.CloseAllFigures();
+                        e.Graphics.FillPath(brush, path);
+                    }
+                }
             };
             contentPanel.Controls.Add(ordersHeaderPanel);
 
             lblOrders = new LabelControl
             {
                 Text = "📦 SİPARİŞLER",
-                Location = new System.Drawing.Point(10, 5),
+                Location = new System.Drawing.Point(15, 8),
                 Size = new System.Drawing.Size(150, 25),
-                Font = new System.Drawing.Font("Segoe UI", 13F, System.Drawing.FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Bold),
                 ForeColor = System.Drawing.Color.White
             };
             lblOrders.Appearance.BackColor = System.Drawing.Color.Transparent;
@@ -673,7 +786,7 @@ namespace PrinterAutomation.Forms
             {
                 gridControlOrders = new GridControl
                 {
-                    Location = new System.Drawing.Point(490, 50),
+                    Location = new System.Drawing.Point(490, 55),
                     Size = new System.Drawing.Size(450, 280),
                     Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left,
                     Visible = false
@@ -685,10 +798,14 @@ namespace PrinterAutomation.Forms
                 gridViewOrders.PaintStyleName = "Flat";
                 gridViewOrders.OptionsView.EnableAppearanceEvenRow = false;
                 gridViewOrders.OptionsView.EnableAppearanceOddRow = false;
-                
-                // Scroll bar stilini düz çizgi gibi yap (modern görünüm)
+                // Modern görünüm için satır yüksekliğini artır
+                gridViewOrders.RowHeight = 35;
+                gridViewOrders.OptionsView.RowAutoHeight = false;
+                // Modern görünüm için çizgileri ince yatay çizgiler yap
                 gridViewOrders.OptionsView.ShowHorizontalLines = DevExpress.Utils.DefaultBoolean.True;
                 gridViewOrders.OptionsView.ShowVerticalLines = DevExpress.Utils.DefaultBoolean.False;
+                gridViewOrders.Appearance.HorzLine.BackColor = System.Drawing.Color.FromArgb(240, 240, 240);
+                gridViewOrders.Appearance.HorzLine.Options.UseBackColor = true;
                 
                 // Tüm satırlar için siyah yazı
                 gridViewOrders.Appearance.Row.ForeColor = System.Drawing.Color.Black;
@@ -724,18 +841,48 @@ namespace PrinterAutomation.Forms
             jobsHeaderPanel = new System.Windows.Forms.Panel
             {
                 Location = new System.Drawing.Point(960, 15),
-                Size = new System.Drawing.Size(450, 35),
+                Size = new System.Drawing.Size(450, 40),
                 Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right,
-                BackColor = System.Drawing.Color.FromArgb(156, 39, 176)
+                BackColor = System.Drawing.Color.Transparent
+            };
+            jobsHeaderPanel.Paint += (s, e) =>
+            {
+                System.Drawing.Color color1, color2;
+                if (_currentTheme == ThemeMode.Dark)
+                {
+                    color1 = System.Drawing.Color.FromArgb(130, 40, 150);
+                    color2 = System.Drawing.Color.FromArgb(100, 20, 120);
+                }
+                else
+                {
+                    color1 = System.Drawing.Color.FromArgb(177, 70, 194);
+                    color2 = System.Drawing.Color.FromArgb(150, 50, 170);
+                }
+                using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
+                    jobsHeaderPanel.ClientRectangle,
+                    color1,
+                    color2,
+                    System.Drawing.Drawing2D.LinearGradientMode.Vertical))
+                {
+                    int radius = 8;
+                    using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                    {
+                        path.AddArc(0, 0, radius * 2, radius * 2, 180, 90);
+                        path.AddArc(jobsHeaderPanel.Width - radius * 2, 0, radius * 2, radius * 2, 270, 90);
+                        path.AddLine(jobsHeaderPanel.Width, jobsHeaderPanel.Height, 0, jobsHeaderPanel.Height);
+                        path.CloseAllFigures();
+                        e.Graphics.FillPath(brush, path);
+                    }
+                }
             };
             contentPanel.Controls.Add(jobsHeaderPanel);
 
             lblJobs = new LabelControl
             {
                 Text = "⚙️ YAZDIRMA İŞLERİ",
-                Location = new System.Drawing.Point(10, 5),
+                Location = new System.Drawing.Point(15, 8),
                 Size = new System.Drawing.Size(430, 25),
-                Font = new System.Drawing.Font("Segoe UI", 13F, System.Drawing.FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Bold),
                 ForeColor = System.Drawing.Color.White
             };
             lblJobs.Appearance.BackColor = System.Drawing.Color.Transparent;
@@ -770,7 +917,7 @@ namespace PrinterAutomation.Forms
             {
                 gridControlJobs = new GridControl
                 {
-                    Location = new System.Drawing.Point(960, 50),
+                    Location = new System.Drawing.Point(960, 55),
                     Size = new System.Drawing.Size(450, 280),
                     Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right,
                     Visible = false
@@ -782,6 +929,9 @@ namespace PrinterAutomation.Forms
                 gridViewJobs.PaintStyleName = "Flat";
                 gridViewJobs.OptionsView.EnableAppearanceEvenRow = false;
                 gridViewJobs.OptionsView.EnableAppearanceOddRow = false;
+                // Modern görünüm için satır yüksekliğini artır
+                gridViewJobs.RowHeight = 35;
+                gridViewJobs.OptionsView.RowAutoHeight = false;
                 // Tüm satırlar için siyah yazı
                 gridViewJobs.Appearance.Row.ForeColor = System.Drawing.Color.Black;
                 gridViewJobs.Appearance.Row.BackColor = System.Drawing.Color.White;
@@ -855,30 +1005,93 @@ namespace PrinterAutomation.Forms
                 Location = new System.Drawing.Point(20, statsPanelTop),
                 Size = new System.Drawing.Size(contentPanel.Width - 40, statsPanelHeight),
                 Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right, // Alt kısımda sabit kalacak
-                BackColor = System.Drawing.Color.FromArgb(250, 250, 250),
-                BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+                BackColor = System.Drawing.Color.White,
+                BorderStyle = System.Windows.Forms.BorderStyle.None
+            };
+            // Modern gölge efekti için Paint event'i
+            statsPanel.Paint += (s, e) =>
+            {
+                // Yuvarlatılmış köşeler için path oluştur
+                using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                {
+                    int radius = 12;
+                    path.AddArc(0, 0, radius * 2, radius * 2, 180, 90);
+                    path.AddArc(statsPanel.Width - radius * 2, 0, radius * 2, radius * 2, 270, 90);
+                    path.AddArc(statsPanel.Width - radius * 2, statsPanel.Height - radius * 2, radius * 2, radius * 2, 0, 90);
+                    path.AddArc(0, statsPanel.Height - radius * 2, radius * 2, radius * 2, 90, 90);
+                    path.CloseAllFigures();
+                    
+                    // Gölge efekti (koyu temada daha belirgin)
+                    int shadowAlpha = _currentTheme == ThemeMode.Dark ? 40 : 20;
+                    using (var shadowBrush = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(shadowAlpha, 0, 0, 0)))
+                    {
+                        var shadowRect = new System.Drawing.Rectangle(2, 2, statsPanel.Width, statsPanel.Height);
+                        e.Graphics.FillPath(shadowBrush, path);
+                    }
+                    
+                    // Ana panel (tema kontrolü ile)
+                    System.Drawing.Color panelColor = _currentTheme == ThemeMode.Dark 
+                        ? System.Drawing.Color.FromArgb(50, 50, 50) 
+                        : System.Drawing.Color.White;
+                    using (var brush = new System.Drawing.SolidBrush(panelColor))
+                    {
+                        var mainRect = new System.Drawing.Rectangle(0, 0, statsPanel.Width, statsPanel.Height);
+                        e.Graphics.FillPath(brush, path);
+                    }
+                    
+                    // Border (tema kontrolü ile)
+                    System.Drawing.Color borderColor = _currentTheme == ThemeMode.Dark 
+                        ? System.Drawing.Color.FromArgb(70, 70, 70) 
+                        : System.Drawing.Color.FromArgb(230, 230, 230);
+                    using (var pen = new System.Drawing.Pen(borderColor, 1))
+                    {
+                        e.Graphics.DrawPath(pen, path);
+                    }
+                }
             };
             contentPanel.Controls.Add(statsPanel);
 
             lblStats = new LabelControl
             {
                 Text = "📊 İSTATİSTİKLER",
-                Location = new System.Drawing.Point(15, 32),
+                Location = new System.Drawing.Point(20, 32),
                 Size = new System.Drawing.Size(200, 25),
-                Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold),
-                ForeColor = System.Drawing.Color.FromArgb(63, 81, 181)
+                Font = new System.Drawing.Font("Segoe UI", 13F, System.Drawing.FontStyle.Bold),
+                ForeColor = System.Drawing.Color.FromArgb(0, 120, 215)
             };
             lblStats.Appearance.BackColor = System.Drawing.Color.Transparent;
             lblStats.Appearance.Options.UseBackColor = true;
             statsPanel.Controls.Add(lblStats);
             
-            // Alt çizgi
+            // Alt çizgi (modern gradient)
             var separatorLine = new System.Windows.Forms.Panel
             {
-                Location = new System.Drawing.Point(15, 57),
-                Size = new System.Drawing.Size(statsPanel.Width - 30, 1),
-                BackColor = System.Drawing.Color.FromArgb(220, 220, 220),
+                Location = new System.Drawing.Point(20, 57),
+                Size = new System.Drawing.Size(statsPanel.Width - 40, 2),
+                BackColor = System.Drawing.Color.Transparent,
                 Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right
+            };
+            separatorLine.Paint += (s, e) =>
+            {
+                System.Drawing.Color color1, color2;
+                if (_currentTheme == ThemeMode.Dark)
+                {
+                    color1 = System.Drawing.Color.FromArgb(80, 80, 80);
+                    color2 = System.Drawing.Color.FromArgb(60, 60, 60);
+                }
+                else
+                {
+                    color1 = System.Drawing.Color.FromArgb(0, 120, 215);
+                    color2 = System.Drawing.Color.FromArgb(0, 100, 180);
+                }
+                using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
+                    separatorLine.ClientRectangle,
+                    color1,
+                    color2,
+                    System.Drawing.Drawing2D.LinearGradientMode.Horizontal))
+                {
+                    e.Graphics.FillRectangle(brush, separatorLine.ClientRectangle);
+                }
             };
             statsPanel.Controls.Add(separatorLine);
 
@@ -1009,50 +1222,54 @@ namespace PrinterAutomation.Forms
                 Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right,
                 Name = "lblTotalEarningsLabel"
             };
+            lblTotalEarningsLabel.Appearance.BackColor = System.Drawing.Color.Transparent;
+            lblTotalEarningsLabel.Appearance.Options.UseBackColor = true;
             lblTotalEarningsLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
-            lblTotalEarningsLabel.Location = new System.Drawing.Point(statsPanel.Width - 190, 64);
+            lblTotalEarningsLabel.Location = new System.Drawing.Point(statsPanel.Width - 205, 64);
             statsPanel.Controls.Add(lblTotalEarningsLabel);
 
-            lblTotalEarnings = new LabelControl
+            lblTotalEarnings = new System.Windows.Forms.Label
             {
                 Text = "0,00 TL",
                 Size = new System.Drawing.Size(90, 20),
                 Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold),
                 ForeColor = System.Drawing.Color.FromArgb(255, 193, 7),
+                BackColor = System.Drawing.Color.Transparent,
                 Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right,
+                TextAlign = System.Drawing.ContentAlignment.MiddleCenter,
                 Name = "lblTotalEarnings"
             };
-            lblTotalEarnings.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
-            lblTotalEarnings.Location = new System.Drawing.Point(statsPanel.Width - 80, 62);
+            lblTotalEarnings.Location = new System.Drawing.Point(statsPanel.Width - 95, 62);
             statsPanel.Controls.Add(lblTotalEarnings);
 
-            // Kazanç Detayları Butonu
+            // Kazanç Detayları Butonu (Modern)
             btnShowEarnings = new SimpleButton
             {
                 Text = "💰 Kazanç Detayları",
-                Size = new System.Drawing.Size(180, 32),
-                Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold),
-                Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right
+                Size = new System.Drawing.Size(200, 32),
+                Font = new System.Drawing.Font("Segoe UI", 9.5F, System.Drawing.FontStyle.Bold),
+                Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right,
+                ShowFocusRectangle = DevExpress.Utils.DefaultBoolean.False
             };
-            btnShowEarnings.Appearance.BackColor = System.Drawing.Color.FromArgb(255, 193, 7);
+            // Modern Windows 11 stili buton
+            btnShowEarnings.Appearance.BackColor = System.Drawing.Color.FromArgb(255, 185, 0);
             btnShowEarnings.Appearance.ForeColor = System.Drawing.Color.White;
-            btnShowEarnings.Appearance.BorderColor = System.Drawing.Color.FromArgb(255, 160, 0);
+            btnShowEarnings.Appearance.BorderColor = System.Drawing.Color.FromArgb(255, 140, 0);
             btnShowEarnings.Appearance.Options.UseBackColor = true;
             btnShowEarnings.Appearance.Options.UseForeColor = true;
             btnShowEarnings.Appearance.Options.UseBorderColor = true;
-            btnShowEarnings.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(255, 183, 0);
-            btnShowEarnings.AppearanceHovered.BorderColor = System.Drawing.Color.FromArgb(255, 200, 0);
+            btnShowEarnings.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(255, 200, 0);
+            btnShowEarnings.AppearanceHovered.BorderColor = System.Drawing.Color.FromArgb(255, 160, 0);
             btnShowEarnings.AppearanceHovered.Options.UseBackColor = true;
-            btnShowEarnings.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(255, 160, 0);
+            btnShowEarnings.AppearanceHovered.Options.UseBorderColor = true;
+            btnShowEarnings.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(255, 140, 0);
             btnShowEarnings.AppearancePressed.Options.UseBackColor = true;
-            btnShowEarnings.LookAndFeel.UseDefaultLookAndFeel = false;
-            btnShowEarnings.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+            // Vektör tabanlı skin kullan (WXI)
+            btnShowEarnings.LookAndFeel.UseDefaultLookAndFeel = true;
             btnShowEarnings.Click += BtnShowEarnings_Click;
             statsPanel.Controls.Add(btnShowEarnings);
             // Butonu sağa hizala ve label'ları öne getir
-            btnShowEarnings.Size = new System.Drawing.Size(190, 36);
-            btnShowEarnings.Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold);
-            btnShowEarnings.Location = new System.Drawing.Point(statsPanel.Width - btnShowEarnings.Width - 10, 92);
+            btnShowEarnings.Location = new System.Drawing.Point(statsPanel.Width - btnShowEarnings.Width - 10, 85);
             lblTotalEarningsLabel.BringToFront();
             lblTotalEarnings.BringToFront();
         }
@@ -1095,11 +1312,12 @@ namespace PrinterAutomation.Forms
             GridColumn colProgress = gridViewPrinters.Columns.AddField("Progress");
             colProgress.Caption = "İlerleme %";
             colProgress.VisibleIndex = 4;
-            colProgress.Width = 54;
+            colProgress.Width = 80;
             colProgress.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
             colProgress.DisplayFormat.FormatString = "F1";
             colProgress.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colProgress.AppearanceCell.Options.UseForeColor = true;
+            colProgress.AppearanceCell.Options.UseTextOptions = true;
             colProgress.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
 
             GridColumn colFilament = gridViewPrinters.Columns.AddField("FilamentRemaining");
@@ -1123,8 +1341,13 @@ namespace PrinterAutomation.Forms
             gridViewPrinters.OptionsView.ShowGroupPanel = false;
             gridViewPrinters.OptionsView.ShowIndicator = true;
             gridViewPrinters.OptionsView.ColumnAutoWidth = false;
+            // Modern görünüm için çizgileri kaldır veya ince yatay çizgiler bırak
             gridViewPrinters.OptionsView.ShowVerticalLines = DevExpress.Utils.DefaultBoolean.False;
+            gridViewPrinters.OptionsView.ShowHorizontalLines = DevExpress.Utils.DefaultBoolean.False; // Çizgileri kaldır
+            // İnce yatay çizgiler için alternatif (eğer istersen True yapabilirsin)
             gridViewPrinters.OptionsView.ShowHorizontalLines = DevExpress.Utils.DefaultBoolean.True;
+            gridViewPrinters.Appearance.HorzLine.BackColor = System.Drawing.Color.FromArgb(240, 240, 240); // İnce gri çizgi
+            gridViewPrinters.Appearance.HorzLine.Options.UseBackColor = true;
             
             // Grid genişliğini ayarla
             gridControlPrinters.Size = new System.Drawing.Size(450, 320);
@@ -1211,6 +1434,9 @@ namespace PrinterAutomation.Forms
             gridViewOrders.OptionsView.ColumnAutoWidth = false;
             gridViewOrders.OptionsView.ShowVerticalLines = DevExpress.Utils.DefaultBoolean.False;
             gridViewOrders.OptionsView.ShowHorizontalLines = DevExpress.Utils.DefaultBoolean.True;
+            // İnce yatay çizgiler
+            gridViewOrders.Appearance.HorzLine.BackColor = System.Drawing.Color.FromArgb(240, 240, 240);
+            gridViewOrders.Appearance.HorzLine.Options.UseBackColor = true;
 
             // Jobs Grid Columns
             GridColumn colJobId = gridViewJobs.Columns.AddField("Id");
@@ -1248,11 +1474,12 @@ namespace PrinterAutomation.Forms
             GridColumn colJobProgress = gridViewJobs.Columns.AddField("Progress");
             colJobProgress.Caption = "İlerleme %";
             colJobProgress.VisibleIndex = 4;
-            colJobProgress.Width = 62;
+            colJobProgress.Width = 80;
             colJobProgress.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
             colJobProgress.DisplayFormat.FormatString = "F1";
             colJobProgress.AppearanceCell.ForeColor = System.Drawing.Color.Black;
             colJobProgress.AppearanceCell.Options.UseForeColor = true;
+            colJobProgress.AppearanceCell.Options.UseTextOptions = true;
             colJobProgress.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
 
             GridColumn colMaterial = gridViewJobs.Columns.AddField("Material");
@@ -1292,6 +1519,9 @@ namespace PrinterAutomation.Forms
             gridViewJobs.OptionsView.ColumnAutoWidth = false;
             gridViewJobs.OptionsView.ShowVerticalLines = DevExpress.Utils.DefaultBoolean.False;
             gridViewJobs.OptionsView.ShowHorizontalLines = DevExpress.Utils.DefaultBoolean.True;
+            // İnce yatay çizgiler
+            gridViewJobs.Appearance.HorzLine.BackColor = System.Drawing.Color.FromArgb(240, 240, 240);
+            gridViewJobs.Appearance.HorzLine.Options.UseBackColor = true;
         }
 
         private void SetupEventHandlers()
@@ -2311,31 +2541,95 @@ namespace PrinterAutomation.Forms
                         System.Drawing.Color.FromArgb(245, 247, 250)
                 };
 
-                // Ana Panel
+                // Ana Panel - Gradient arka plan
                 var mainPanel = new System.Windows.Forms.Panel
                 {
                     Dock = System.Windows.Forms.DockStyle.Fill,
                     Padding = new System.Windows.Forms.Padding(20),
-                    BackColor = _currentTheme == ThemeMode.Dark ? 
-                        System.Drawing.Color.FromArgb(30, 30, 30) : 
-                        System.Drawing.Color.FromArgb(245, 247, 250)
+                    BackColor = System.Drawing.Color.Transparent
+                };
+                mainPanel.Paint += (s, e) =>
+                {
+                    var panel = s as System.Windows.Forms.Panel;
+                    if (panel == null) return;
+                    
+                    System.Drawing.Color color1, color2;
+                    if (_currentTheme == ThemeMode.Dark)
+                    {
+                        color1 = System.Drawing.Color.FromArgb(40, 40, 40);
+                        color2 = System.Drawing.Color.FromArgb(25, 25, 25);
+                    }
+                    else
+                    {
+                        color1 = System.Drawing.Color.FromArgb(250, 250, 250);
+                        color2 = System.Drawing.Color.FromArgb(240, 242, 245);
+                    }
+                    
+                    using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
+                        panel.ClientRectangle,
+                        color1,
+                        color2,
+                        System.Drawing.Drawing2D.LinearGradientMode.Vertical))
+                    {
+                        e.Graphics.FillRectangle(brush, panel.ClientRectangle);
+                    }
                 };
                 earningsForm.Controls.Add(mainPanel);
+
+                // Başlık Panel - Gradient (Mavi-Mor)
+                var titlePanel = new System.Windows.Forms.Panel
+                {
+                    Location = new System.Drawing.Point(0, 0),
+                    Size = new System.Drawing.Size(860, 50),
+                    BackColor = System.Drawing.Color.Transparent
+                };
+                titlePanel.Paint += (s, e) =>
+                {
+                    var panel = s as System.Windows.Forms.Panel;
+                    if (panel == null) return;
+                    
+                    // Altın renginden siyaha yakın sarı rengine gradient
+                    System.Drawing.Color color1 = System.Drawing.Color.FromArgb(255, 215, 0); // Altın rengi
+                    System.Drawing.Color color2 = System.Drawing.Color.FromArgb(120, 100, 0); // Çok koyu sarı (siyaha yakın)
+                    
+                    int radius = 10;
+                    using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                    {
+                        path.AddArc(0, 0, radius * 2, radius * 2, 180, 90);
+                        path.AddArc(panel.Width - radius * 2, 0, radius * 2, radius * 2, 270, 90);
+                        path.AddArc(panel.Width - radius * 2, panel.Height - radius * 2, radius * 2, radius * 2, 0, 90);
+                        path.AddArc(0, panel.Height - radius * 2, radius * 2, radius * 2, 90, 90);
+                        path.CloseAllFigures();
+                        
+                        using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
+                            panel.ClientRectangle,
+                            color1,
+                            color2,
+                            System.Drawing.Drawing2D.LinearGradientMode.Horizontal))
+                        {
+                            e.Graphics.FillPath(brush, path);
+                        }
+                    }
+                };
+                mainPanel.Controls.Add(titlePanel);
 
                 // Başlık
                 var lblTitle = new LabelControl
                 {
                     Text = "💰 KAZANÇ DETAYLARI",
                     Location = new System.Drawing.Point(0, 0),
-                    Size = new System.Drawing.Size(860, 30),
-                    Font = new System.Drawing.Font("Segoe UI", 16F, System.Drawing.FontStyle.Bold),
-                    ForeColor = System.Drawing.Color.FromArgb(255, 193, 7) // Sarı renk
+                    Size = new System.Drawing.Size(860, 50),
+                    Font = new System.Drawing.Font("Segoe UI", 18F, System.Drawing.FontStyle.Bold),
+                    ForeColor = System.Drawing.Color.White
                 };
+                lblTitle.Appearance.BackColor = System.Drawing.Color.Transparent;
+                lblTitle.Appearance.Options.UseBackColor = true;
                 lblTitle.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
-                mainPanel.Controls.Add(lblTitle);
+                lblTitle.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+                titlePanel.Controls.Add(lblTitle);
 
                 // Özet Kartları (Üst kısım - ortalanmış)
-                int cardY = 40;
+                int cardY = 70;
                 int cardWidth = 200;
                 int cardHeight = 120;
                 int cardSpacing = 15;
@@ -2415,6 +2709,24 @@ namespace PrinterAutomation.Forms
                 gridView.OptionsView.ShowGroupPanel = false;
                 gridView.OptionsView.ShowIndicator = true;
                 gridView.PaintStyleName = "Flat";
+                // Otomatik sütun oluşturmayı tamamen kapat
+                gridView.OptionsView.ShowAutoFilterRow = false;
+                gridView.OptionsCustomization.AllowQuickHideColumns = false;
+                gridView.OptionsCustomization.AllowColumnMoving = false;
+                gridView.OptionsCustomization.AllowColumnResizing = true;
+                gridView.OptionsCustomization.AllowSort = true;
+                // Sütunların toplam genişliğini form genişliğine uydur
+                gridView.OptionsView.ColumnAutoWidth = true;
+                // Modern görünüm
+                gridView.RowHeight = 42; // Satırları daha geniş yap
+                gridView.OptionsView.ShowVerticalLines = DevExpress.Utils.DefaultBoolean.False;
+                gridView.OptionsView.ShowHorizontalLines = DevExpress.Utils.DefaultBoolean.True;
+                gridView.Appearance.HorzLine.BackColor = System.Drawing.Color.FromArgb(240, 240, 240);
+                gridView.Appearance.HorzLine.Options.UseBackColor = true;
+                
+                // İlk açılışta hiçbir satır seçili olmasın
+                gridView.OptionsSelection.EnableAppearanceFocusedRow = true;
+                gridView.FocusedRowHandle = DevExpress.XtraGrid.GridControl.InvalidRowHandle;
                 
                 // Grid tema ayarları
                 if (_currentTheme == ThemeMode.Dark)
@@ -2444,30 +2756,157 @@ namespace PrinterAutomation.Forms
                     gridView.Appearance.Row.Options.UseBackColor = true;
                 }
                 
-                // SÜTUN BAŞLIKLARINI MAVİ YAP - ÖNCE HeaderPanel
-                gridView.Appearance.HeaderPanel.BackColor = System.Drawing.Color.FromArgb(33, 150, 243);
+                // Grid Header - Gradient (Mavi-Mor)
                 gridView.Appearance.HeaderPanel.ForeColor = System.Drawing.Color.White;
-                gridView.Appearance.HeaderPanel.Options.UseBackColor = true;
                 gridView.Appearance.HeaderPanel.Options.UseForeColor = true;
-                gridView.Appearance.HeaderPanel.BorderColor = System.Drawing.Color.FromArgb(25, 118, 210);
-                gridView.Appearance.HeaderPanel.Options.UseBorderColor = true;
+                gridView.Appearance.HeaderPanel.BackColor = System.Drawing.Color.Transparent;
+                gridView.Appearance.HeaderPanel.Options.UseBackColor = true;
+                // Header için CustomDraw event - Düz mavi renk
+                gridView.CustomDrawColumnHeader += (s, e) =>
+                {
+                    // Düz mavi arka plan (gradient değil)
+                    System.Drawing.Color blueColor = System.Drawing.Color.FromArgb(0, 120, 215);
+                    
+                    using (var brush = new System.Drawing.SolidBrush(blueColor))
+                    {
+                        e.Graphics.FillRectangle(brush, e.Bounds);
+                    }
+                    
+                    // Metni çiz - Column.Caption kullan
+                    string captionText = e.Column != null ? e.Column.Caption : "";
+                    e.Appearance.DrawString(e.Cache, captionText, e.Bounds);
+                    e.Handled = true;
+                };
+                
+                // Seçili satır için CustomDrawCell event - Tüm satır için tek gradient (mavi-mor)
+                gridView.CustomDrawCell += (s, e) =>
+                {
+                    // Sadece seçili/focused satır için gradient uygula
+                    if (e.RowHandle == gridView.FocusedRowHandle)
+                    {
+                        int rowTop = e.Bounds.Top;
+                        int rowHeight = e.Bounds.Height;
+                        
+                        // Grid'in görünür alanını al
+                        var gridControl = gridView.GridControl;
+                        if (gridControl != null)
+                        {
+                            // GridView'in görünür sütun alanının genişliğini al
+                            var viewRect = gridView.ViewRect;
+                            int columnsWidth = viewRect.Width;
+                            int firstColumnLeft = viewRect.Left;
+                            
+                            // Tüm satır için gradient bounds (çizgileri kapsamak için daha yüksek)
+                            var fullRowBounds = new System.Drawing.Rectangle(
+                                firstColumnLeft,
+                                rowTop,
+                                columnsWidth,
+                                rowHeight + 5); // Alt çizgiyi tamamen kapsamak için daha fazla alan
+                            
+                            // Gradient arka plan (mavi-mor) - tüm satır için
+                            System.Drawing.Color color1 = System.Drawing.Color.FromArgb(0, 120, 215);
+                            System.Drawing.Color color2 = System.Drawing.Color.FromArgb(177, 70, 194);
+                            
+                            // Hücreyi 5 piksel daha yüksek çiz ki alt çizgiyi tamamen kapsasın
+                            var cellBounds = new System.Drawing.Rectangle(
+                                e.Bounds.Left,
+                                e.Bounds.Top,
+                                e.Bounds.Width,
+                                e.Bounds.Height + 5); // Alt çizgiyi tamamen kapsamak için
+                            
+                            using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
+                                fullRowBounds,
+                                color1,
+                                color2,
+                                System.Drawing.Drawing2D.LinearGradientMode.Horizontal))
+                            {
+                                e.Graphics.FillRectangle(brush, cellBounds);
+                            }
+                            
+                            // Alt çizgiyi gradient ile kapatmak için 3 piksel daha çiz
+                            var lineBounds = new System.Drawing.Rectangle(
+                                firstColumnLeft,
+                                e.Bounds.Bottom,
+                                columnsWidth,
+                                3); // Alt çizgiyi tamamen kapatmak için
+                            
+                            using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
+                                fullRowBounds,
+                                color1,
+                                color2,
+                                System.Drawing.Drawing2D.LinearGradientMode.Horizontal))
+                            {
+                                e.Graphics.FillRectangle(brush, lineBounds);
+                            }
+                        }
+                        
+                        // Her hücre için metni çiz - beyaz renkte
+                        e.Appearance.ForeColor = System.Drawing.Color.White;
+                        e.Appearance.DrawString(e.Cache, e.DisplayText, e.Bounds);
+                        e.Handled = true;
+                    }
+                };
+                
+                // Seçili satırın altındaki çizgiyi gizlemek için CustomDrawRowIndicator
+                // Seçili satırın altındaki çizgiyi gradient ile kapat
+                gridView.CustomDrawRowIndicator += (s, e) =>
+                {
+                    if (e.RowHandle == gridView.FocusedRowHandle)
+                    {
+                        // Seçili satırın altındaki çizgiyi gradient ile kapat
+                        var viewRect = gridView.ViewRect;
+                        int rowBottom = e.Bounds.Bottom;
+                        
+                        System.Drawing.Color color1 = System.Drawing.Color.FromArgb(0, 120, 215);
+                        System.Drawing.Color color2 = System.Drawing.Color.FromArgb(177, 70, 194);
+                        
+                        var lineBounds = new System.Drawing.Rectangle(
+                            viewRect.Left,
+                            rowBottom,
+                            viewRect.Width,
+                            3); // Alt çizgiyi tamamen kapatmak için
+                        
+                        using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
+                            lineBounds,
+                            color1,
+                            color2,
+                            System.Drawing.Drawing2D.LinearGradientMode.Horizontal))
+                        {
+                            e.Graphics.FillRectangle(brush, lineBounds);
+                        }
+                        
+                        e.Handled = true;
+                    }
+                };
 
-                // Grid Sütunları
+                // Tüm sütunları temizle ve sadece istediğimiz sütunları ekle
+                gridView.Columns.Clear();
+                
+                // Sadece istediğimiz sütunları ekle
                 var colSiparisNo = gridView.Columns.AddField("SiparişNo");
                 colSiparisNo.Caption = "Sipariş No";
                 colSiparisNo.VisibleIndex = 0;
                 colSiparisNo.Width = 120;
-
+                colSiparisNo.Visible = true;
+                colSiparisNo.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+                colSiparisNo.AppearanceCell.Options.UseTextOptions = true;
+                
                 var colMusteri = gridView.Columns.AddField("Müşteri");
                 colMusteri.Caption = "Müşteri";
                 colMusteri.VisibleIndex = 1;
                 colMusteri.Width = 180;
-
+                colMusteri.Visible = true;
+                colMusteri.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+                colMusteri.AppearanceCell.Options.UseTextOptions = true;
+                
                 var colTarih = gridView.Columns.AddField("Tarih");
                 colTarih.Caption = "Tarih";
                 colTarih.VisibleIndex = 2;
                 colTarih.Width = 150;
-
+                colTarih.Visible = true;
+                colTarih.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+                colTarih.AppearanceCell.Options.UseTextOptions = true;
+                
                 var colTutar = gridView.Columns.AddField("Tutar");
                 colTutar.Caption = "Tutar (TL)";
                 colTutar.VisibleIndex = 3;
@@ -2476,41 +2915,95 @@ namespace PrinterAutomation.Forms
                 colTutar.DisplayFormat.FormatString = "N2";
                 colTutar.AppearanceCell.ForeColor = System.Drawing.Color.FromArgb(33, 150, 243);
                 colTutar.AppearanceCell.Options.UseForeColor = true;
-
+                colTutar.Visible = true;
+                colTutar.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+                colTutar.AppearanceCell.Options.UseTextOptions = true;
+                
                 var colUrunSayisi = gridView.Columns.AddField("ÜrünSayısı");
                 colUrunSayisi.Caption = "Ürün Sayısı";
                 colUrunSayisi.VisibleIndex = 4;
                 colUrunSayisi.Width = 100;
-
+                colUrunSayisi.Visible = true;
+                colUrunSayisi.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+                colUrunSayisi.AppearanceCell.Options.UseTextOptions = true;
+                
                 var colDurum = gridView.Columns.AddField("Durum");
                 colDurum.Caption = "Durum";
                 colDurum.VisibleIndex = 5;
                 colDurum.Width = 100;
+                colDurum.Visible = true;
+                colDurum.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+                colDurum.AppearanceCell.Options.UseTextOptions = true;
                 
-                // TÜM SÜTUN BAŞLIKLARINI MAVİ YAP
+                // Sütun başlıkları için görünüm
                 foreach (DevExpress.XtraGrid.Columns.GridColumn col in gridView.Columns)
                 {
-                    col.AppearanceHeader.BackColor = System.Drawing.Color.FromArgb(33, 150, 243);
+                    col.AppearanceHeader.BackColor = System.Drawing.Color.Transparent;
                     col.AppearanceHeader.ForeColor = System.Drawing.Color.White;
                     col.AppearanceHeader.Options.UseBackColor = true;
                     col.AppearanceHeader.Options.UseForeColor = true;
+                    col.AppearanceHeader.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
                 }
 
-                // Kapat Butonu
+                // Kapat Butonu - Modern Gradient
                 var closeButton = new SimpleButton
                 {
                     Text = "Kapat",
-                    Size = new System.Drawing.Size(120, 40),
-                    Location = new System.Drawing.Point(earningsForm.Width - 150, earningsForm.Height - 80),
+                    Size = new System.Drawing.Size(140, 45),
+                    Location = new System.Drawing.Point(earningsForm.Width - 160, earningsForm.Height - 80),
                     Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right,
-                    DialogResult = System.Windows.Forms.DialogResult.OK
+                    DialogResult = System.Windows.Forms.DialogResult.OK,
+                    ShowFocusRectangle = DevExpress.Utils.DefaultBoolean.False,
+                    Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold)
                 };
-                closeButton.Appearance.BackColor = System.Drawing.Color.FromArgb(33, 150, 243);
+                closeButton.Appearance.BackColor = System.Drawing.Color.Transparent;
                 closeButton.Appearance.ForeColor = System.Drawing.Color.White;
                 closeButton.Appearance.Options.UseBackColor = true;
                 closeButton.Appearance.Options.UseForeColor = true;
-                closeButton.LookAndFeel.UseDefaultLookAndFeel = false;
-                closeButton.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+                closeButton.AppearanceHovered.ForeColor = System.Drawing.Color.White;
+                closeButton.AppearanceHovered.Options.UseForeColor = true;
+                closeButton.AppearancePressed.ForeColor = System.Drawing.Color.White;
+                closeButton.AppearancePressed.Options.UseForeColor = true;
+                // Gradient Paint event
+                closeButton.Paint += (s, e) =>
+                {
+                    var button = s as SimpleButton;
+                    if (button == null) return;
+
+                    // Mavi'den mora gradient
+                    System.Drawing.Color color1 = System.Drawing.Color.FromArgb(0, 120, 215);
+                    System.Drawing.Color color2 = System.Drawing.Color.FromArgb(177, 70, 194);
+
+                    using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
+                        button.ClientRectangle,
+                        color1,
+                        color2,
+                        System.Drawing.Drawing2D.LinearGradientMode.Horizontal))
+                    {
+                        int radius = 8;
+                        using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                        {
+                            path.AddArc(0, 0, radius * 2, radius * 2, 180, 90);
+                            path.AddArc(button.Width - radius * 2, 0, radius * 2, radius * 2, 270, 90);
+                            path.AddArc(button.Width - radius * 2, button.Height - radius * 2, radius * 2, radius * 2, 0, 90);
+                            path.AddArc(0, button.Height - radius * 2, radius * 2, radius * 2, 90, 90);
+                            path.CloseAllFigures();
+
+                            e.Graphics.FillPath(brush, path);
+                        }
+                    }
+
+                    // Metni çiz
+                    using (var textBrush = new System.Drawing.SolidBrush(System.Drawing.Color.White))
+                    {
+                        var stringFormat = new System.Drawing.StringFormat
+                        {
+                            Alignment = System.Drawing.StringAlignment.Center,
+                            LineAlignment = System.Drawing.StringAlignment.Center
+                        };
+                        e.Graphics.DrawString(button.Text, button.Font, textBrush, button.ClientRectangle, stringFormat);
+                    }
+                };
                 earningsForm.Controls.Add(closeButton);
                 earningsForm.AcceptButton = closeButton;
 
@@ -2534,21 +3027,68 @@ namespace PrinterAutomation.Forms
             {
                 Location = new System.Drawing.Point(x, y),
                 Size = new System.Drawing.Size(width, height),
-                BackColor = _currentTheme == ThemeMode.Dark ? 
-                    System.Drawing.Color.FromArgb(45, 45, 45) : 
-                    System.Drawing.Color.White,
-                BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle,
+                BackColor = System.Drawing.Color.Transparent,
                 Padding = new System.Windows.Forms.Padding(5)
             };
 
-            // Üst renkli çizgi (daha kalın ve modern)
-            var topLine = new System.Windows.Forms.Panel
+            // Gradient arka plan ve yuvarlatılmış köşeler
+            card.Paint += (s, e) =>
             {
-                Dock = System.Windows.Forms.DockStyle.Top,
-                Height = 5,
-                BackColor = color
+                var panel = s as System.Windows.Forms.Panel;
+                if (panel == null) return;
+                
+                // Gradient renkler (ana renkten daha açık/koyu tonlara)
+                System.Drawing.Color color1, color2;
+                if (_currentTheme == ThemeMode.Dark)
+                {
+                    // Koyu temada daha koyu tonlar
+                    color1 = System.Drawing.Color.FromArgb(
+                        Math.Max(0, color.R - 30),
+                        Math.Max(0, color.G - 30),
+                        Math.Max(0, color.B - 30));
+                    color2 = System.Drawing.Color.FromArgb(
+                        Math.Max(0, color.R - 60),
+                        Math.Max(0, color.G - 60),
+                        Math.Max(0, color.B - 60));
+                }
+                else
+                {
+                    // Açık temada daha açık tonlar
+                    color1 = System.Drawing.Color.FromArgb(
+                        Math.Min(255, color.R + 40),
+                        Math.Min(255, color.G + 40),
+                        Math.Min(255, color.B + 40));
+                    color2 = System.Drawing.Color.FromArgb(
+                        Math.Min(255, color.R + 20),
+                        Math.Min(255, color.G + 20),
+                        Math.Min(255, color.B + 20));
+                }
+                
+                int radius = 12;
+                using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                {
+                    path.AddArc(0, 0, radius * 2, radius * 2, 180, 90);
+                    path.AddArc(panel.Width - radius * 2, 0, radius * 2, radius * 2, 270, 90);
+                    path.AddArc(panel.Width - radius * 2, panel.Height - radius * 2, radius * 2, radius * 2, 0, 90);
+                    path.AddArc(0, panel.Height - radius * 2, radius * 2, radius * 2, 90, 90);
+                    path.CloseAllFigures();
+                    
+                    using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
+                        panel.ClientRectangle,
+                        color1,
+                        color2,
+                        System.Drawing.Drawing2D.LinearGradientMode.Vertical))
+                    {
+                        e.Graphics.FillPath(brush, path);
+                    }
+                    
+                    // Gölge efekti
+                    using (var pen = new System.Drawing.Pen(System.Drawing.Color.FromArgb(30, 0, 0, 0), 1))
+                    {
+                        e.Graphics.DrawPath(pen, path);
+                    }
+                }
             };
-            card.Controls.Add(topLine);
 
             // Başlık
             var lblTitle = new LabelControl
@@ -2556,22 +3096,41 @@ namespace PrinterAutomation.Forms
                 Text = title,
                 Location = new System.Drawing.Point(10, 15),
                 Size = new System.Drawing.Size(width - 20, 20),
-                Font = new System.Drawing.Font("Segoe UI", 9F),
+                Font = new System.Drawing.Font("Segoe UI", 9.5F, System.Drawing.FontStyle.Bold),
                 ForeColor = _currentTheme == ThemeMode.Dark ? 
-                    System.Drawing.Color.FromArgb(180, 180, 180) : 
-                    System.Drawing.Color.FromArgb(100, 100, 100)
+                    System.Drawing.Color.FromArgb(160, 160, 160) : 
+                    System.Drawing.Color.FromArgb(40, 40, 40)
             };
+            lblTitle.Appearance.BackColor = System.Drawing.Color.Transparent;
+            lblTitle.Appearance.Options.UseBackColor = true;
             card.Controls.Add(lblTitle);
 
             // Değer
+            // Açık temada renkleri daha koyu yap
+            System.Drawing.Color valueColor;
+            if (_currentTheme == ThemeMode.Dark)
+            {
+                valueColor = System.Drawing.Color.White;
+            }
+            else
+            {
+                // Renkleri daha koyu yap (RGB değerlerini %30 azalt)
+                valueColor = System.Drawing.Color.FromArgb(
+                    Math.Max(0, color.R - (int)(color.R * 0.3)),
+                    Math.Max(0, color.G - (int)(color.G * 0.3)),
+                    Math.Max(0, color.B - (int)(color.B * 0.3)));
+            }
+            
             var lblValue = new LabelControl
             {
                 Text = value,
                 Location = new System.Drawing.Point(10, 40),
                 Size = new System.Drawing.Size(width - 20, 60),
-                Font = new System.Drawing.Font("Segoe UI", 18F, System.Drawing.FontStyle.Bold),
-                ForeColor = color
+                Font = new System.Drawing.Font("Segoe UI", 20F, System.Drawing.FontStyle.Bold),
+                ForeColor = valueColor
             };
+            lblValue.Appearance.BackColor = System.Drawing.Color.Transparent;
+            lblValue.Appearance.Options.UseBackColor = true;
             lblValue.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
             lblValue.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             card.Controls.Add(lblValue);
@@ -2618,19 +3177,26 @@ namespace PrinterAutomation.Forms
             // Form arka planı
             this.BackColor = System.Drawing.Color.FromArgb(30, 30, 30);
 
-            // Başlık paneli
+            // Başlık paneli (Paint event'i tema kontrolü yapıyor, sadece refresh)
             if (titlePanel != null)
             {
-                titlePanel.BackColor = System.Drawing.Color.FromArgb(25, 25, 25);
+                titlePanel.Invalidate();
+            }
+            
+            // Content panel (Paint event'i tema kontrolü yapıyor, sadece refresh)
+            if (contentPanel != null)
+            {
+                contentPanel.Invalidate();
             }
 
             // Ayarlar butonu (koyu tema)
             if (btnSettings != null)
             {
-                btnSettings.Appearance.BackColor = System.Drawing.Color.FromArgb(255, 193, 7);
-                btnSettings.Appearance.BorderColor = System.Drawing.Color.FromArgb(255, 160, 0);
-                btnSettings.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(255, 202, 40);
-                btnSettings.AppearanceHovered.BorderColor = System.Drawing.Color.FromArgb(255, 180, 20);
+                btnSettings.Appearance.BackColor = System.Drawing.Color.FromArgb(60, 60, 60);
+                btnSettings.Appearance.ForeColor = System.Drawing.Color.White;
+                btnSettings.Appearance.BorderColor = System.Drawing.Color.FromArgb(80, 80, 80);
+                btnSettings.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(80, 80, 80);
+                btnSettings.AppearanceHovered.BorderColor = System.Drawing.Color.FromArgb(100, 100, 100);
             }
 
             // Ayarlar paneli (koyu tema)
@@ -2657,15 +3223,41 @@ namespace PrinterAutomation.Forms
             // Yeni yazıcı ekle butonu (koyu tema)
             if (btnAddPrinter != null)
             {
-                btnAddPrinter.Appearance.BackColor = System.Drawing.Color.FromArgb(40, 120, 200);
-                btnAddPrinter.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(50, 130, 210);
+                btnAddPrinter.Appearance.BackColor = System.Drawing.Color.FromArgb(0, 100, 180);
+                btnAddPrinter.Appearance.BorderColor = System.Drawing.Color.FromArgb(0, 80, 160);
+                btnAddPrinter.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(0, 120, 200);
+                btnAddPrinter.AppearanceHovered.BorderColor = System.Drawing.Color.FromArgb(0, 100, 180);
+                btnAddPrinter.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(0, 80, 160);
+            }
+            
+            // Yeni sipariş simüle et butonu (koyu tema)
+            if (btnSimulateOrder != null)
+            {
+                btnSimulateOrder.Appearance.BackColor = System.Drawing.Color.FromArgb(12, 100, 12);
+                btnSimulateOrder.Appearance.BorderColor = System.Drawing.Color.FromArgb(10, 80, 10);
+                btnSimulateOrder.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(16, 120, 16);
+                btnSimulateOrder.AppearanceHovered.BorderColor = System.Drawing.Color.FromArgb(12, 100, 12);
+                btnSimulateOrder.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(10, 80, 10);
             }
             
             // Modelleri göster butonu (koyu tema)
             if (btnShowModels != null)
             {
-                btnShowModels.Appearance.BackColor = System.Drawing.Color.FromArgb(140, 30, 160);
-                btnShowModels.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(160, 50, 180);
+                btnShowModels.Appearance.BackColor = System.Drawing.Color.FromArgb(150, 50, 170);
+                btnShowModels.Appearance.BorderColor = System.Drawing.Color.FromArgb(130, 40, 150);
+                btnShowModels.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(170, 70, 190);
+                btnShowModels.AppearanceHovered.BorderColor = System.Drawing.Color.FromArgb(150, 50, 170);
+                btnShowModels.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(130, 40, 150);
+            }
+            
+            // Kazanç Detayları butonu (koyu tema)
+            if (btnShowEarnings != null)
+            {
+                btnShowEarnings.Appearance.BackColor = System.Drawing.Color.FromArgb(200, 150, 0);
+                btnShowEarnings.Appearance.BorderColor = System.Drawing.Color.FromArgb(180, 130, 0);
+                btnShowEarnings.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(220, 170, 0);
+                btnShowEarnings.AppearanceHovered.BorderColor = System.Drawing.Color.FromArgb(200, 150, 0);
+                btnShowEarnings.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(180, 130, 0);
             }
 
             // Tamamlanan siparişleri sil butonu (koyu tema)
@@ -2684,18 +3276,26 @@ namespace PrinterAutomation.Forms
                 btnDeleteCompletedJobs.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(180, 40, 40);
             }
 
-            // Header panelleri (daha koyu tonlar)
+            // Header panelleri (Paint event'leri tema kontrolü yapıyor, sadece refresh)
             if (printersHeaderPanel != null)
-                printersHeaderPanel.BackColor = System.Drawing.Color.FromArgb(40, 50, 120);
+                printersHeaderPanel.Invalidate();
             if (ordersHeaderPanel != null)
-                ordersHeaderPanel.BackColor = System.Drawing.Color.FromArgb(150, 90, 0);
+                ordersHeaderPanel.Invalidate();
             if (jobsHeaderPanel != null)
-                jobsHeaderPanel.BackColor = System.Drawing.Color.FromArgb(100, 20, 120);
+                jobsHeaderPanel.Invalidate();
 
-            // İstatistikler paneli
+            // İstatistikler paneli (Paint event'i tema kontrolü yapıyor, sadece refresh)
             if (statsPanel != null)
             {
-                statsPanel.BackColor = System.Drawing.Color.FromArgb(40, 40, 40);
+                statsPanel.Invalidate();
+                // Separator line'ı da refresh et
+                foreach (System.Windows.Forms.Control ctrl in statsPanel.Controls)
+                {
+                    if (ctrl is System.Windows.Forms.Panel && ctrl.Name == "")
+                    {
+                        ctrl.Invalidate();
+                    }
+                }
             }
 
             // Yazıcı icon paneli arka planı
@@ -2746,19 +3346,26 @@ namespace PrinterAutomation.Forms
             // Form arka planı
             this.BackColor = System.Drawing.Color.FromArgb(245, 247, 250);
 
-            // Başlık paneli
+            // Başlık paneli (Paint event'i tema kontrolü yapıyor, sadece refresh)
             if (titlePanel != null)
             {
-                titlePanel.BackColor = System.Drawing.Color.FromArgb(30, 136, 229);
+                titlePanel.Invalidate();
+            }
+            
+            // Content panel (Paint event'i tema kontrolü yapıyor, sadece refresh)
+            if (contentPanel != null)
+            {
+                contentPanel.Invalidate();
             }
 
             // Ayarlar butonu (açık tema)
             if (btnSettings != null)
             {
-                btnSettings.Appearance.BackColor = System.Drawing.Color.FromArgb(255, 193, 7);
-                btnSettings.Appearance.BorderColor = System.Drawing.Color.FromArgb(255, 160, 0);
-                btnSettings.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(255, 202, 40);
-                btnSettings.AppearanceHovered.BorderColor = System.Drawing.Color.FromArgb(255, 180, 20);
+                btnSettings.Appearance.BackColor = System.Drawing.Color.FromArgb(255, 255, 255);
+                btnSettings.Appearance.ForeColor = System.Drawing.Color.FromArgb(0, 120, 215);
+                btnSettings.Appearance.BorderColor = System.Drawing.Color.FromArgb(200, 200, 200);
+                btnSettings.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(240, 240, 240);
+                btnSettings.AppearanceHovered.BorderColor = System.Drawing.Color.FromArgb(0, 120, 215);
             }
 
             // Ayarlar paneli (açık tema)
@@ -2785,15 +3392,31 @@ namespace PrinterAutomation.Forms
             // Yeni yazıcı ekle butonu (açık tema)
             if (btnAddPrinter != null)
             {
-                btnAddPrinter.Appearance.BackColor = System.Drawing.Color.FromArgb(33, 150, 243);
-                btnAddPrinter.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(30, 136, 229);
+                btnAddPrinter.Appearance.BackColor = System.Drawing.Color.FromArgb(0, 120, 215);
+                btnAddPrinter.Appearance.BorderColor = System.Drawing.Color.FromArgb(0, 100, 180);
+                btnAddPrinter.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(0, 100, 180);
+                btnAddPrinter.AppearanceHovered.BorderColor = System.Drawing.Color.FromArgb(0, 80, 160);
+                btnAddPrinter.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(0, 80, 160);
+            }
+            
+            // Yeni sipariş simüle et butonu (açık tema)
+            if (btnSimulateOrder != null)
+            {
+                btnSimulateOrder.Appearance.BackColor = System.Drawing.Color.FromArgb(16, 124, 16);
+                btnSimulateOrder.Appearance.BorderColor = System.Drawing.Color.FromArgb(12, 100, 12);
+                btnSimulateOrder.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(20, 140, 20);
+                btnSimulateOrder.AppearanceHovered.BorderColor = System.Drawing.Color.FromArgb(16, 120, 16);
+                btnSimulateOrder.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(12, 100, 12);
             }
             
             // Modelleri göster butonu (açık tema)
             if (btnShowModels != null)
             {
-                btnShowModels.Appearance.BackColor = System.Drawing.Color.FromArgb(156, 39, 176);
-                btnShowModels.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(171, 71, 188);
+                btnShowModels.Appearance.BackColor = System.Drawing.Color.FromArgb(177, 70, 194);
+                btnShowModels.Appearance.BorderColor = System.Drawing.Color.FromArgb(150, 50, 170);
+                btnShowModels.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(190, 90, 210);
+                btnShowModels.AppearanceHovered.BorderColor = System.Drawing.Color.FromArgb(170, 70, 190);
+                btnShowModels.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(150, 50, 170);
             }
 
             // Tamamlanan siparişleri sil butonu (açık tema)
@@ -2811,19 +3434,37 @@ namespace PrinterAutomation.Forms
                 btnDeleteCompletedJobs.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(229, 57, 53);
                 btnDeleteCompletedJobs.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(198, 40, 40);
             }
+            
+            // Kazanç Detayları butonu (açık tema)
+            if (btnShowEarnings != null)
+            {
+                btnShowEarnings.Appearance.BackColor = System.Drawing.Color.FromArgb(255, 185, 0);
+                btnShowEarnings.Appearance.BorderColor = System.Drawing.Color.FromArgb(255, 140, 0);
+                btnShowEarnings.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(255, 200, 0);
+                btnShowEarnings.AppearanceHovered.BorderColor = System.Drawing.Color.FromArgb(255, 160, 0);
+                btnShowEarnings.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(255, 140, 0);
+            }
 
-            // Header panelleri
+            // Header panelleri (Paint event'leri tema kontrolü yapıyor, sadece refresh)
             if (printersHeaderPanel != null)
-                printersHeaderPanel.BackColor = System.Drawing.Color.FromArgb(63, 81, 181);
+                printersHeaderPanel.Invalidate();
             if (ordersHeaderPanel != null)
-                ordersHeaderPanel.BackColor = System.Drawing.Color.FromArgb(255, 152, 0);
+                ordersHeaderPanel.Invalidate();
             if (jobsHeaderPanel != null)
-                jobsHeaderPanel.BackColor = System.Drawing.Color.FromArgb(156, 39, 176);
+                jobsHeaderPanel.Invalidate();
 
-            // İstatistikler paneli
+            // İstatistikler paneli (Paint event'i tema kontrolü yapıyor, sadece refresh)
             if (statsPanel != null)
             {
-                statsPanel.BackColor = System.Drawing.Color.FromArgb(250, 250, 250);
+                statsPanel.Invalidate();
+                // Separator line'ı da refresh et
+                foreach (System.Windows.Forms.Control ctrl in statsPanel.Controls)
+                {
+                    if (ctrl is System.Windows.Forms.Panel && ctrl.Name == "")
+                    {
+                        ctrl.Invalidate();
+                    }
+                }
             }
 
             // Yazıcı icon paneli arka planı
@@ -3269,11 +3910,32 @@ namespace PrinterAutomation.Forms
                         Size = new System.Drawing.Size(120, 75),
                         Margin = new System.Windows.Forms.Padding(6, 4, 6, 4),
                         BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle,
-                        BackColor = _currentTheme == ThemeMode.Dark ? 
-                            System.Drawing.Color.FromArgb(45, 45, 45) : 
-                            System.Drawing.Color.White,
+                        BackColor = System.Drawing.Color.Transparent, // Gradient için transparent
                         Padding = new System.Windows.Forms.Padding(3),
                         Cursor = System.Windows.Forms.Cursors.Hand
+                    };
+                    // Gradient arka plan için Paint event'i
+                    iconPanel.Paint += (s, e) =>
+                    {
+                        System.Drawing.Color gradColor1, gradColor2;
+                        if (_currentTheme == ThemeMode.Dark)
+                        {
+                            gradColor1 = System.Drawing.Color.FromArgb(50, 50, 50);
+                            gradColor2 = System.Drawing.Color.FromArgb(40, 40, 40);
+                        }
+                        else
+                        {
+                            gradColor1 = System.Drawing.Color.FromArgb(255, 255, 255);
+                            gradColor2 = System.Drawing.Color.FromArgb(248, 248, 248);
+                        }
+                        using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
+                            iconPanel.ClientRectangle,
+                            gradColor1,
+                            gradColor2,
+                            System.Drawing.Drawing2D.LinearGradientMode.Vertical))
+                        {
+                            e.Graphics.FillRectangle(brush, iconPanel.ClientRectangle);
+                        }
                     };
                     printerIconPanels[printer.Id] = iconPanel;
                 }
@@ -3415,8 +4077,8 @@ namespace PrinterAutomation.Forms
                         Size = new System.Drawing.Size(116, 16),
                         Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold),
                         ForeColor = _currentTheme == ThemeMode.Dark ? 
-                            System.Drawing.Color.FromArgb(240, 240, 240) : 
-                            System.Drawing.Color.Black,
+                            System.Drawing.Color.White : 
+                            System.Drawing.Color.FromArgb(30, 30, 30), // Gradient üzerinde görünmesi için koyu gri
                         Name = "nameLabel"
                     };
                     nameLabel.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
@@ -3429,7 +4091,9 @@ namespace PrinterAutomation.Forms
                         Location = new System.Drawing.Point(2, 46),
                         Size = new System.Drawing.Size(116, 25),
                         Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Regular),
-                        ForeColor = iconColor,
+                        ForeColor = _currentTheme == ThemeMode.Dark ? 
+                            System.Drawing.Color.White : 
+                            System.Drawing.Color.FromArgb(50, 50, 50), // Gradient üzerinde görünmesi için
                         Name = "statusLabel"
                     };
                     statusLabel.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
@@ -3559,7 +4223,9 @@ namespace PrinterAutomation.Forms
                             statusLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Top;
                             statusLabel.Appearance.TextOptions.WordWrap = DevExpress.Utils.WordWrap.Wrap;
                             statusLabel.Text = statusText;
-                            statusLabel.ForeColor = iconColor;
+                            statusLabel.ForeColor = _currentTheme == ThemeMode.Dark ? 
+                                System.Drawing.Color.White : 
+                                System.Drawing.Color.FromArgb(50, 50, 50); // Gradient üzerinde görünmesi için
                         }
                     }
                     else
@@ -3661,8 +4327,8 @@ namespace PrinterAutomation.Forms
                             nameLabelUpdate.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Top;
                             nameLabelUpdate.Text = printer.Name;
                             nameLabelUpdate.ForeColor = _currentTheme == ThemeMode.Dark ? 
-                                System.Drawing.Color.FromArgb(240, 240, 240) : 
-                                System.Drawing.Color.Black;
+                                System.Drawing.Color.White : 
+                                System.Drawing.Color.FromArgb(30, 30, 30); // Gradient üzerinde görünmesi için koyu gri
                         }
 
                         var statusLabelUpdate = iconPanel.Controls.OfType<LabelControl>().FirstOrDefault(c => c.Name == "statusLabel");
@@ -3675,14 +4341,15 @@ namespace PrinterAutomation.Forms
                             statusLabelUpdate.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Top;
                             statusLabelUpdate.Appearance.TextOptions.WordWrap = DevExpress.Utils.WordWrap.Wrap;
                             statusLabelUpdate.Text = statusText;
-                            statusLabelUpdate.ForeColor = iconColor;
+                            statusLabelUpdate.ForeColor = _currentTheme == ThemeMode.Dark ? 
+                                System.Drawing.Color.White : 
+                                System.Drawing.Color.FromArgb(50, 50, 50); // Gradient üzerinde görünmesi için
                         }
                     }
 
-                    // Panel arka plan rengini güncelle
-                    iconPanel.BackColor = _currentTheme == ThemeMode.Dark ? 
-                        System.Drawing.Color.FromArgb(45, 45, 45) : 
-                        System.Drawing.Color.White;
+                    // Panel arka plan rengini güncelle (gradient için transparent)
+                    iconPanel.BackColor = System.Drawing.Color.Transparent;
+                    iconPanel.Invalidate(); // Gradient'i yeniden çiz
                     iconPanel.Margin = new System.Windows.Forms.Padding(6, 4, 6, 4);
                     iconPanel.Padding = new System.Windows.Forms.Padding(3);
                     iconPanel.Cursor = System.Windows.Forms.Cursors.Hand;
@@ -4812,11 +5479,10 @@ namespace PrinterAutomation.Forms
         private void MainForm_Resize(object sender, EventArgs e)
         {
             // Başlık panelini güncelle
-            var titlePanel = this.Controls.OfType<System.Windows.Forms.Panel>()
-                .FirstOrDefault(p => p.BackColor == System.Drawing.Color.FromArgb(30, 136, 229));
             if (titlePanel != null)
             {
                 titlePanel.Width = this.ClientSize.Width;
+                titlePanel.Invalidate(); // Gradient'i yeniden çiz (tam ekranda düzgün görünmesi için)
             }
 
             // contentPanel boyutlarını güncelle
@@ -4946,7 +5612,7 @@ namespace PrinterAutomation.Forms
             // Grid yüksekliklerini ayarla
             if (gridControlPrinters != null && contentPanel != null && statsPanel != null)
             {
-                int gridTop = 135;
+                int gridTop = 60; // Header panel yüksekliği 40 + margin 20
                 // statsPanel'in üstünde printersIconPanel var, onun üstünde grid'ler olmalı
                 int statsPanelTop = contentPanel.Height - statsPanel.Height - 1;
                 int iconPanelTop = printersIconPanel != null ? printersIconPanel.Top : statsPanelTop - 110;

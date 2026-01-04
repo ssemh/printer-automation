@@ -87,24 +87,72 @@ namespace PrinterAutomation.Forms
             txtPassword.KeyDown += TxtPassword_KeyDown;
             this.Controls.Add(txtPassword);
 
-            // Giriş butonu
+            // Giriş butonu - Modern ve Gradient
             btnLogin = new SimpleButton
             {
                 Text = "Giriş Yap",
                 Location = new System.Drawing.Point(75, 325),
-                Size = new System.Drawing.Size(300, 45),
+                Size = new System.Drawing.Size(300, 50),
                 Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold)
             };
-            btnLogin.Appearance.BackColor = System.Drawing.Color.FromArgb(33, 150, 243);
-            btnLogin.Appearance.ForeColor = System.Drawing.Color.White;
+            // Modern görünüm ayarları
+            btnLogin.ShowFocusRectangle = DevExpress.Utils.DefaultBoolean.False;
+            // Arka planı şeffaf yap ki gradient görünsün
+            btnLogin.Appearance.BackColor = System.Drawing.Color.Transparent;
             btnLogin.Appearance.Options.UseBackColor = true;
-            btnLogin.Appearance.Options.UseForeColor = true;
-            btnLogin.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(25, 118, 210);
+            btnLogin.AppearanceHovered.BackColor = System.Drawing.Color.Transparent;
             btnLogin.AppearanceHovered.Options.UseBackColor = true;
-            btnLogin.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(21, 101, 192);
+            btnLogin.AppearancePressed.BackColor = System.Drawing.Color.Transparent;
             btnLogin.AppearancePressed.Options.UseBackColor = true;
-            btnLogin.LookAndFeel.UseDefaultLookAndFeel = false;
-            btnLogin.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+            // Metin rengi beyaz
+            btnLogin.Appearance.ForeColor = System.Drawing.Color.White;
+            btnLogin.Appearance.Options.UseForeColor = true;
+            btnLogin.AppearanceHovered.ForeColor = System.Drawing.Color.White;
+            btnLogin.AppearanceHovered.Options.UseForeColor = true;
+            btnLogin.AppearancePressed.ForeColor = System.Drawing.Color.White;
+            btnLogin.AppearancePressed.Options.UseForeColor = true;
+            // WXI skin kullan (LookAndFeel ayarlarını kaldırdık)
+            // Gradient için Paint event ekle
+            btnLogin.Paint += (s, e) =>
+            {
+                var button = s as SimpleButton;
+                if (button == null) return;
+
+                // Mavi'den mora gradient (soldan sağa)
+                System.Drawing.Color color1 = System.Drawing.Color.FromArgb(0, 120, 215); // Windows 11 mavi
+                System.Drawing.Color color2 = System.Drawing.Color.FromArgb(177, 70, 194); // Mor
+
+                using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
+                    button.ClientRectangle,
+                    color1,
+                    color2,
+                    System.Drawing.Drawing2D.LinearGradientMode.Horizontal))
+                {
+                    // Yuvarlatılmış köşeler için GraphicsPath kullan
+                    int radius = 8;
+                    using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                    {
+                        path.AddArc(0, 0, radius * 2, radius * 2, 180, 90);
+                        path.AddArc(button.Width - radius * 2, 0, radius * 2, radius * 2, 270, 90);
+                        path.AddArc(button.Width - radius * 2, button.Height - radius * 2, radius * 2, radius * 2, 0, 90);
+                        path.AddArc(0, button.Height - radius * 2, radius * 2, radius * 2, 90, 90);
+                        path.CloseAllFigures();
+
+                        e.Graphics.FillPath(brush, path);
+                    }
+                }
+
+                // Metni çiz (beyaz renkte, ortalanmış)
+                using (var textBrush = new System.Drawing.SolidBrush(System.Drawing.Color.White))
+                {
+                    var stringFormat = new System.Drawing.StringFormat
+                    {
+                        Alignment = System.Drawing.StringAlignment.Center,
+                        LineAlignment = System.Drawing.StringAlignment.Center
+                    };
+                    e.Graphics.DrawString(button.Text, button.Font, textBrush, button.ClientRectangle, stringFormat);
+                }
+            };
             btnLogin.Click += BtnLogin_Click;
             this.Controls.Add(btnLogin);
 
