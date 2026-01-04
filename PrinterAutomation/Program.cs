@@ -20,15 +20,88 @@ namespace PrinterAutomation
                 try
                 {
                     WindowsFormsSettings.SetDPIAware();
-                    // FormSkins ve LookAndFeel kapatıldı - renk sorunlarını önlemek için
-                    // WindowsFormsSettings.EnableFormSkins();
-                    // WindowsFormsSettings.DefaultLookAndFeel.SetSkinStyle("Office 2019 Colorful");
+                    // Vektör tabanlı skinleri etkinleştir
+                    WindowsFormsSettings.EnableFormSkins();
+                    // WXI Skin - Windows 11 stili, modern ve yuvarlatılmış köşeler
+                    WindowsFormsSettings.DefaultLookAndFeel.SetSkinStyle("WXI");
+                    // Alternatif olarak The Bezier skin'i de kullanılabilir:
+                    // WindowsFormsSettings.DefaultLookAndFeel.SetSkinStyle("The Bezier");
+                    
+                    // Modern ScrollUIMode - Windows 11 stili ince scrollbar'lar (auto-hide)
+                    WindowsFormsSettings.ScrollUIMode = DevExpress.XtraEditors.ScrollUIMode.Touch;
+                    // Touch modu modern görünüm sağlar (Modern değeri bazı sürümlerde mevcut olmayabilir)
                 }
-                catch
+                catch (Exception ex)
                 {
                     // DevExpress lisans hatası durumunda varsayılan ayarlarla devam et
+                    System.Diagnostics.Debug.WriteLine($"[Program] Skin ayarı hatası: {ex.Message}");
+                    System.Console.WriteLine($"[Program] Skin ayarı hatası: {ex.Message}");
                 }
                 
+                // Önce giriş ekranını göster
+                System.Diagnostics.Debug.WriteLine("[Program] LoginForm oluşturuluyor...");
+                System.Console.WriteLine("[Program] LoginForm oluşturuluyor...");
+                
+                LoginForm loginForm = null;
+                try
+                {
+                    loginForm = new LoginForm();
+                    System.Diagnostics.Debug.WriteLine("[Program] LoginForm oluşturuldu");
+                    System.Console.WriteLine("[Program] LoginForm oluşturuldu");
+                }
+                catch (Exception loginEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Program] LoginForm oluşturulurken hata: {loginEx.Message}");
+                    System.Console.WriteLine($"[Program] LoginForm oluşturulurken hata: {loginEx.Message}");
+                    
+                    MessageBox.Show(
+                        $"Giriş ekranı oluşturulurken hata:\n\n{loginEx.Message}",
+                        "Form Oluşturma Hatası",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+                    
+                    return; // Programı sonlandır
+                }
+                
+                // Giriş ekranını göster ve kontrol et
+                DialogResult loginResult = DialogResult.Cancel;
+                try
+                {
+                    loginResult = loginForm.ShowDialog();
+                    System.Diagnostics.Debug.WriteLine($"[Program] LoginForm sonucu: {loginResult}");
+                    System.Console.WriteLine($"[Program] LoginForm sonucu: {loginResult}");
+                }
+                catch (Exception loginShowEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Program] LoginForm gösterilirken hata: {loginShowEx.Message}");
+                    System.Console.WriteLine($"[Program] LoginForm gösterilirken hata: {loginShowEx.Message}");
+                    
+                    MessageBox.Show(
+                        $"Giriş ekranı gösterilirken hata:\n\n{loginShowEx.Message}",
+                        "Giriş Hatası",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+                    
+                    return; // Programı sonlandır
+                }
+                finally
+                {
+                    // LoginForm'u kapat
+                    if (loginForm != null)
+                    {
+                        loginForm.Dispose();
+                    }
+                }
+                
+                // Eğer giriş başarısızsa programı kapat
+                if (loginResult != DialogResult.OK)
+                {
+                    System.Diagnostics.Debug.WriteLine("[Program] Giriş başarısız, program kapatılıyor");
+                    System.Console.WriteLine("[Program] Giriş başarısız, program kapatılıyor");
+                    return;
+                }
+                
+                // Giriş başarılı - MainForm'u göster
                 System.Diagnostics.Debug.WriteLine("[Program] MainForm oluşturuluyor...");
                 System.Console.WriteLine("[Program] MainForm oluşturuluyor...");
                 

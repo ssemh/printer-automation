@@ -72,6 +72,7 @@ namespace PrinterAutomation.Forms
         private System.Collections.Generic.Dictionary<int, System.Windows.Forms.Panel> printerIconPanels;
         private System.Collections.Generic.Dictionary<int, System.EventHandler> printerPanelClickHandlers;
         private bool _isDetailsFormOpen = false;
+        private System.Windows.Forms.Panel contentPanel;
 
         public MainForm()
         {
@@ -180,6 +181,21 @@ namespace PrinterAutomation.Forms
                         System.Windows.Forms.MessageBoxIcon.Warning);
                 }
                 
+                // Vektör tabanlı skin ayarını uygula (WXI veya The Bezier)
+                try
+                {
+                    // WXI Skin - Windows 11 stili, modern ve yuvarlatılmış köşeler
+                    UserLookAndFeel.Default.SetSkinStyle("WXI");
+                    // Alternatif: The Bezier skin'i için aşağıdaki satırı kullanabilirsiniz:
+                    // UserLookAndFeel.Default.SetSkinStyle("The Bezier");
+                    System.Diagnostics.Debug.WriteLine("[MainForm] WXI Skin uygulandı");
+                }
+                catch (Exception skinEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[MainForm] Skin ayarı hatası: {skinEx.Message}");
+                    System.Console.WriteLine($"[MainForm] Skin ayarı hatası: {skinEx.Message}");
+                }
+
                 this.Shown += MainForm_Shown;
                 SetupEventHandlers();
                 StartRefreshTimer();
@@ -299,10 +315,22 @@ namespace PrinterAutomation.Forms
             titlePanel = new System.Windows.Forms.Panel
             {
                 Location = new System.Drawing.Point(0, 0),
-                Size = new System.Drawing.Size(this.ClientSize.Width, 85),
+                Size = new System.Drawing.Size(this.ClientSize.Width, 80),
                 Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right,
-                BackColor = System.Drawing.Color.FromArgb(30, 136, 229),
+                BackColor = System.Drawing.Color.Transparent,
                 Padding = new System.Windows.Forms.Padding(0, 0, 0, 5)
+            };
+            // Gradient arka plan için Paint event'i
+            titlePanel.Paint += (s, e) =>
+            {
+                using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
+                    titlePanel.ClientRectangle,
+                    System.Drawing.Color.FromArgb(0, 120, 215), // Windows 11 mavi
+                    System.Drawing.Color.FromArgb(0, 100, 180), // Daha koyu mavi
+                    System.Drawing.Drawing2D.LinearGradientMode.Vertical))
+                {
+                    e.Graphics.FillRectangle(brush, titlePanel.ClientRectangle);
+                }
             };
             this.Controls.Add(titlePanel);
 
@@ -312,9 +340,11 @@ namespace PrinterAutomation.Forms
                 Text = "🖨️ 3D YAZICI OTOMASYON SİSTEMİ",
                 Location = new System.Drawing.Point(30, 22),
                 Size = new System.Drawing.Size(600, 42),
-                Font = new System.Drawing.Font("Segoe UI", 20F, System.Drawing.FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 22F, System.Drawing.FontStyle.Bold),
                 ForeColor = System.Drawing.Color.White
             };
+            // Gölge efekti için
+            lblTitle.Appearance.TextOptions.Trimming = DevExpress.Utils.Trimming.EllipsisCharacter;
             lblTitle.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Near;
             lblTitle.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             lblTitle.Appearance.BackColor = System.Drawing.Color.Transparent;
@@ -336,29 +366,33 @@ namespace PrinterAutomation.Forms
             lblStatus.Appearance.Options.UseBackColor = true;
             titlePanel.Controls.Add(lblStatus);
 
-            // Ayarlar Butonu (Küçük ikon butonu)
+            // Ayarlar Butonu (Modern yuvarlatılmış köşeli buton)
             btnSettings = new SimpleButton
             {
                 Text = "⚙️",
-                Size = new System.Drawing.Size(45, 45),
+                Size = new System.Drawing.Size(50, 50),
                 Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right,
-                Font = new System.Drawing.Font("Segoe UI", 18F, System.Drawing.FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 20F, System.Drawing.FontStyle.Bold),
                 ShowFocusRectangle = DevExpress.Utils.DefaultBoolean.False
             };
-            btnSettings.Appearance.BackColor = System.Drawing.Color.FromArgb(255, 193, 7);
-            btnSettings.Appearance.ForeColor = System.Drawing.Color.White;
-            btnSettings.Appearance.BorderColor = System.Drawing.Color.FromArgb(255, 160, 0);
+            // Modern Windows 11 stili buton
+            btnSettings.Appearance.BackColor = System.Drawing.Color.FromArgb(255, 255, 255);
+            btnSettings.Appearance.ForeColor = System.Drawing.Color.FromArgb(0, 120, 215);
+            btnSettings.Appearance.BorderColor = System.Drawing.Color.FromArgb(200, 200, 200);
+            btnSettings.Appearance.BorderOptions.Rounding = 25; // Yuvarlatılmış köşeler
             btnSettings.Appearance.Options.UseBackColor = true;
             btnSettings.Appearance.Options.UseForeColor = true;
             btnSettings.Appearance.Options.UseBorderColor = true;
-            btnSettings.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(255, 202, 40);
-            btnSettings.AppearanceHovered.BorderColor = System.Drawing.Color.FromArgb(255, 180, 20);
+            btnSettings.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(240, 240, 240);
+            btnSettings.AppearanceHovered.BorderColor = System.Drawing.Color.FromArgb(0, 120, 215);
+            btnSettings.AppearanceHovered.BorderOptions.Rounding = 25;
             btnSettings.AppearanceHovered.Options.UseBackColor = true;
             btnSettings.AppearanceHovered.Options.UseBorderColor = true;
-            btnSettings.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(255, 160, 0);
+            btnSettings.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(230, 230, 230);
+            btnSettings.AppearancePressed.BorderOptions.Rounding = 25;
             btnSettings.AppearancePressed.Options.UseBackColor = true;
-            btnSettings.LookAndFeel.UseDefaultLookAndFeel = false;
-            btnSettings.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+            // Vektör tabanlı skin kullan (WXI)
+            btnSettings.LookAndFeel.UseDefaultLookAndFeel = true;
             btnSettings.Click += BtnSettings_Click;
             titlePanel.Controls.Add(btnSettings);
             btnSettings.Location = new System.Drawing.Point(titlePanel.Width - btnSettings.Width - 20, 20);
@@ -423,8 +457,8 @@ namespace PrinterAutomation.Forms
             btnAddPrinter.AppearanceHovered.Options.UseBackColor = true;
             btnAddPrinter.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(25, 118, 210);
             btnAddPrinter.AppearancePressed.Options.UseBackColor = true;
-            btnAddPrinter.LookAndFeel.UseDefaultLookAndFeel = false;
-            btnAddPrinter.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+            // Vektör tabanlı skin kullan (WXI)
+            btnAddPrinter.LookAndFeel.UseDefaultLookAndFeel = true;
             btnAddPrinter.Click += BtnAddPrinter_Click;
             titlePanel.Controls.Add(btnAddPrinter);
 
@@ -447,8 +481,8 @@ namespace PrinterAutomation.Forms
             btnSimulateOrder.AppearanceHovered.Options.UseBackColor = true;
             btnSimulateOrder.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(56, 142, 60);
             btnSimulateOrder.AppearancePressed.Options.UseBackColor = true;
-            btnSimulateOrder.LookAndFeel.UseDefaultLookAndFeel = false;
-            btnSimulateOrder.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+            // Vektör tabanlı skin kullan (WXI)
+            btnSimulateOrder.LookAndFeel.UseDefaultLookAndFeel = true;
             btnSimulateOrder.Click += BtnSimulateOrder_Click;
             titlePanel.Controls.Add(btnSimulateOrder);
             btnAddPrinter.Location = new System.Drawing.Point(btnSettings.Left - btnAddPrinter.Width - 10, 20);
@@ -473,21 +507,31 @@ namespace PrinterAutomation.Forms
             btnShowModels.AppearanceHovered.Options.UseBackColor = true;
             btnShowModels.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(123, 31, 162);
             btnShowModels.AppearancePressed.Options.UseBackColor = true;
-            btnShowModels.LookAndFeel.UseDefaultLookAndFeel = false;
-            btnShowModels.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+            // Vektör tabanlı skin kullan (WXI)
+            btnShowModels.LookAndFeel.UseDefaultLookAndFeel = true;
             btnShowModels.Click += BtnShowModels_Click;
             titlePanel.Controls.Add(btnShowModels);
             btnShowModels.Location = new System.Drawing.Point(btnSimulateOrder.Left - btnShowModels.Width - 10, 20);
 
+            // Content Panel (Tüm içerik)
+            contentPanel = new System.Windows.Forms.Panel
+            {
+                Location = new System.Drawing.Point(0, 80),
+                Size = new System.Drawing.Size(this.ClientSize.Width, this.ClientSize.Height - 80),
+                Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right
+            };
+            this.Controls.Add(contentPanel);
+            contentPanel.SendToBack();
+
             // Printers Grid Başlık Panel
             printersHeaderPanel = new System.Windows.Forms.Panel
             {
-                Location = new System.Drawing.Point(20, 100),
+                Location = new System.Drawing.Point(20, 15),
                 Size = new System.Drawing.Size(450, 35),
                 Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left,
                 BackColor = System.Drawing.Color.FromArgb(63, 81, 181)
             };
-            this.Controls.Add(printersHeaderPanel);
+            contentPanel.Controls.Add(printersHeaderPanel);
 
             lblPrinters = new LabelControl
             {
@@ -506,7 +550,7 @@ namespace PrinterAutomation.Forms
             {
                 gridControlPrinters = new GridControl
                 {
-                    Location = new System.Drawing.Point(20, 135),
+                    Location = new System.Drawing.Point(20, 50),
                     Size = new System.Drawing.Size(450, 280),
                     Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left,
                     Visible = false
@@ -545,7 +589,9 @@ namespace PrinterAutomation.Forms
                 // Filtre paneli için paint event'i
                 gridControlPrinters.Paint += GridControl_Paint;
                 
-                this.Controls.Add(gridControlPrinters);
+                contentPanel.Controls.Add(gridControlPrinters);
+                // Grid'i arka plana gönder (printersIconPanel önde görünsün)
+                gridControlPrinters.SendToBack();
             }
             catch (Exception ex)
             {
@@ -555,8 +601,8 @@ namespace PrinterAutomation.Forms
             // Yazıcı Icon Paneli (Küçük, scroll olmayacak şekilde)
             printersIconPanel = new System.Windows.Forms.FlowLayoutPanel
             {
-                Location = new System.Drawing.Point(20, 410),
-                Size = new System.Drawing.Size(this.ClientSize.Width - 40, 100),
+                Location = new System.Drawing.Point(20, 325),
+                Size = new System.Drawing.Size(contentPanel.Width - 40, 100),
                 Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right,
                 AutoScroll = false,
                 FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight,
@@ -567,19 +613,21 @@ namespace PrinterAutomation.Forms
                 BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle,
                 Padding = new System.Windows.Forms.Padding(10, 10, 10, 10)
             };
-            this.Controls.Add(printersIconPanel);
+            contentPanel.Controls.Add(printersIconPanel);
+            // printersIconPanel'i öne getir (grid'lerin üstünde görünsün)
+            printersIconPanel.BringToFront();
             printerIconPanels = new System.Collections.Generic.Dictionary<int, System.Windows.Forms.Panel>();
             printerPanelClickHandlers = new System.Collections.Generic.Dictionary<int, System.EventHandler>();
 
             // Orders Grid Başlık Panel
             ordersHeaderPanel = new System.Windows.Forms.Panel
             {
-                Location = new System.Drawing.Point(490, 100),
+                Location = new System.Drawing.Point(490, 15),
                 Size = new System.Drawing.Size(450, 35),
                 Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left,
                 BackColor = System.Drawing.Color.FromArgb(255, 152, 0)
             };
-            this.Controls.Add(ordersHeaderPanel);
+            contentPanel.Controls.Add(ordersHeaderPanel);
 
             lblOrders = new LabelControl
             {
@@ -625,7 +673,7 @@ namespace PrinterAutomation.Forms
             {
                 gridControlOrders = new GridControl
                 {
-                    Location = new System.Drawing.Point(490, 135),
+                    Location = new System.Drawing.Point(490, 50),
                     Size = new System.Drawing.Size(450, 280),
                     Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left,
                     Visible = false
@@ -663,7 +711,9 @@ namespace PrinterAutomation.Forms
                 // Filtre paneli için paint event'i
                 gridControlOrders.Paint += GridControl_Paint;
                 
-                this.Controls.Add(gridControlOrders);
+                contentPanel.Controls.Add(gridControlOrders);
+                // Grid'i arka plana gönder (printersIconPanel önde görünsün)
+                gridControlOrders.SendToBack();
             }
             catch (Exception ex)
             {
@@ -673,12 +723,12 @@ namespace PrinterAutomation.Forms
             // Jobs Grid Başlık Panel
             jobsHeaderPanel = new System.Windows.Forms.Panel
             {
-                Location = new System.Drawing.Point(960, 100),
+                Location = new System.Drawing.Point(960, 15),
                 Size = new System.Drawing.Size(450, 35),
                 Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right,
                 BackColor = System.Drawing.Color.FromArgb(156, 39, 176)
             };
-            this.Controls.Add(jobsHeaderPanel);
+            contentPanel.Controls.Add(jobsHeaderPanel);
 
             lblJobs = new LabelControl
             {
@@ -720,7 +770,7 @@ namespace PrinterAutomation.Forms
             {
                 gridControlJobs = new GridControl
                 {
-                    Location = new System.Drawing.Point(960, 135),
+                    Location = new System.Drawing.Point(960, 50),
                     Size = new System.Drawing.Size(450, 280),
                     Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right,
                     Visible = false
@@ -753,7 +803,9 @@ namespace PrinterAutomation.Forms
                 // Filtre paneli için paint event'i
                 gridControlJobs.Paint += GridControl_Paint;
                 
-                this.Controls.Add(gridControlJobs);
+                contentPanel.Controls.Add(gridControlJobs);
+                // Grid'i arka plana gönder (printersIconPanel önde görünsün)
+                gridControlJobs.SendToBack();
             }
             catch (Exception ex)
             {
@@ -764,23 +816,54 @@ namespace PrinterAutomation.Forms
             SetupGridColumns();
         }
 
+        private void ShowSection(string sectionName)
+        {
+            // Tüm grid'leri gizle
+            gridControlPrinters.Visible = false;
+            gridControlOrders.Visible = false;
+            gridControlJobs.Visible = false;
+            printersHeaderPanel.Visible = false;
+            ordersHeaderPanel.Visible = false;
+            jobsHeaderPanel.Visible = false;
+
+            // Seçilen bölümü göster
+            switch (sectionName)
+            {
+                case "Printers":
+                    gridControlPrinters.Visible = true;
+                    printersHeaderPanel.Visible = true;
+                    break;
+                case "Orders":
+                    gridControlOrders.Visible = true;
+                    ordersHeaderPanel.Visible = true;
+                    break;
+                case "Jobs":
+                    gridControlJobs.Visible = true;
+                    jobsHeaderPanel.Visible = true;
+                    break;
+            }
+        }
+
         private void SetupStatisticsPanel()
         {
             // İstatistikler Paneli
+            // Başlangıç konumunu contentPanel'e göre ayarla (alt kısımdan 1 piksel margin ile)
+            int statsPanelHeight = 130; // Yüksekliği artırdık
+            int statsPanelTop = contentPanel.Height - statsPanelHeight - 1; // Panel yüksekliği, margin 1
             statsPanel = new System.Windows.Forms.Panel
             {
-                Location = new System.Drawing.Point(20, 495),
-                Size = new System.Drawing.Size(this.ClientSize.Width - 40, 110),
-                Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right,
+                Location = new System.Drawing.Point(20, statsPanelTop),
+                Size = new System.Drawing.Size(contentPanel.Width - 40, statsPanelHeight),
+                Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right, // Alt kısımda sabit kalacak
                 BackColor = System.Drawing.Color.FromArgb(250, 250, 250),
                 BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
             };
-            this.Controls.Add(statsPanel);
+            contentPanel.Controls.Add(statsPanel);
 
             lblStats = new LabelControl
             {
                 Text = "📊 İSTATİSTİKLER",
-                Location = new System.Drawing.Point(15, 8),
+                Location = new System.Drawing.Point(15, 32),
                 Size = new System.Drawing.Size(200, 25),
                 Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold),
                 ForeColor = System.Drawing.Color.FromArgb(63, 81, 181)
@@ -792,7 +875,7 @@ namespace PrinterAutomation.Forms
             // Alt çizgi
             var separatorLine = new System.Windows.Forms.Panel
             {
-                Location = new System.Drawing.Point(15, 30),
+                Location = new System.Drawing.Point(15, 57),
                 Size = new System.Drawing.Size(statsPanel.Width - 30, 1),
                 BackColor = System.Drawing.Color.FromArgb(220, 220, 220),
                 Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right
@@ -803,7 +886,7 @@ namespace PrinterAutomation.Forms
             var lblTotalPrintersLabel = new LabelControl
             {
                 Text = "Toplam Yazıcı:",
-                Location = new System.Drawing.Point(25, 45),
+                Location = new System.Drawing.Point(25, 67),
                 Size = new System.Drawing.Size(100, 20),
                 Font = new System.Drawing.Font("Segoe UI", 9F),
                 ForeColor = System.Drawing.Color.FromArgb(100, 100, 100)
@@ -814,7 +897,7 @@ namespace PrinterAutomation.Forms
             lblTotalPrinters = new LabelControl
             {
                 Text = "10",
-                Location = new System.Drawing.Point(135, 40),
+                Location = new System.Drawing.Point(135, 62),
                 Size = new System.Drawing.Size(50, 20),
                 Font = new System.Drawing.Font("Segoe UI", 13F, System.Drawing.FontStyle.Bold),
                 ForeColor = System.Drawing.Color.FromArgb(63, 81, 181)
@@ -826,7 +909,7 @@ namespace PrinterAutomation.Forms
             var lblActivePrintersLabel = new LabelControl
             {
                 Text = "Aktif Yazıcı:",
-                Location = new System.Drawing.Point(225, 45),
+                Location = new System.Drawing.Point(225, 67),
                 Size = new System.Drawing.Size(100, 20),
                 Font = new System.Drawing.Font("Segoe UI", 9F),
                 ForeColor = System.Drawing.Color.FromArgb(100, 100, 100)
@@ -837,7 +920,7 @@ namespace PrinterAutomation.Forms
             lblActivePrinters = new LabelControl
             {
                 Text = "0",
-                Location = new System.Drawing.Point(315, 40),
+                Location = new System.Drawing.Point(315, 62),
                 Size = new System.Drawing.Size(50, 20),
                 Font = new System.Drawing.Font("Segoe UI", 13F, System.Drawing.FontStyle.Bold),
                 ForeColor = System.Drawing.Color.FromArgb(76, 175, 80)
@@ -849,7 +932,7 @@ namespace PrinterAutomation.Forms
             var lblTotalOrdersLabel = new LabelControl
             {
                 Text = "Toplam Sipariş:",
-                Location = new System.Drawing.Point(425, 45),
+                Location = new System.Drawing.Point(425, 67),
                 Size = new System.Drawing.Size(100, 20),
                 Font = new System.Drawing.Font("Segoe UI", 9F),
                 ForeColor = System.Drawing.Color.FromArgb(100, 100, 100)
@@ -860,7 +943,7 @@ namespace PrinterAutomation.Forms
             lblTotalOrders = new LabelControl
             {
                 Text = "0",
-                Location = new System.Drawing.Point(535, 40),
+                Location = new System.Drawing.Point(535, 62),
                 Size = new System.Drawing.Size(50, 20),
                 Font = new System.Drawing.Font("Segoe UI", 13F, System.Drawing.FontStyle.Bold),
                 ForeColor = System.Drawing.Color.FromArgb(255, 152, 0)
@@ -872,7 +955,7 @@ namespace PrinterAutomation.Forms
             var lblPendingJobsLabel = new LabelControl
             {
                 Text = "Bekleyen İşler:",
-                Location = new System.Drawing.Point(625, 45),
+                Location = new System.Drawing.Point(625, 67),
                 Size = new System.Drawing.Size(100, 20),
                 Font = new System.Drawing.Font("Segoe UI", 9F),
                 ForeColor = System.Drawing.Color.FromArgb(100, 100, 100)
@@ -883,7 +966,7 @@ namespace PrinterAutomation.Forms
             lblPendingJobs = new LabelControl
             {
                 Text = "0",
-                Location = new System.Drawing.Point(735, 40),
+                Location = new System.Drawing.Point(735, 62),
                 Size = new System.Drawing.Size(50, 20),
                 Font = new System.Drawing.Font("Segoe UI", 13F, System.Drawing.FontStyle.Bold),
                 ForeColor = System.Drawing.Color.FromArgb(156, 39, 176)
@@ -895,7 +978,7 @@ namespace PrinterAutomation.Forms
             var lblCompletedJobsLabel = new LabelControl
             {
                 Text = "Tamamlanan İş:",
-                Location = new System.Drawing.Point(825, 45),
+                Location = new System.Drawing.Point(825, 67),
                 Size = new System.Drawing.Size(120, 20),
                 Font = new System.Drawing.Font("Segoe UI", 9F),
                 ForeColor = System.Drawing.Color.FromArgb(100, 100, 100),
@@ -907,7 +990,7 @@ namespace PrinterAutomation.Forms
             var lblCompletedJobs = new LabelControl
             {
                 Text = "0",
-                Location = new System.Drawing.Point(945, 40),
+                Location = new System.Drawing.Point(945, 62),
                 Size = new System.Drawing.Size(50, 20),
                 Font = new System.Drawing.Font("Segoe UI", 13F, System.Drawing.FontStyle.Bold),
                 ForeColor = System.Drawing.Color.FromArgb(76, 175, 80),
@@ -927,7 +1010,7 @@ namespace PrinterAutomation.Forms
                 Name = "lblTotalEarningsLabel"
             };
             lblTotalEarningsLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
-            lblTotalEarningsLabel.Location = new System.Drawing.Point(statsPanel.Width - 190, 42);
+            lblTotalEarningsLabel.Location = new System.Drawing.Point(statsPanel.Width - 190, 64);
             statsPanel.Controls.Add(lblTotalEarningsLabel);
 
             lblTotalEarnings = new LabelControl
@@ -940,7 +1023,7 @@ namespace PrinterAutomation.Forms
                 Name = "lblTotalEarnings"
             };
             lblTotalEarnings.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
-            lblTotalEarnings.Location = new System.Drawing.Point(statsPanel.Width - 80, 40);
+            lblTotalEarnings.Location = new System.Drawing.Point(statsPanel.Width - 80, 62);
             statsPanel.Controls.Add(lblTotalEarnings);
 
             // Kazanç Detayları Butonu
@@ -969,7 +1052,7 @@ namespace PrinterAutomation.Forms
             // Butonu sağa hizala ve label'ları öne getir
             btnShowEarnings.Size = new System.Drawing.Size(190, 36);
             btnShowEarnings.Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold);
-            btnShowEarnings.Location = new System.Drawing.Point(statsPanel.Width - btnShowEarnings.Width - 10, 66);
+            btnShowEarnings.Location = new System.Drawing.Point(statsPanel.Width - btnShowEarnings.Width - 10, 92);
             lblTotalEarningsLabel.BringToFront();
             lblTotalEarnings.BringToFront();
         }
@@ -1845,8 +1928,8 @@ namespace PrinterAutomation.Forms
                 }
                 else
                 {
-                    btnClose.Appearance.BackColor = System.Drawing.Color.FromArgb(158, 158, 158);
-                    btnClose.Appearance.ForeColor = System.Drawing.Color.White;
+                btnClose.Appearance.BackColor = System.Drawing.Color.FromArgb(158, 158, 158);
+                btnClose.Appearance.ForeColor = System.Drawing.Color.White;
                     btnClose.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(189, 189, 189);
                 }
                 btnClose.Appearance.Options.UseBackColor = true;
@@ -2498,6 +2581,19 @@ namespace PrinterAutomation.Forms
 
         private void ApplyTheme()
         {
+            // Vektör tabanlı skin ayarını koru (WXI veya The Bezier)
+            try
+            {
+                // WXI Skin - Windows 11 stili, modern ve yuvarlatılmış köşeler
+                UserLookAndFeel.Default.SetSkinStyle("WXI");
+                // Alternatif: The Bezier skin'i için aşağıdaki satırı kullanabilirsiniz:
+                // UserLookAndFeel.Default.SetSkinStyle("The Bezier");
+            }
+            catch (Exception skinEx)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainForm] Skin ayarı hatası: {skinEx.Message}");
+            }
+
             if (_currentTheme == ThemeMode.Dark)
             {
                 ApplyDarkTheme();
@@ -2512,6 +2608,13 @@ namespace PrinterAutomation.Forms
 
         private void ApplyDarkTheme()
         {
+            // Vektör tabanlı skin ayarını koru
+            try
+            {
+                UserLookAndFeel.Default.SetSkinStyle("WXI");
+            }
+            catch { }
+
             // Form arka planı
             this.BackColor = System.Drawing.Color.FromArgb(30, 30, 30);
 
@@ -2600,6 +2703,7 @@ namespace PrinterAutomation.Forms
             {
                 printersIconPanel.BackColor = System.Drawing.Color.FromArgb(30, 30, 30);
             }
+
             
             // Grid'leri görünür yap
             if (gridControlPrinters != null) gridControlPrinters.Visible = true;
@@ -2632,6 +2736,13 @@ namespace PrinterAutomation.Forms
 
         private void ApplyLightTheme()
         {
+            // Vektör tabanlı skin ayarını koru
+            try
+            {
+                UserLookAndFeel.Default.SetSkinStyle("WXI");
+            }
+            catch { }
+
             // Form arka planı
             this.BackColor = System.Drawing.Color.FromArgb(245, 247, 250);
 
@@ -2720,6 +2831,7 @@ namespace PrinterAutomation.Forms
             {
                 printersIconPanel.BackColor = System.Drawing.Color.White;
             }
+
             
             // Grid'leri görünür yap
             if (gridControlPrinters != null) gridControlPrinters.Visible = true;
@@ -2758,8 +2870,8 @@ namespace PrinterAutomation.Forms
             if (gridView.GridControl != null)
             {
                 gridView.GridControl.BackColor = System.Drawing.Color.FromArgb(30, 30, 30);
-                gridView.GridControl.LookAndFeel.UseDefaultLookAndFeel = false;
-                gridView.GridControl.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+                // Vektör tabanlı skin kullan (WXI)
+                gridView.GridControl.LookAndFeel.UseDefaultLookAndFeel = true;
             }
 
             // Empty area (boş alan) arka planı
@@ -2829,8 +2941,8 @@ namespace PrinterAutomation.Forms
             if (gridView.GridControl != null)
             {
                 gridView.GridControl.BackColor = System.Drawing.Color.FromArgb(245, 247, 250);
-                gridView.GridControl.LookAndFeel.UseDefaultLookAndFeel = false;
-                gridView.GridControl.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+                // Vektör tabanlı skin kullan (WXI)
+                gridView.GridControl.LookAndFeel.UseDefaultLookAndFeel = true;
             }
 
             // Empty area (boş alan) arka planı
@@ -4707,6 +4819,13 @@ namespace PrinterAutomation.Forms
                 titlePanel.Width = this.ClientSize.Width;
             }
 
+            // contentPanel boyutlarını güncelle
+            if (contentPanel != null)
+            {
+                contentPanel.Location = new System.Drawing.Point(0, 80);
+                contentPanel.Size = new System.Drawing.Size(this.ClientSize.Width, this.ClientSize.Height - 80);
+            }
+
             // Buton konumlarını güncelle
             if (btnSimulateOrder != null && btnAddPrinter != null && btnSettings != null && titlePanel != null)
             {
@@ -4747,18 +4866,19 @@ namespace PrinterAutomation.Forms
             var statsPanel = this.Controls.OfType<System.Windows.Forms.Panel>()
                 .FirstOrDefault(p => p.Controls.OfType<LabelControl>().Any(l => l.Text.Contains("İSTATİSTİKLER")));
             
-            // Grid'lerin genişliğini ayarla
+            // Grid'lerin genişliğini ayarla (eşit genişlikte)
             if (gridControlPrinters != null && gridControlOrders != null && gridControlJobs != null)
             {
                 int availableWidth = this.ClientSize.Width - 60; // 20px margin her iki tarafta
-                int gridWidth = availableWidth / 3;
                 int spacing = 20;
+                // Üç grid için eşit genişlik hesapla
+                int gridWidth = (availableWidth - (spacing * 2)) / 3; // İki spacing arasındaki alanı 3'e böl
 
                 gridControlPrinters.Width = gridWidth;
                 gridControlOrders.Left = gridControlPrinters.Right + spacing;
                 gridControlOrders.Width = gridWidth;
                 gridControlJobs.Left = gridControlOrders.Right + spacing;
-                gridControlJobs.Width = this.ClientSize.Width - gridControlJobs.Left - 20;
+                gridControlJobs.Width = gridWidth; // Eşit genişlik
 
                 // Sütun genişliklerini grid genişliğine göre ayarla
                 UpdateGridColumnWidths();
@@ -4794,36 +4914,60 @@ namespace PrinterAutomation.Forms
                 }
             }
 
-            // Yazıcı icon paneli (küçük, scroll olmayacak)
-            if (printersIconPanel != null)
+            // İstatistikler panelini önce güncelle (diğer kontrollerin konumlandırması için gerekli)
+            if (statsPanel != null && contentPanel != null)
             {
-                int iconPanelTop = statsPanel != null ? statsPanel.Top - 110 : this.ClientSize.Height - 210;
+                // statsPanel Anchor=Bottom|Left|Right olduğu için, sadece genişlik ve sol konumu güncelle
+                // Top değeri Anchor tarafından otomatik olarak ayarlanacak
+                statsPanel.Width = this.ClientSize.Width - 40; // Doğrudan form genişliğini kullan
+                statsPanel.Left = 20;
+                // Yüksekliği 130 olarak sabit tut
+                statsPanel.Height = 130;
+                // statsPanel'i öne getir (siparişler formlarının üstünde görünsün)
+                statsPanel.BringToFront();
+            }
+
+            // Yazıcı icon paneli (küçük, scroll olmayacak)
+            if (printersIconPanel != null && contentPanel != null && statsPanel != null)
+            {
+                // statsPanel'in üstünde konumlandır
+                // statsPanel Anchor=Bottom olduğu için, contentPanel.Height kullanarak hesapla
+                int statsPanelTop = contentPanel.Height - statsPanel.Height - 1;
+                int iconPanelTop = statsPanelTop - 110; // statsPanel'in üstünde 110 piksel margin ile
                 printersIconPanel.Left = 20;
-                printersIconPanel.Width = this.ClientSize.Width - 40;
+                printersIconPanel.Width = this.ClientSize.Width - 40; // Doğrudan form genişliğini kullan
                 printersIconPanel.Top = iconPanelTop;
                 printersIconPanel.Height = 100;
                 printersIconPanel.AutoScroll = false; // Scroll'u kapat
+                // printersIconPanel'i öne getir (grid'lerin üstünde görünsün)
+                printersIconPanel.BringToFront();
             }
 
             // Grid yüksekliklerini ayarla
-            if (gridControlPrinters != null)
+            if (gridControlPrinters != null && contentPanel != null && statsPanel != null)
             {
                 int gridTop = 135;
-                int iconPanelTop = printersIconPanel != null ? printersIconPanel.Top : this.ClientSize.Height - 220;
-                int gridHeight = iconPanelTop - gridTop - 20;
+                // statsPanel'in üstünde printersIconPanel var, onun üstünde grid'ler olmalı
+                int statsPanelTop = contentPanel.Height - statsPanel.Height - 1;
+                int iconPanelTop = printersIconPanel != null ? printersIconPanel.Top : statsPanelTop - 110;
+                // Grid ile printersIconPanel arasında daha fazla boşluk bırak (30 piksel)
+                int gridHeight = iconPanelTop - gridTop - 30;
                 
+                // Minimum yükseklik kontrolü
                 if (gridHeight > 100)
                 {
                     gridControlPrinters.Height = gridHeight;
                     if (gridControlOrders != null) gridControlOrders.Height = gridHeight;
                     if (gridControlJobs != null) gridControlJobs.Height = gridHeight;
                 }
-            }
-
-            // İstatistikler panelini güncelle
-            if (statsPanel != null)
-            {
-                statsPanel.Width = this.ClientSize.Width - 40;
+                else
+                {
+                    // Minimum yükseklik ayarla
+                    int minHeight = 100;
+                    gridControlPrinters.Height = minHeight;
+                    if (gridControlOrders != null) gridControlOrders.Height = minHeight;
+                    if (gridControlJobs != null) gridControlJobs.Height = minHeight;
+                }
             }
         }
 
