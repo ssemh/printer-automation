@@ -195,7 +195,7 @@ namespace PrinterAutomation.Forms
                     System.Diagnostics.Debug.WriteLine($"[MainForm] Skin ayarı hatası: {skinEx.Message}");
                     System.Console.WriteLine($"[MainForm] Skin ayarı hatası: {skinEx.Message}");
                 }
-
+                
                 this.Shown += MainForm_Shown;
                 SetupEventHandlers();
                 StartRefreshTimer();
@@ -491,7 +491,7 @@ namespace PrinterAutomation.Forms
             // Simulate Order Button (Modern tasarım)
             btnSimulateOrder = new SimpleButton
             {
-                Text = "➕ Yeni Sipariş Simüle Et",
+                Text = "➕  Yeni Sipariş Simüle Et",
                 Size = new System.Drawing.Size(280, 48),
                 Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right,
                 Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold)
@@ -758,9 +758,9 @@ namespace PrinterAutomation.Forms
             btnDeleteCompletedOrders = new SimpleButton
             {
                 Text = "🗑️ Tamamlananları Sil",
-                Size = new System.Drawing.Size(200, 28),
-                Location = new System.Drawing.Point(250, 3),
-                Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold),
+                Size = new System.Drawing.Size(170, 24),
+                Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right,
+                Font = new System.Drawing.Font("Segoe UI", 8.75F, System.Drawing.FontStyle.Bold),
                 Visible = true,
                 Enabled = true
             };
@@ -778,6 +778,9 @@ namespace PrinterAutomation.Forms
             btnDeleteCompletedOrders.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
             btnDeleteCompletedOrders.Click += BtnDeleteCompletedOrders_Click;
             ordersHeaderPanel.Controls.Add(btnDeleteCompletedOrders);
+            // Sağa yapıştır
+            btnDeleteCompletedOrders.Left = ordersHeaderPanel.Width - btnDeleteCompletedOrders.Width - 10;
+            btnDeleteCompletedOrders.Top = 3;
             btnDeleteCompletedOrders.BringToFront();
 
 
@@ -893,8 +896,11 @@ namespace PrinterAutomation.Forms
             btnDeleteCompletedJobs = new SimpleButton
             {
                 Text = "🗑️ Tamamlananları Sil",
-                Size = new System.Drawing.Size(180, 25),
-                Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right
+                Size = new System.Drawing.Size(170, 24),
+                Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right,
+                Font = new System.Drawing.Font("Segoe UI", 8.75F, System.Drawing.FontStyle.Bold),
+                Visible = true,
+                Enabled = true
             };
             btnDeleteCompletedJobs.Appearance.BackColor = System.Drawing.Color.FromArgb(244, 67, 54);
             btnDeleteCompletedJobs.Appearance.ForeColor = System.Drawing.Color.White;
@@ -910,6 +916,9 @@ namespace PrinterAutomation.Forms
             btnDeleteCompletedJobs.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
             btnDeleteCompletedJobs.Click += BtnDeleteCompletedJobs_Click;
             jobsHeaderPanel.Controls.Add(btnDeleteCompletedJobs);
+            // Sağa yapıştır
+            btnDeleteCompletedJobs.Left = jobsHeaderPanel.Width - btnDeleteCompletedJobs.Width - 10;
+            btnDeleteCompletedJobs.Top = 3;
             btnDeleteCompletedJobs.BringToFront();
 
             // Jobs Grid
@@ -1860,10 +1869,10 @@ namespace PrinterAutomation.Forms
             try
             {
                 // Modelleri gösteren form oluştur
-                var modelsForm = new System.Windows.Forms.Form
+                var modelsForm = new XtraForm
                 {
                     Text = "📦 Modeller",
-                    Size = new System.Drawing.Size(800, 600),
+                    Size = new System.Drawing.Size(850, 650),
                     StartPosition = System.Windows.Forms.FormStartPosition.CenterParent,
                     FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog,
                     MaximizeBox = false,
@@ -1873,22 +1882,147 @@ namespace PrinterAutomation.Forms
                         System.Drawing.Color.FromArgb(245, 247, 250)
                 };
 
+                // Ana Panel
+                var mainPanel = new System.Windows.Forms.Panel
+                {
+                    Dock = System.Windows.Forms.DockStyle.Fill,
+                    Padding = new System.Windows.Forms.Padding(15),
+                    BackColor = System.Drawing.Color.Transparent
+                };
+                modelsForm.Controls.Add(mainPanel);
+
+                int yPos = 15;
+                int contentWidth = 800;
+
+                // Başlık Paneli (Gradient arka plan)
+                var titlePanel = new System.Windows.Forms.Panel
+                {
+                    Location = new System.Drawing.Point(0, yPos),
+                    Size = new System.Drawing.Size(contentWidth, 55),
+                    BackColor = System.Drawing.Color.Transparent
+                };
+                titlePanel.Paint += (s, e) =>
+                {
+                    var panel = s as System.Windows.Forms.Panel;
+                    if (panel == null) return;
+                    
+                    System.Drawing.Color color1, color2;
+                    if (_currentTheme == ThemeMode.Dark)
+                    {
+                        color1 = System.Drawing.Color.FromArgb(50, 50, 60);
+                        color2 = System.Drawing.Color.FromArgb(70, 50, 80);
+                    }
+                    else
+                    {
+                        color1 = System.Drawing.Color.FromArgb(0, 120, 215);
+                        color2 = System.Drawing.Color.FromArgb(177, 70, 194);
+                    }
+                    
+                    using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
+                        new System.Drawing.Point(0, 0),
+                        new System.Drawing.Point(panel.Width, 0),
+                        color1,
+                        color2))
+                    {
+                        using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                        {
+                            int radius = 12;
+                            path.AddArc(0, 0, radius * 2, radius * 2, 180, 90);
+                            path.AddArc(panel.Width - radius * 2, 0, radius * 2, radius * 2, 270, 90);
+                            path.AddArc(panel.Width - radius * 2, panel.Height - radius * 2, radius * 2, radius * 2, 0, 90);
+                            path.AddArc(0, panel.Height - radius * 2, radius * 2, radius * 2, 90, 90);
+                            path.CloseAllFigures();
+                            e.Graphics.FillPath(brush, path);
+                        }
+                    }
+                };
+                mainPanel.Controls.Add(titlePanel);
+
+                // Başlık Label
+                var lblTitle = new LabelControl
+                {
+                    Text = "📦 MODELLER",
+                    Location = new System.Drawing.Point(0, 0),
+                    Size = new System.Drawing.Size(contentWidth, 55),
+                    Font = new System.Drawing.Font("Segoe UI", 20F, System.Drawing.FontStyle.Bold),
+                    ForeColor = System.Drawing.Color.White
+                };
+                lblTitle.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+                lblTitle.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+                lblTitle.Appearance.BackColor = System.Drawing.Color.Transparent;
+                lblTitle.Appearance.Options.UseBackColor = true;
+                titlePanel.Controls.Add(lblTitle);
+                yPos += 70;
+
+                // Model listesi için Panel (rounded corners ve shadow)
+                var listPanel = new System.Windows.Forms.Panel
+                {
+                    Location = new System.Drawing.Point(0, yPos),
+                    Size = new System.Drawing.Size(contentWidth, 420),
+                    BackColor = System.Drawing.Color.Transparent
+                };
+                listPanel.Paint += (s, e) =>
+                {
+                    var panel = s as System.Windows.Forms.Panel;
+                    if (panel == null) return;
+                    
+                    // Shadow çiz
+                    var shadowRect = new System.Drawing.Rectangle(3, 3, panel.Width - 6, panel.Height - 6);
+                    using (var shadowBrush = new System.Drawing.SolidBrush(
+                        _currentTheme == ThemeMode.Dark ? 
+                            System.Drawing.Color.FromArgb(10, 10, 10) : 
+                            System.Drawing.Color.FromArgb(200, 200, 200)))
+                    {
+                        e.Graphics.FillRectangle(shadowBrush, shadowRect);
+                    }
+                    
+                    // Ana panel (rounded corners)
+                    var mainRect = new System.Drawing.Rectangle(0, 0, panel.Width - 3, panel.Height - 3);
+                    System.Drawing.Color bgColor = _currentTheme == ThemeMode.Dark ? 
+                        System.Drawing.Color.FromArgb(45, 45, 50) : 
+                        System.Drawing.Color.White;
+                    
+                    using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                    {
+                        int radius = 15;
+                        path.AddArc(0, 0, radius * 2, radius * 2, 180, 90);
+                        path.AddArc(mainRect.Width - radius * 2, 0, radius * 2, radius * 2, 270, 90);
+                        path.AddArc(mainRect.Width - radius * 2, mainRect.Height - radius * 2, radius * 2, radius * 2, 0, 90);
+                        path.AddArc(0, mainRect.Height - radius * 2, radius * 2, radius * 2, 90, 90);
+                        path.CloseAllFigures();
+                        
+                        using (var brush = new System.Drawing.SolidBrush(bgColor))
+                        {
+                            e.Graphics.FillPath(brush, path);
+                        }
+                        
+                        // Border
+                        using (var pen = new System.Drawing.Pen(
+                            _currentTheme == ThemeMode.Dark ? 
+                                System.Drawing.Color.FromArgb(70, 70, 75) : 
+                                System.Drawing.Color.FromArgb(230, 230, 235), 1))
+                        {
+                            e.Graphics.DrawPath(pen, path);
+                        }
+                    }
+                };
+                mainPanel.Controls.Add(listPanel);
+
                 // Model listesi için ListBox
                 var listBoxModels = new System.Windows.Forms.ListBox
                 {
-                    Location = new System.Drawing.Point(20, 20),
-                    Size = new System.Drawing.Size(750, 450),
+                    Location = new System.Drawing.Point(10, 10),
+                    Size = new System.Drawing.Size(contentWidth - 30, 400),
                     Font = new System.Drawing.Font("Segoe UI", 10F),
-                    BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle,
+                    BorderStyle = System.Windows.Forms.BorderStyle.None,
                     BackColor = _currentTheme == ThemeMode.Dark ? 
-                        System.Drawing.Color.FromArgb(40, 40, 40) : 
+                        System.Drawing.Color.FromArgb(45, 45, 50) : 
                         System.Drawing.Color.White,
                     ForeColor = _currentTheme == ThemeMode.Dark ? 
                         System.Drawing.Color.White : 
                         System.Drawing.Color.Black
                 };
-                
-                modelsForm.Controls.Add(listBoxModels);
+                listPanel.Controls.Add(listBoxModels);
 
                 // Modelleri yükle - dosya yollarını saklamak için Dictionary kullan
                 var modelFilePaths = new Dictionary<string, string>(); // Görünen metin -> Tam dosya yolu
@@ -1938,22 +2072,106 @@ namespace PrinterAutomation.Forms
                     listBoxModels.Items.Add("⚠ Modeller yüklenirken hata oluştu: " + ex.Message);
                 }
 
-                // AI Model Analiz Butonu
+                yPos += 440;
+
+                // AI Model Analiz Butonu (Gradient)
                 var btnAIAnalysis = new SimpleButton
                 {
                     Text = "🤖 AI ile Model Analiz Et",
-                    Location = new System.Drawing.Point(20, 490),
-                    Size = new System.Drawing.Size(250, 50),
-                    Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold)
+                    Location = new System.Drawing.Point(0, yPos),
+                    Size = new System.Drawing.Size(260, 50),
+                    Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold),
+                    ShowFocusRectangle = DevExpress.Utils.DefaultBoolean.False
                 };
-                btnAIAnalysis.Appearance.BackColor = System.Drawing.Color.FromArgb(63, 81, 181);
+                btnAIAnalysis.Appearance.BackColor = System.Drawing.Color.Transparent;
                 btnAIAnalysis.Appearance.ForeColor = System.Drawing.Color.White;
                 btnAIAnalysis.Appearance.Options.UseBackColor = true;
                 btnAIAnalysis.Appearance.Options.UseForeColor = true;
-                btnAIAnalysis.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(92, 107, 192);
-                btnAIAnalysis.AppearanceHovered.Options.UseBackColor = true;
+                btnAIAnalysis.Appearance.Options.UseBorderColor = false;
                 btnAIAnalysis.LookAndFeel.UseDefaultLookAndFeel = false;
                 btnAIAnalysis.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+                
+                // Rounded region ayarla
+                using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                {
+                    int radius = 25;
+                    path.AddArc(0, 0, radius * 2, radius * 2, 180, 90);
+                    path.AddArc(btnAIAnalysis.Width - radius * 2, 0, radius * 2, radius * 2, 270, 90);
+                    path.AddArc(btnAIAnalysis.Width - radius * 2, btnAIAnalysis.Height - radius * 2, radius * 2, radius * 2, 0, 90);
+                    path.AddArc(0, btnAIAnalysis.Height - radius * 2, radius * 2, radius * 2, 90, 90);
+                    path.CloseAllFigures();
+                    btnAIAnalysis.Region = new System.Drawing.Region(path);
+                }
+                
+                // Hover durumu takibi
+                bool btnAIAnalysisHover = false;
+                btnAIAnalysis.MouseEnter += (s, e) =>
+                {
+                    btnAIAnalysisHover = true;
+                    btnAIAnalysis.Invalidate();
+                };
+                btnAIAnalysis.MouseLeave += (s, e) =>
+                {
+                    btnAIAnalysisHover = false;
+                    btnAIAnalysis.Invalidate();
+                };
+                
+                // Gradient arka plan için Paint event
+                btnAIAnalysis.Paint += (s, e) =>
+                {
+                    var button = s as SimpleButton;
+                    if (button == null) return;
+                    
+                    System.Drawing.Color color1, color2;
+                    if (btnAIAnalysisHover)
+                    {
+                        color1 = System.Drawing.Color.FromArgb(92, 107, 192);
+                        color2 = System.Drawing.Color.FromArgb(121, 134, 203);
+                    }
+                    else
+                    {
+                        color1 = System.Drawing.Color.FromArgb(63, 81, 181);
+                        color2 = System.Drawing.Color.FromArgb(92, 107, 192);
+                    }
+                    
+                    // Rounded path oluştur
+                    using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                    {
+                        int radius = 25;
+                        path.AddArc(0, 0, radius * 2, radius * 2, 180, 90);
+                        path.AddArc(button.Width - radius * 2, 0, radius * 2, radius * 2, 270, 90);
+                        path.AddArc(button.Width - radius * 2, button.Height - radius * 2, radius * 2, radius * 2, 0, 90);
+                        path.AddArc(0, button.Height - radius * 2, radius * 2, radius * 2, 90, 90);
+                        path.CloseAllFigures();
+                        
+                        // Clipping region ayarla
+                        e.Graphics.SetClip(path);
+                        
+                        // Tüm buton alanını gradient ile doldur
+                        using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
+                            new System.Drawing.Point(0, 0),
+                            new System.Drawing.Point(button.Width, 0),
+                            color1,
+                            color2))
+                        {
+                            e.Graphics.FillRectangle(brush, 0, 0, button.Width, button.Height);
+                        }
+                        
+                        // Clipping'i kaldır
+                        e.Graphics.ResetClip();
+                    }
+                    
+                    // Buton metnini çiz
+                    var textRect = new System.Drawing.Rectangle(0, 0, button.Width, button.Height);
+                    var sf = new System.Drawing.StringFormat
+                    {
+                        Alignment = System.Drawing.StringAlignment.Center,
+                        LineAlignment = System.Drawing.StringAlignment.Center
+                    };
+                    e.Graphics.DrawString(button.Text, button.Font, 
+                        new System.Drawing.SolidBrush(System.Drawing.Color.White), 
+                        textRect, sf);
+                };
                 btnAIAnalysis.Click += (s, args) =>
                 {
                     try
@@ -2083,24 +2301,106 @@ namespace PrinterAutomation.Forms
                             System.Windows.Forms.MessageBoxIcon.Error);
                     }
                 };
-                modelsForm.Controls.Add(btnAIAnalysis);
+                mainPanel.Controls.Add(btnAIAnalysis);
 
-                // Blender AI ile Model Oluştur butonu
+                // Blender AI ile Model Oluştur butonu (Gradient)
                 var btnBlenderAI = new SimpleButton
                 {
                     Text = "🎨 Blender AI ile Model Oluştur",
-                    Location = new System.Drawing.Point(280, 490),
-                    Size = new System.Drawing.Size(250, 50),
-                    Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold)
+                    Location = new System.Drawing.Point(270, yPos),
+                    Size = new System.Drawing.Size(260, 50),
+                    Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold),
+                    ShowFocusRectangle = DevExpress.Utils.DefaultBoolean.False
                 };
-                btnBlenderAI.Appearance.BackColor = System.Drawing.Color.FromArgb(255, 152, 0);
+                btnBlenderAI.Appearance.BackColor = System.Drawing.Color.Transparent;
                 btnBlenderAI.Appearance.ForeColor = System.Drawing.Color.White;
                 btnBlenderAI.Appearance.Options.UseBackColor = true;
                 btnBlenderAI.Appearance.Options.UseForeColor = true;
-                btnBlenderAI.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(255, 167, 38);
-                btnBlenderAI.AppearanceHovered.Options.UseBackColor = true;
+                btnBlenderAI.Appearance.Options.UseBorderColor = false;
                 btnBlenderAI.LookAndFeel.UseDefaultLookAndFeel = false;
                 btnBlenderAI.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+                
+                // Rounded region ayarla
+                using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                {
+                    int radius = 25;
+                    path.AddArc(0, 0, radius * 2, radius * 2, 180, 90);
+                    path.AddArc(btnBlenderAI.Width - radius * 2, 0, radius * 2, radius * 2, 270, 90);
+                    path.AddArc(btnBlenderAI.Width - radius * 2, btnBlenderAI.Height - radius * 2, radius * 2, radius * 2, 0, 90);
+                    path.AddArc(0, btnBlenderAI.Height - radius * 2, radius * 2, radius * 2, 90, 90);
+                    path.CloseAllFigures();
+                    btnBlenderAI.Region = new System.Drawing.Region(path);
+                }
+                
+                // Hover durumu takibi
+                bool btnBlenderAIHover = false;
+                btnBlenderAI.MouseEnter += (s, e) =>
+                {
+                    btnBlenderAIHover = true;
+                    btnBlenderAI.Invalidate();
+                };
+                btnBlenderAI.MouseLeave += (s, e) =>
+                {
+                    btnBlenderAIHover = false;
+                    btnBlenderAI.Invalidate();
+                };
+                
+                // Gradient arka plan için Paint event
+                btnBlenderAI.Paint += (s, e) =>
+                {
+                    var button = s as SimpleButton;
+                    if (button == null) return;
+                    
+                    System.Drawing.Color color1, color2;
+                    if (btnBlenderAIHover)
+                    {
+                        color1 = System.Drawing.Color.FromArgb(255, 167, 38);
+                        color2 = System.Drawing.Color.FromArgb(255, 202, 40);
+                    }
+                    else
+                    {
+                        color1 = System.Drawing.Color.FromArgb(255, 152, 0);
+                        color2 = System.Drawing.Color.FromArgb(255, 193, 7);
+                    }
+                    
+                    // Rounded path oluştur
+                    using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                    {
+                        int radius = 25;
+                        path.AddArc(0, 0, radius * 2, radius * 2, 180, 90);
+                        path.AddArc(button.Width - radius * 2, 0, radius * 2, radius * 2, 270, 90);
+                        path.AddArc(button.Width - radius * 2, button.Height - radius * 2, radius * 2, radius * 2, 0, 90);
+                        path.AddArc(0, button.Height - radius * 2, radius * 2, radius * 2, 90, 90);
+                        path.CloseAllFigures();
+                        
+                        // Clipping region ayarla
+                        e.Graphics.SetClip(path);
+                        
+                        // Tüm buton alanını gradient ile doldur
+                        using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
+                            new System.Drawing.Point(0, 0),
+                            new System.Drawing.Point(button.Width, 0),
+                            color1,
+                            color2))
+                        {
+                            e.Graphics.FillRectangle(brush, 0, 0, button.Width, button.Height);
+                        }
+                        
+                        // Clipping'i kaldır
+                        e.Graphics.ResetClip();
+                    }
+                    
+                    // Buton metnini çiz
+                    var textRect = new System.Drawing.Rectangle(0, 0, button.Width, button.Height);
+                    var sf = new System.Drawing.StringFormat
+                    {
+                        Alignment = System.Drawing.StringAlignment.Center,
+                        LineAlignment = System.Drawing.StringAlignment.Center
+                    };
+                    e.Graphics.DrawString(button.Text, button.Font, 
+                        new System.Drawing.SolidBrush(System.Drawing.Color.White), 
+                        textRect, sf);
+                };
                 btnBlenderAI.Click += (s, args) =>
                 {
                     try
@@ -2140,35 +2440,108 @@ namespace PrinterAutomation.Forms
                             System.Windows.Forms.MessageBoxIcon.Error);
                     }
                 };
-                modelsForm.Controls.Add(btnBlenderAI);
+                mainPanel.Controls.Add(btnBlenderAI);
 
-                // Kapat butonu
+                // Kapat butonu (Gradient)
                 var btnClose = new SimpleButton
                 {
                     Text = "Kapat",
-                    Location = new System.Drawing.Point(650, 490),
-                    Size = new System.Drawing.Size(120, 50),
-                    Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold)
+                    Location = new System.Drawing.Point(540, yPos),
+                    Size = new System.Drawing.Size(140, 50),
+                    Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold),
+                    ShowFocusRectangle = DevExpress.Utils.DefaultBoolean.False
                 };
-                if (_currentTheme == ThemeMode.Dark)
-                {
-                    btnClose.Appearance.BackColor = System.Drawing.Color.FromArgb(66, 66, 66);
-                    btnClose.Appearance.ForeColor = System.Drawing.Color.White;
-                    btnClose.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(80, 80, 80);
-                }
-                else
-                {
-                btnClose.Appearance.BackColor = System.Drawing.Color.FromArgb(158, 158, 158);
+                btnClose.Appearance.BackColor = System.Drawing.Color.Transparent;
                 btnClose.Appearance.ForeColor = System.Drawing.Color.White;
-                    btnClose.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(189, 189, 189);
-                }
                 btnClose.Appearance.Options.UseBackColor = true;
                 btnClose.Appearance.Options.UseForeColor = true;
-                btnClose.AppearanceHovered.Options.UseBackColor = true;
+                btnClose.Appearance.Options.UseBorderColor = false;
                 btnClose.LookAndFeel.UseDefaultLookAndFeel = false;
                 btnClose.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+                
+                // Rounded region ayarla
+                using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                {
+                    int radius = 25;
+                    path.AddArc(0, 0, radius * 2, radius * 2, 180, 90);
+                    path.AddArc(btnClose.Width - radius * 2, 0, radius * 2, radius * 2, 270, 90);
+                    path.AddArc(btnClose.Width - radius * 2, btnClose.Height - radius * 2, radius * 2, radius * 2, 0, 90);
+                    path.AddArc(0, btnClose.Height - radius * 2, radius * 2, radius * 2, 90, 90);
+                    path.CloseAllFigures();
+                    btnClose.Region = new System.Drawing.Region(path);
+                }
+                
+                // Hover durumu takibi
+                bool btnCloseHover = false;
+                btnClose.MouseEnter += (s, e) =>
+                {
+                    btnCloseHover = true;
+                    btnClose.Invalidate();
+                };
+                btnClose.MouseLeave += (s, e) =>
+                {
+                    btnCloseHover = false;
+                    btnClose.Invalidate();
+                };
+                
+                // Gradient arka plan için Paint event
+                btnClose.Paint += (s, e) =>
+                {
+                    var button = s as SimpleButton;
+                    if (button == null) return;
+                    
+                    System.Drawing.Color color1, color2;
+                    if (btnCloseHover)
+                    {
+                        color1 = System.Drawing.Color.FromArgb(30, 150, 235);
+                        color2 = System.Drawing.Color.FromArgb(197, 90, 214);
+                    }
+                    else
+                    {
+                        color1 = System.Drawing.Color.FromArgb(0, 120, 215);
+                        color2 = System.Drawing.Color.FromArgb(177, 70, 194);
+                    }
+                    
+                    // Rounded path oluştur
+                    using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                    {
+                        int radius = 25;
+                        path.AddArc(0, 0, radius * 2, radius * 2, 180, 90);
+                        path.AddArc(button.Width - radius * 2, 0, radius * 2, radius * 2, 270, 90);
+                        path.AddArc(button.Width - radius * 2, button.Height - radius * 2, radius * 2, radius * 2, 0, 90);
+                        path.AddArc(0, button.Height - radius * 2, radius * 2, radius * 2, 90, 90);
+                        path.CloseAllFigures();
+                        
+                        // Clipping region ayarla
+                        e.Graphics.SetClip(path);
+                        
+                        // Tüm buton alanını gradient ile doldur
+                        using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
+                            new System.Drawing.Point(0, 0),
+                            new System.Drawing.Point(button.Width, 0),
+                            color1,
+                            color2))
+                        {
+                            e.Graphics.FillRectangle(brush, 0, 0, button.Width, button.Height);
+                        }
+                        
+                        // Clipping'i kaldır
+                        e.Graphics.ResetClip();
+                    }
+                    
+                    // Buton metnini çiz
+                    var textRect = new System.Drawing.Rectangle(0, 0, button.Width, button.Height);
+                    var sf = new System.Drawing.StringFormat
+                    {
+                        Alignment = System.Drawing.StringAlignment.Center,
+                        LineAlignment = System.Drawing.StringAlignment.Center
+                    };
+                    e.Graphics.DrawString(button.Text, button.Font, 
+                        new System.Drawing.SolidBrush(System.Drawing.Color.White), 
+                        textRect, sf);
+                };
                 btnClose.Click += (s, args) => modelsForm.Close();
-                modelsForm.Controls.Add(btnClose);
+                mainPanel.Controls.Add(btnClose);
 
                 // Formu göster
                 modelsForm.ShowDialog(this);
@@ -2208,37 +2581,111 @@ namespace PrinterAutomation.Forms
             try
             {
                 // Yazıcı modeli ve filament seçim dialog'u oluştur
-                using (var dialog = new System.Windows.Forms.Form())
+                using (var dialog = new XtraForm())
                 {
                     dialog.Text = "Yeni Yazıcı Ekle";
-                    dialog.Size = new System.Drawing.Size(500, 250);
+                    dialog.Size = new System.Drawing.Size(550, 320);
                     dialog.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
                     dialog.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
                     dialog.MaximizeBox = false;
                     dialog.MinimizeBox = false;
                     dialog.ShowInTaskbar = false;
                     dialog.BackColor = _currentTheme == ThemeMode.Dark ? 
-                        System.Drawing.Color.FromArgb(40, 40, 40) : 
-                        System.Drawing.Color.White;
+                        System.Drawing.Color.FromArgb(30, 30, 30) : 
+                        System.Drawing.Color.FromArgb(245, 247, 250);
+
+                    // Ana Panel
+                    var mainPanel = new System.Windows.Forms.Panel
+                    {
+                        Dock = System.Windows.Forms.DockStyle.Fill,
+                        Padding = new System.Windows.Forms.Padding(20),
+                        BackColor = System.Drawing.Color.Transparent
+                    };
+                    dialog.Controls.Add(mainPanel);
+
+                    int yPos = 20;
+                    int contentWidth = 490;
+                    int availableWidth = mainPanel.Width - (mainPanel.Padding.Left + mainPanel.Padding.Right);
+                    int startX = (availableWidth - contentWidth) / 2; // Ortala
+
+                    // Başlık Paneli (Gradient arka plan)
+                    var titlePanel = new System.Windows.Forms.Panel
+                    {
+                        Location = new System.Drawing.Point(startX, 0),
+                        Size = new System.Drawing.Size(contentWidth, 50),
+                        BackColor = System.Drawing.Color.Transparent
+                    };
+                    titlePanel.Paint += (s, e) =>
+                    {
+                        var panel = s as System.Windows.Forms.Panel;
+                        if (panel == null) return;
+                        
+                        System.Drawing.Color color1, color2;
+                        if (_currentTheme == ThemeMode.Dark)
+                        {
+                            color1 = System.Drawing.Color.FromArgb(50, 50, 60);
+                            color2 = System.Drawing.Color.FromArgb(70, 50, 80);
+                        }
+                        else
+                        {
+                            color1 = System.Drawing.Color.FromArgb(0, 120, 215);
+                            color2 = System.Drawing.Color.FromArgb(177, 70, 194);
+                        }
+                        
+                        using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
+                            new System.Drawing.Point(0, 0),
+                            new System.Drawing.Point(panel.Width, 0),
+                            color1,
+                            color2))
+                        {
+                            using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                            {
+                                int radius = 12;
+                                path.AddArc(0, 0, radius * 2, radius * 2, 180, 90);
+                                path.AddArc(panel.Width - radius * 2, 0, radius * 2, radius * 2, 270, 90);
+                                path.AddArc(panel.Width - radius * 2, panel.Height - radius * 2, radius * 2, radius * 2, 0, 90);
+                                path.AddArc(0, panel.Height - radius * 2, radius * 2, radius * 2, 90, 90);
+                                path.CloseAllFigures();
+                                e.Graphics.FillPath(brush, path);
+                            }
+                        }
+                    };
+                    mainPanel.Controls.Add(titlePanel);
+
+                    // Başlık Label
+                    var lblTitle = new LabelControl
+                    {
+                        Text = "                    YENİ YAZICI EKLE",
+                        Location = new System.Drawing.Point(0, 0),
+                        Size = new System.Drawing.Size(contentWidth, 50),
+                        Font = new System.Drawing.Font("Segoe UI", 16F, System.Drawing.FontStyle.Bold),
+                        ForeColor = System.Drawing.Color.White
+                    };
+                    lblTitle.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+                    lblTitle.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+                    lblTitle.Appearance.BackColor = System.Drawing.Color.Transparent;
+                    lblTitle.Appearance.Options.UseBackColor = true;
+                    titlePanel.Controls.Add(lblTitle);
+                    yPos += 70;
 
                     // Yazıcı Modeli Label
                     var lblModel = new LabelControl
                     {
                         Text = "Yazıcı Modeli:",
-                        Location = new System.Drawing.Point(20, 30),
-                        Size = new System.Drawing.Size(120, 20),
-                        Font = new System.Drawing.Font("Segoe UI", 10F),
+                        Location = new System.Drawing.Point(startX, yPos),
+                        Size = new System.Drawing.Size(140, 25),
+                        Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold),
                         ForeColor = _currentTheme == ThemeMode.Dark ? 
                             System.Drawing.Color.FromArgb(230, 230, 230) : 
-                            System.Drawing.Color.Black
+                            System.Drawing.Color.FromArgb(66, 66, 66)
                     };
-                    dialog.Controls.Add(lblModel);
+                    mainPanel.Controls.Add(lblModel);
 
                     // Yazıcı Modeli ComboBox
                     var comboModel = new ComboBoxEdit
                     {
-                        Location = new System.Drawing.Point(150, 27),
-                        Size = new System.Drawing.Size(300, 25),
+                        Location = new System.Drawing.Point(startX + 150, yPos),
+                        Size = new System.Drawing.Size(340, 30),
                         Font = new System.Drawing.Font("Segoe UI", 10F)
                     };
                     
@@ -2255,26 +2702,27 @@ namespace PrinterAutomation.Forms
                         comboModel.ForeColor = System.Drawing.Color.FromArgb(230, 230, 230);
                     }
                     
-                    dialog.Controls.Add(comboModel);
+                    mainPanel.Controls.Add(comboModel);
+                    yPos += 50;
 
                     // Filament Label
                     var lblFilament = new LabelControl
                     {
                         Text = "Filament Tipi:",
-                        Location = new System.Drawing.Point(20, 80),
-                        Size = new System.Drawing.Size(120, 20),
-                        Font = new System.Drawing.Font("Segoe UI", 10F),
+                        Location = new System.Drawing.Point(startX, yPos),
+                        Size = new System.Drawing.Size(140, 25),
+                        Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold),
                         ForeColor = _currentTheme == ThemeMode.Dark ? 
                             System.Drawing.Color.FromArgb(230, 230, 230) : 
-                            System.Drawing.Color.Black
+                            System.Drawing.Color.FromArgb(66, 66, 66)
                     };
-                    dialog.Controls.Add(lblFilament);
+                    mainPanel.Controls.Add(lblFilament);
 
                     // Filament ComboBox
                     var comboFilament = new ComboBoxEdit
                     {
-                        Location = new System.Drawing.Point(150, 77),
-                        Size = new System.Drawing.Size(300, 25),
+                        Location = new System.Drawing.Point(startX + 150, yPos),
+                        Size = new System.Drawing.Size(340, 30),
                         Font = new System.Drawing.Font("Segoe UI", 10F)
                     };
                     
@@ -2291,41 +2739,196 @@ namespace PrinterAutomation.Forms
                         comboFilament.ForeColor = System.Drawing.Color.FromArgb(230, 230, 230);
                     }
                     
-                    dialog.Controls.Add(comboFilament);
+                    mainPanel.Controls.Add(comboFilament);
+                    yPos += 60;
 
                     // Butonlar
                     var btnOK = new SimpleButton
                     {
                         Text = "Ekle",
-                        Location = new System.Drawing.Point(280, 130),
-                        Size = new System.Drawing.Size(80, 35),
+                        Location = new System.Drawing.Point(startX + 200, yPos),
+                        Size = new System.Drawing.Size(100, 42),
                         DialogResult = System.Windows.Forms.DialogResult.OK,
-                        Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold)
+                        Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold),
+                        ShowFocusRectangle = DevExpress.Utils.DefaultBoolean.False
                     };
-                    btnOK.Appearance.BackColor = System.Drawing.Color.FromArgb(33, 150, 243);
+                    btnOK.Appearance.BackColor = System.Drawing.Color.Transparent;
                     btnOK.Appearance.ForeColor = System.Drawing.Color.White;
                     btnOK.Appearance.Options.UseBackColor = true;
                     btnOK.Appearance.Options.UseForeColor = true;
                     btnOK.LookAndFeel.UseDefaultLookAndFeel = false;
                     btnOK.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
-                    dialog.Controls.Add(btnOK);
+                    
+                    // Rounded region ayarla
+                    using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                    {
+                        int radius = 20;
+                        path.AddArc(0, 0, radius * 2, radius * 2, 180, 90);
+                        path.AddArc(btnOK.Width - radius * 2, 0, radius * 2, radius * 2, 270, 90);
+                        path.AddArc(btnOK.Width - radius * 2, btnOK.Height - radius * 2, radius * 2, radius * 2, 0, 90);
+                        path.AddArc(0, btnOK.Height - radius * 2, radius * 2, radius * 2, 90, 90);
+                        path.CloseAllFigures();
+                        btnOK.Region = new System.Drawing.Region(path);
+                    }
+                    
+                    // Gradient arka plan için Paint event
+                    bool btnOKHover = false;
+                    btnOK.MouseEnter += (s, e) =>
+                    {
+                        btnOKHover = true;
+                        btnOK.Invalidate();
+                    };
+                    btnOK.MouseLeave += (s, e) =>
+                    {
+                        btnOKHover = false;
+                        btnOK.Invalidate();
+                    };
+                    
+                    btnOK.Paint += (s, e) =>
+                    {
+                        var button = s as SimpleButton;
+                        if (button == null) return;
+                        
+                        System.Drawing.Color color1, color2;
+                        if (btnOKHover)
+                        {
+                            color1 = System.Drawing.Color.FromArgb(63, 81, 181);
+                            color2 = System.Drawing.Color.FromArgb(92, 107, 192);
+                        }
+                        else
+                        {
+                            color1 = System.Drawing.Color.FromArgb(33, 150, 243);
+                            color2 = System.Drawing.Color.FromArgb(25, 118, 210);
+                        }
+                        
+                        using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                        {
+                            int radius = 20;
+                            path.AddArc(0, 0, radius * 2, radius * 2, 180, 90);
+                            path.AddArc(button.Width - radius * 2, 0, radius * 2, radius * 2, 270, 90);
+                            path.AddArc(button.Width - radius * 2, button.Height - radius * 2, radius * 2, radius * 2, 0, 90);
+                            path.AddArc(0, button.Height - radius * 2, radius * 2, radius * 2, 90, 90);
+                            path.CloseAllFigures();
+                            
+                            e.Graphics.SetClip(path);
+                            
+                            using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
+                                new System.Drawing.Point(0, 0),
+                                new System.Drawing.Point(button.Width, 0),
+                                color1,
+                                color2))
+                            {
+                                e.Graphics.FillRectangle(brush, 0, 0, button.Width, button.Height);
+                            }
+                            
+                            e.Graphics.ResetClip();
+                        }
+                        
+                        var textRect = new System.Drawing.Rectangle(0, 0, button.Width, button.Height);
+                        var sf = new System.Drawing.StringFormat
+                        {
+                            Alignment = System.Drawing.StringAlignment.Center,
+                            LineAlignment = System.Drawing.StringAlignment.Center
+                        };
+                        e.Graphics.DrawString(button.Text, button.Font, 
+                            new System.Drawing.SolidBrush(System.Drawing.Color.White), 
+                            textRect, sf);
+                    };
+                    mainPanel.Controls.Add(btnOK);
                     dialog.AcceptButton = btnOK;
 
                     var btnCancel = new SimpleButton
                     {
                         Text = "İptal",
-                        Location = new System.Drawing.Point(370, 130),
-                        Size = new System.Drawing.Size(80, 35),
+                        Location = new System.Drawing.Point(startX + 310, yPos),
+                        Size = new System.Drawing.Size(100, 42),
                         DialogResult = System.Windows.Forms.DialogResult.Cancel,
-                        Font = new System.Drawing.Font("Segoe UI", 10F)
+                        Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold),
+                        ShowFocusRectangle = DevExpress.Utils.DefaultBoolean.False
                     };
-                    btnCancel.Appearance.BackColor = System.Drawing.Color.FromArgb(158, 158, 158);
+                    btnCancel.Appearance.BackColor = System.Drawing.Color.Transparent;
                     btnCancel.Appearance.ForeColor = System.Drawing.Color.White;
                     btnCancel.Appearance.Options.UseBackColor = true;
                     btnCancel.Appearance.Options.UseForeColor = true;
                     btnCancel.LookAndFeel.UseDefaultLookAndFeel = false;
                     btnCancel.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
-                    dialog.Controls.Add(btnCancel);
+                    
+                    // Rounded region ayarla
+                    using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                    {
+                        int radius = 20;
+                        path.AddArc(0, 0, radius * 2, radius * 2, 180, 90);
+                        path.AddArc(btnCancel.Width - radius * 2, 0, radius * 2, radius * 2, 270, 90);
+                        path.AddArc(btnCancel.Width - radius * 2, btnCancel.Height - radius * 2, radius * 2, radius * 2, 0, 90);
+                        path.AddArc(0, btnCancel.Height - radius * 2, radius * 2, radius * 2, 90, 90);
+                        path.CloseAllFigures();
+                        btnCancel.Region = new System.Drawing.Region(path);
+                    }
+                    
+                    // Gradient arka plan için Paint event
+                    bool btnCancelHover = false;
+                    btnCancel.MouseEnter += (s, e) =>
+                    {
+                        btnCancelHover = true;
+                        btnCancel.Invalidate();
+                    };
+                    btnCancel.MouseLeave += (s, e) =>
+                    {
+                        btnCancelHover = false;
+                        btnCancel.Invalidate();
+                    };
+                    
+                    btnCancel.Paint += (s, e) =>
+                    {
+                        var button = s as SimpleButton;
+                        if (button == null) return;
+                        
+                        System.Drawing.Color color1, color2;
+                        if (btnCancelHover)
+                        {
+                            color1 = System.Drawing.Color.FromArgb(189, 189, 189);
+                            color2 = System.Drawing.Color.FromArgb(158, 158, 158);
+                        }
+                        else
+                        {
+                            color1 = System.Drawing.Color.FromArgb(158, 158, 158);
+                            color2 = System.Drawing.Color.FromArgb(140, 140, 140);
+                        }
+                        
+                        using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                        {
+                            int radius = 20;
+                            path.AddArc(0, 0, radius * 2, radius * 2, 180, 90);
+                            path.AddArc(button.Width - radius * 2, 0, radius * 2, radius * 2, 270, 90);
+                            path.AddArc(button.Width - radius * 2, button.Height - radius * 2, radius * 2, radius * 2, 0, 90);
+                            path.AddArc(0, button.Height - radius * 2, radius * 2, radius * 2, 90, 90);
+                            path.CloseAllFigures();
+                            
+                            e.Graphics.SetClip(path);
+                            
+                            using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
+                                new System.Drawing.Point(0, 0),
+                                new System.Drawing.Point(button.Width, 0),
+                                color1,
+                                color2))
+                            {
+                                e.Graphics.FillRectangle(brush, 0, 0, button.Width, button.Height);
+                            }
+                            
+                            e.Graphics.ResetClip();
+                        }
+                        
+                        var textRect = new System.Drawing.Rectangle(0, 0, button.Width, button.Height);
+                        var sf = new System.Drawing.StringFormat
+                        {
+                            Alignment = System.Drawing.StringAlignment.Center,
+                            LineAlignment = System.Drawing.StringAlignment.Center
+                        };
+                        e.Graphics.DrawString(button.Text, button.Font, 
+                            new System.Drawing.SolidBrush(System.Drawing.Color.White), 
+                            textRect, sf);
+                    };
+                    mainPanel.Controls.Add(btnCancel);
                     dialog.CancelButton = btnCancel;
 
                     if (dialog.ShowDialog(this) == System.Windows.Forms.DialogResult.OK)
@@ -2890,7 +3493,7 @@ namespace PrinterAutomation.Forms
                 colSiparisNo.Visible = true;
                 colSiparisNo.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
                 colSiparisNo.AppearanceCell.Options.UseTextOptions = true;
-                
+
                 var colMusteri = gridView.Columns.AddField("Müşteri");
                 colMusteri.Caption = "Müşteri";
                 colMusteri.VisibleIndex = 1;
@@ -2898,7 +3501,7 @@ namespace PrinterAutomation.Forms
                 colMusteri.Visible = true;
                 colMusteri.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
                 colMusteri.AppearanceCell.Options.UseTextOptions = true;
-                
+
                 var colTarih = gridView.Columns.AddField("Tarih");
                 colTarih.Caption = "Tarih";
                 colTarih.VisibleIndex = 2;
@@ -2906,7 +3509,7 @@ namespace PrinterAutomation.Forms
                 colTarih.Visible = true;
                 colTarih.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
                 colTarih.AppearanceCell.Options.UseTextOptions = true;
-                
+
                 var colTutar = gridView.Columns.AddField("Tutar");
                 colTutar.Caption = "Tutar (TL)";
                 colTutar.VisibleIndex = 3;
@@ -2918,7 +3521,7 @@ namespace PrinterAutomation.Forms
                 colTutar.Visible = true;
                 colTutar.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
                 colTutar.AppearanceCell.Options.UseTextOptions = true;
-                
+
                 var colUrunSayisi = gridView.Columns.AddField("ÜrünSayısı");
                 colUrunSayisi.Caption = "Ürün Sayısı";
                 colUrunSayisi.VisibleIndex = 4;
@@ -2926,7 +3529,7 @@ namespace PrinterAutomation.Forms
                 colUrunSayisi.Visible = true;
                 colUrunSayisi.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
                 colUrunSayisi.AppearanceCell.Options.UseTextOptions = true;
-                
+
                 var colDurum = gridView.Columns.AddField("Durum");
                 colDurum.Caption = "Durum";
                 colDurum.VisibleIndex = 5;
@@ -3434,7 +4037,7 @@ namespace PrinterAutomation.Forms
                 btnDeleteCompletedJobs.AppearanceHovered.BackColor = System.Drawing.Color.FromArgb(229, 57, 53);
                 btnDeleteCompletedJobs.AppearancePressed.BackColor = System.Drawing.Color.FromArgb(198, 40, 40);
             }
-            
+
             // Kazanç Detayları butonu (açık tema)
             if (btnShowEarnings != null)
             {
@@ -4821,20 +5424,66 @@ namespace PrinterAutomation.Forms
                 int availableWidth = mainPanel.Width - (mainPanel.Padding.Left + mainPanel.Padding.Right);
                 int startX = (availableWidth - contentWidth) / 2; // Ortala
 
-                // Başlık
+                // Başlık Paneli (Gradient arka plan)
+                var titlePanel = new System.Windows.Forms.Panel
+                {
+                    Location = new System.Drawing.Point(startX, yPos),
+                    Size = new System.Drawing.Size(contentWidth, 50),
+                    BackColor = System.Drawing.Color.Transparent
+                };
+                titlePanel.Paint += (s, e) =>
+                {
+                    var panel = s as System.Windows.Forms.Panel;
+                    if (panel == null) return;
+                    
+                    System.Drawing.Color color1, color2;
+                    if (_currentTheme == ThemeMode.Dark)
+                    {
+                        color1 = System.Drawing.Color.FromArgb(50, 50, 60);
+                        color2 = System.Drawing.Color.FromArgb(70, 50, 80);
+                    }
+                    else
+                    {
+                        color1 = System.Drawing.Color.FromArgb(0, 120, 215);
+                        color2 = System.Drawing.Color.FromArgb(177, 70, 194);
+                    }
+                    
+                    using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
+                        new System.Drawing.Point(0, 0),
+                        new System.Drawing.Point(panel.Width, 0),
+                        color1,
+                        color2))
+                    {
+                        // Rounded corners için GraphicsPath
+                        using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                        {
+                            int radius = 12;
+                            path.AddArc(0, 0, radius * 2, radius * 2, 180, 90);
+                            path.AddArc(panel.Width - radius * 2, 0, radius * 2, radius * 2, 270, 90);
+                            path.AddArc(panel.Width - radius * 2, panel.Height - radius * 2, radius * 2, radius * 2, 0, 90);
+                            path.AddArc(0, panel.Height - radius * 2, radius * 2, radius * 2, 90, 90);
+                            path.CloseAllFigures();
+                            e.Graphics.FillPath(brush, path);
+                        }
+                    }
+                };
+                mainPanel.Controls.Add(titlePanel);
+
+                // Başlık Label
                 var lblTitle = new LabelControl
                 {
                     Text = $"🖨️ {printer.Name}",
-                    Location = new System.Drawing.Point(startX, yPos),
-                    Size = new System.Drawing.Size(contentWidth, 35),
+                    Location = new System.Drawing.Point(0, 0),
+                    Size = new System.Drawing.Size(contentWidth, 50),
                     Font = new System.Drawing.Font("Segoe UI", 18F, System.Drawing.FontStyle.Bold),
-                    ForeColor = _currentTheme == ThemeMode.Dark ? 
-                        System.Drawing.Color.FromArgb(240, 240, 240) : 
-                        System.Drawing.Color.Black
+                    ForeColor = System.Drawing.Color.White
                 };
                 lblTitle.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
-                mainPanel.Controls.Add(lblTitle);
-                yPos += 40; // 50'den 40'a düşürüldü (boşluk azaltıldı)
+                lblTitle.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+                lblTitle.Appearance.BackColor = System.Drawing.Color.Transparent;
+                lblTitle.Appearance.Options.UseBackColor = true;
+                titlePanel.Controls.Add(lblTitle);
+                yPos += 60; // Başlık paneli yüksekliği + boşluk
 
                 // Durum bilgisi
                 string statusText = "";
@@ -4894,15 +5543,58 @@ namespace PrinterAutomation.Forms
                 {
                     Location = new System.Drawing.Point(0, 0),
                     Size = new System.Drawing.Size(contentWidth, scrollPanelHeight), // Başlangıçta scrollPanel yüksekliği
-                    BackColor = _currentTheme == ThemeMode.Dark ? 
-                        System.Drawing.Color.FromArgb(40, 40, 40) : 
-                        System.Drawing.Color.White,
-                    BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle,
-                    Padding = new System.Windows.Forms.Padding(10) // 15'ten 10'a düşürüldü
+                    BackColor = System.Drawing.Color.Transparent,
+                    Padding = new System.Windows.Forms.Padding(15) // Padding artırıldı
+                };
+                // Rounded corners ve shadow için Paint event
+                detailsPanel.Paint += (s, e) =>
+                {
+                    var panel = s as System.Windows.Forms.Panel;
+                    if (panel == null) return;
+                    
+                    // Shadow çiz
+                    var shadowRect = new System.Drawing.Rectangle(3, 3, panel.Width - 6, panel.Height - 6);
+                    using (var shadowBrush = new System.Drawing.SolidBrush(
+                        _currentTheme == ThemeMode.Dark ? 
+                            System.Drawing.Color.FromArgb(10, 10, 10) : 
+                            System.Drawing.Color.FromArgb(200, 200, 200)))
+                    {
+                        e.Graphics.FillRectangle(shadowBrush, shadowRect);
+                    }
+                    
+                    // Ana panel (rounded corners)
+                    var mainRect = new System.Drawing.Rectangle(0, 0, panel.Width - 3, panel.Height - 3);
+                    System.Drawing.Color bgColor = _currentTheme == ThemeMode.Dark ? 
+                        System.Drawing.Color.FromArgb(45, 45, 50) : 
+                        System.Drawing.Color.White;
+                    
+                    using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                    {
+                        int radius = 15;
+                        path.AddArc(0, 0, radius * 2, radius * 2, 180, 90);
+                        path.AddArc(mainRect.Width - radius * 2, 0, radius * 2, radius * 2, 270, 90);
+                        path.AddArc(mainRect.Width - radius * 2, mainRect.Height - radius * 2, radius * 2, radius * 2, 0, 90);
+                        path.AddArc(0, mainRect.Height - radius * 2, radius * 2, radius * 2, 90, 90);
+                        path.CloseAllFigures();
+                        
+                        using (var brush = new System.Drawing.SolidBrush(bgColor))
+                        {
+                            e.Graphics.FillPath(brush, path);
+                        }
+                        
+                        // Border
+                        using (var pen = new System.Drawing.Pen(
+                            _currentTheme == ThemeMode.Dark ? 
+                                System.Drawing.Color.FromArgb(70, 70, 75) : 
+                                System.Drawing.Color.FromArgb(230, 230, 235), 1))
+                        {
+                            e.Graphics.DrawPath(pen, path);
+                        }
+                    }
                 };
                 scrollPanel.Controls.Add(detailsPanel);
 
-                int detailY = 10; // Padding azaldığı için 15'ten 10'a düşürüldü
+                int detailY = 15; // Padding artırıldı
 
                 // Yazıcı ID
                 CreateDetailRow(detailsPanel, "Yazıcı ID:", printer.Id.ToString(), detailY);
@@ -5123,22 +5815,63 @@ namespace PrinterAutomation.Forms
                     detailsPanel.Height = calculatedHeight;
                 }
 
-                // Kapat Butonu
+                // Kapat Butonu (Gradient)
                 var closeButton = new SimpleButton
                 {
                     Text = "Kapat",
-                    Size = new System.Drawing.Size(120, 40),
-                    Location = new System.Drawing.Point(detailsForm.Width - 150, detailsForm.Height - 80),
+                    Size = new System.Drawing.Size(140, 42),
+                    Location = new System.Drawing.Point(detailsForm.Width - 160, detailsForm.Height - 80),
                     Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right,
                     DialogResult = System.Windows.Forms.DialogResult.OK,
-                    Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold)
+                    Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold),
+                    ShowFocusRectangle = DevExpress.Utils.DefaultBoolean.False
                 };
-                closeButton.Appearance.BackColor = System.Drawing.Color.FromArgb(33, 150, 243);
+                closeButton.Appearance.BackColor = System.Drawing.Color.Transparent;
                 closeButton.Appearance.ForeColor = System.Drawing.Color.White;
                 closeButton.Appearance.Options.UseBackColor = true;
                 closeButton.Appearance.Options.UseForeColor = true;
                 closeButton.LookAndFeel.UseDefaultLookAndFeel = false;
                 closeButton.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+                
+                // Gradient arka plan için Paint event
+                closeButton.Paint += (s, e) =>
+                {
+                    var button = s as SimpleButton;
+                    if (button == null) return;
+                    
+                    System.Drawing.Color color1 = System.Drawing.Color.FromArgb(0, 120, 215);
+                    System.Drawing.Color color2 = System.Drawing.Color.FromArgb(177, 70, 194);
+                    
+                    using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                    {
+                        int radius = 20;
+                        path.AddArc(0, 0, radius * 2, radius * 2, 180, 90);
+                        path.AddArc(button.Width - radius * 2, 0, radius * 2, radius * 2, 270, 90);
+                        path.AddArc(button.Width - radius * 2, button.Height - radius * 2, radius * 2, radius * 2, 0, 90);
+                        path.AddArc(0, button.Height - radius * 2, radius * 2, radius * 2, 90, 90);
+                        path.CloseAllFigures();
+                        
+                        using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
+                            new System.Drawing.Point(0, 0),
+                            new System.Drawing.Point(button.Width, 0),
+                            color1,
+                            color2))
+                        {
+                            e.Graphics.FillPath(brush, path);
+                        }
+                    }
+                    
+                    // Buton metnini çiz
+                    var textRect = new System.Drawing.Rectangle(0, 0, button.Width, button.Height);
+                    var sf = new System.Drawing.StringFormat
+                    {
+                        Alignment = System.Drawing.StringAlignment.Center,
+                        LineAlignment = System.Drawing.StringAlignment.Center
+                    };
+                    e.Graphics.DrawString(button.Text, button.Font, 
+                        new System.Drawing.SolidBrush(System.Drawing.Color.White), 
+                        textRect, sf);
+                };
                 detailsForm.Controls.Add(closeButton);
                 detailsForm.AcceptButton = closeButton;
 

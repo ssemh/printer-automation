@@ -111,16 +111,37 @@ namespace PrinterAutomation.Forms
             btnLogin.AppearanceHovered.Options.UseForeColor = true;
             btnLogin.AppearancePressed.ForeColor = System.Drawing.Color.White;
             btnLogin.AppearancePressed.Options.UseForeColor = true;
-            // WXI skin kullan (LookAndFeel ayarlarını kaldırdık)
+            // Hover durumu takibi
+            bool btnLoginHover = false;
+            btnLogin.MouseEnter += (s, e) =>
+            {
+                btnLoginHover = true;
+                btnLogin.Invalidate();
+            };
+            btnLogin.MouseLeave += (s, e) =>
+            {
+                btnLoginHover = false;
+                btnLogin.Invalidate();
+            };
+            
             // Gradient için Paint event ekle
             btnLogin.Paint += (s, e) =>
             {
                 var button = s as SimpleButton;
                 if (button == null) return;
 
-                // Mavi'den mora gradient (soldan sağa)
-                System.Drawing.Color color1 = System.Drawing.Color.FromArgb(0, 120, 215); // Windows 11 mavi
-                System.Drawing.Color color2 = System.Drawing.Color.FromArgb(177, 70, 194); // Mor
+                // Mavi'den mora gradient (soldan sağa) - hover durumuna göre renkler
+                System.Drawing.Color color1, color2;
+                if (btnLoginHover)
+                {
+                    color1 = System.Drawing.Color.FromArgb(30, 150, 235); // Daha parlak mavi
+                    color2 = System.Drawing.Color.FromArgb(197, 90, 214); // Daha parlak mor
+                }
+                else
+                {
+                    color1 = System.Drawing.Color.FromArgb(0, 120, 215); // Windows 11 mavi
+                    color2 = System.Drawing.Color.FromArgb(177, 70, 194); // Mor
+                }
 
                 using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
                     button.ClientRectangle,
