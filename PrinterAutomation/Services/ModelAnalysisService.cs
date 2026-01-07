@@ -6,8 +6,6 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Configuration;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using PrinterAutomation.Models;
 
 namespace PrinterAutomation.Services
@@ -118,7 +116,7 @@ namespace PrinterAutomation.Services
                                     result.EstimatedFilamentMeters = geminiResult.FilamentAmount.Meters;
                                     result.EstimatedPrintTimeHours = geminiResult.PrintTime.Hours + (geminiResult.PrintTime.Minutes / 60.0);
                                     result.GeminiAnalysis = geminiResult.Analysis;
-                                    
+                        
                                     // Gemini'den gelen maliyet değerlerini kullan
                                     result.FilamentCost = (decimal)geminiResult.Costs.Filament;
                                     
@@ -196,15 +194,15 @@ namespace PrinterAutomation.Services
                     // Fallback: Manuel hesaplama
                     if (result.FilamentCost == 0)
                     {
-                        result.FilamentCost = (decimal)result.EstimatedFilamentGrams * FilamentCostPerGram;
+                result.FilamentCost = (decimal)result.EstimatedFilamentGrams * FilamentCostPerGram;
                     }
                     electricityCost = (decimal)result.EstimatedPrintTimeHours * ElectricityCostPerHour;
                     laborCost = (decimal)result.EstimatedPrintTimeHours * LaborCostPerHour;
                     totalCost = result.FilamentCost + electricityCost + laborCost;
-                    
-                    // Kar marjı ile fiyat önerisi
-                    result.ProfitMargin = totalCost * (ProfitMarginPercent / 100.0m);
-                    result.RecommendedPrice = totalCost + result.ProfitMargin;
+
+                // Kar marjı ile fiyat önerisi
+                result.ProfitMargin = totalCost * (ProfitMarginPercent / 100.0m);
+                result.RecommendedPrice = totalCost + result.ProfitMargin;
                     result.TotalCost = totalCost; // TotalCost'u kaydet
                 }
 

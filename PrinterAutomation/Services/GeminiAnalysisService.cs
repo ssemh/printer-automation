@@ -5,57 +5,57 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Configuration;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using PrinterAutomation.Models;
 
 namespace PrinterAutomation.Services
 {
     public class GeminiAnalysisResult
     {
-        [JsonProperty("filamentAmount")]
+        [JsonPropertyName("filamentAmount")]
         public FilamentAmount FilamentAmount { get; set; } = new FilamentAmount();
         
-        [JsonProperty("printTime")]
+        [JsonPropertyName("printTime")]
         public PrintTime PrintTime { get; set; } = new PrintTime();
         
-        [JsonProperty("costs")]
+        [JsonPropertyName("costs")]
         public Costs Costs { get; set; } = new Costs();
         
-        [JsonProperty("recommendedPrice")]
+        [JsonPropertyName("recommendedPrice")]
         public double RecommendedPrice { get; set; }
         
-        [JsonProperty("analysis")]
+        [JsonPropertyName("analysis")]
         public string Analysis { get; set; } = string.Empty;
     }
 
     public class FilamentAmount
     {
-        [JsonProperty("grams")]
+        [JsonPropertyName("grams")]
         public double Grams { get; set; }
         
-        [JsonProperty("meters")]
+        [JsonPropertyName("meters")]
         public double Meters { get; set; }
     }
 
     public class PrintTime
     {
-        [JsonProperty("hours")]
+        [JsonPropertyName("hours")]
         public int Hours { get; set; }
         
-        [JsonProperty("minutes")]
+        [JsonPropertyName("minutes")]
         public int Minutes { get; set; }
     }
 
     public class Costs
     {
-        [JsonProperty("filament")]
+        [JsonPropertyName("filament")]
         public double Filament { get; set; }
         
-        [JsonProperty("electricity")]
+        [JsonPropertyName("electricity")]
         public double Electricity { get; set; }
         
-        [JsonProperty("total")]
+        [JsonPropertyName("total")]
         public double Total { get; set; }
     }
 
@@ -186,7 +186,7 @@ Yanıtını JSON formatında ver (sadece JSON, başka açıklama ekleme):
                     System.Diagnostics.Debug.WriteLine($"[GeminiAnalysis] STL dosyası yüklenemedi, sadece text prompt gönderiliyor");
                 }
 
-                string json = JsonConvert.SerializeObject(requestBody);
+                string json = JsonSerializer.Serialize(requestBody);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
                 using (var httpClient = new HttpClient())
@@ -209,18 +209,17 @@ Yanıtını JSON formatında ver (sadece JSON, başka açıklama ekleme):
                         System.Diagnostics.Debug.WriteLine($"[GeminiAnalysis] Response alındı, uzunluk: {responseContent.Length}");
                         System.Console.WriteLine($"[GeminiAnalysis] Response alındı");
                         
-                        var responseJson = JObject.Parse(responseContent);
-
+                        using (var responseJson = JsonDocument.Parse(responseContent))
+                        {
                         // Gemini yanıtını parse et
-                        var candidates = responseJson["candidates"];
-                        if (candidates == null || !candidates.HasValues)
+                            if (!responseJson.RootElement.TryGetProperty("candidates", out var candidates) || candidates.ValueKind != JsonValueKind.Array || candidates.GetArrayLength() == 0)
                         {
                             System.Diagnostics.Debug.WriteLine($"[GeminiAnalysis] Candidates bulunamadı. Response: {responseContent.Substring(0, Math.Min(500, responseContent.Length))}");
                             throw new InvalidOperationException("API yanıtında candidates bulunamadı");
                         }
 
                         var candidate = candidates[0];
-                        var textContent = candidate["content"]?["parts"]?[0]?["text"]?.ToString() ?? "";
+                            var textContent = candidate.GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString() ?? "";
                         
                         System.Diagnostics.Debug.WriteLine($"[GeminiAnalysis] Text content uzunluğu: {textContent.Length}");
                         System.Console.WriteLine($"[GeminiAnalysis] Text content alındı");
@@ -231,10 +230,10 @@ Yanıtını JSON formatında ver (sadece JSON, başka açıklama ekleme):
                         System.Diagnostics.Debug.WriteLine($"[GeminiAnalysis] Extracted JSON: {jsonResponse.Substring(0, Math.Min(500, jsonResponse.Length))}");
                         System.Console.WriteLine($"[GeminiAnalysis] JSON extracted");
 
-                        var result = JsonConvert.DeserializeObject<GeminiAnalysisResult>(jsonResponse, new JsonSerializerSettings
+                            var result = JsonSerializer.Deserialize<GeminiAnalysisResult>(jsonResponse, new JsonSerializerOptions
                         {
-                            NullValueHandling = NullValueHandling.Ignore,
-                            MissingMemberHandling = MissingMemberHandling.Ignore
+                                PropertyNameCaseInsensitive = true,
+                                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
                         });
                         
                         if (result != null)
@@ -264,6 +263,7 @@ Yanıtını JSON formatında ver (sadece JSON, başka açıklama ekleme):
                         }
 
                         return result;
+                        }
                     }
                 }
             }
@@ -336,7 +336,7 @@ Yanıtını JSON formatında ver (sadece JSON, başka açıklama ekleme):
                             displayName = fileName
                         }
                     };
-                    var metadataJson = JsonConvert.SerializeObject(metadata);
+                    var metadataJson = JsonSerializer.Serialize(metadata);
                     multipartContent.Add(new StringContent(metadataJson, Encoding.UTF8, "application/json"), "metadata");
                     
                     // File data
@@ -358,27 +358,38 @@ Yanıtını JSON formatında ver (sadece JSON, başka açıklama ekleme):
                         string responseContent = await response.Content.ReadAsStringAsync();
                         System.Diagnostics.Debug.WriteLine($"[GeminiAnalysis] Upload response: {responseContent.Substring(0, Math.Min(500, responseContent.Length))}");
                         
-                        var responseJson = JObject.Parse(responseContent);
-                        var fileUri = responseJson["file"]?["uri"]?.ToString();
+                        using (var responseJson = JsonDocument.Parse(responseContent))
+                        {
+                            string fileUri = null;
+                            
+                            if (responseJson.RootElement.TryGetProperty("file", out var fileElement))
+                            {
+                                if (fileElement.TryGetProperty("uri", out var uriElement))
+                                {
+                                    fileUri = uriElement.GetString();
+                                }
                         
-                        if (string.IsNullOrEmpty(fileUri))
+                                if (string.IsNullOrEmpty(fileUri) && fileElement.TryGetProperty("name", out var nameElement))
                         {
                             // Alternatif olarak name field'ından URI oluştur
-                            var fileNameFromResponse = responseJson["file"]?["name"]?.ToString();
+                                    var fileNameFromResponse = nameElement.GetString();
                             if (!string.IsNullOrEmpty(fileNameFromResponse))
                             {
                                 fileUri = $"gs://{fileNameFromResponse}";
+                                    }
+                                }
                             }
-                            else
+                            
+                            if (string.IsNullOrEmpty(fileUri))
                             {
                                 throw new InvalidOperationException("Dosya URI alınamadı");
-                            }
                         }
                         
                         // Dosyanın işlenmesini bekle (Gemini dosyayı işlerken biraz zaman alabilir)
                         await Task.Delay(3000);
                         
                         return fileUri;
+                        }
                     }
                 }
             }

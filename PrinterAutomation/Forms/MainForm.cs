@@ -364,10 +364,37 @@ namespace PrinterAutomation.Forms
             this.Controls.Add(titlePanel);
 
             // Başlık (Daha modern görünüm)
+            // white.png ikonunu ekle
+            System.Windows.Forms.PictureBox titleIconPictureBox = null;
+            try
+            {
+                string iconPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "image", "white.png");
+                if (!System.IO.File.Exists(iconPath))
+                {
+                    iconPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "image", "white.png");
+                }
+                if (System.IO.File.Exists(iconPath))
+                {
+                    titleIconPictureBox = new System.Windows.Forms.PictureBox
+                    {
+                        Location = new System.Drawing.Point(30, 26),
+                        Size = new System.Drawing.Size(44, 44),
+                        SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom,
+                        BackColor = System.Drawing.Color.Transparent
+                    };
+                    titleIconPictureBox.Image = System.Drawing.Image.FromFile(iconPath);
+                    titlePanel.Controls.Add(titleIconPictureBox);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Başlık ikonu yüklenirken hata: {ex.Message}");
+            }
+            
             lblTitle = new LabelControl
             {
-                Text = "🖨️ 3D YAZICI OTOMASYON SİSTEMİ",
-                Location = new System.Drawing.Point(30, 22),
+                Text = "3D YAZICI OTOMASYON SİSTEMİ",
+                Location = new System.Drawing.Point(titleIconPictureBox != null ? 80 : 30, 22),
                 Size = new System.Drawing.Size(600, 42),
                 Font = new System.Drawing.Font("Segoe UI", 22F, System.Drawing.FontStyle.Bold),
                 ForeColor = System.Drawing.Color.White
@@ -467,11 +494,39 @@ namespace PrinterAutomation.Forms
             // Yeni Yazıcı Ekle Button (Modern tasarım)
             btnAddPrinter = new SimpleButton
             {
-                Text = "🖨️ Yeni Yazıcı Ekle",
+                Text = "Yeni Yazıcı Ekle",
                 Size = new System.Drawing.Size(210, 48),
                 Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right,
                 Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold)
             };
+            // white.png ikonunu ekle
+            try
+            {
+                string iconPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "image", "white.png");
+                if (!System.IO.File.Exists(iconPath))
+                {
+                    iconPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "image", "white.png");
+                }
+                if (System.IO.File.Exists(iconPath))
+                {
+                    // Görseli 30x30 boyutunda yükle
+                    using (var originalImage = System.Drawing.Image.FromFile(iconPath))
+                    {
+                        var resizedImage = new System.Drawing.Bitmap(30, 30);
+                        using (var graphics = System.Drawing.Graphics.FromImage(resizedImage))
+                        {
+                            graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                            graphics.DrawImage(originalImage, 0, 0, 30, 30);
+                        }
+                        btnAddPrinter.ImageOptions.Image = resizedImage;
+                        btnAddPrinter.ImageOptions.ImageIndex = 0;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"İkon yüklenirken hata: {ex.Message}");
+            }
             btnAddPrinter.Appearance.BackColor = System.Drawing.Color.FromArgb(0, 120, 215);
             btnAddPrinter.Appearance.ForeColor = System.Drawing.Color.White;
             btnAddPrinter.Appearance.BorderColor = System.Drawing.Color.FromArgb(0, 100, 180);
@@ -612,10 +667,37 @@ namespace PrinterAutomation.Forms
             };
             contentPanel.Controls.Add(printersHeaderPanel);
 
+            // white.png ikonunu ekle
+            System.Windows.Forms.PictureBox iconPictureBox = null;
+            try
+            {
+                string iconPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "image", "white.png");
+                if (!System.IO.File.Exists(iconPath))
+                {
+                    iconPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "image", "white.png");
+                }
+                if (System.IO.File.Exists(iconPath))
+                {
+                    iconPictureBox = new System.Windows.Forms.PictureBox
+                    {
+                        Location = new System.Drawing.Point(15, 8),
+                        Size = new System.Drawing.Size(28, 28),
+                        SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom,
+                        BackColor = System.Drawing.Color.Transparent
+                    };
+                    iconPictureBox.Image = System.Drawing.Image.FromFile(iconPath);
+                    printersHeaderPanel.Controls.Add(iconPictureBox);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"İkon yüklenirken hata: {ex.Message}");
+            }
+            
             lblPrinters = new LabelControl
             {
-                Text = "🖨️ 3D YAZICILAR",
-                Location = new System.Drawing.Point(15, 8),
+                Text = "3D YAZICILAR",
+                Location = new System.Drawing.Point(iconPictureBox != null ? 48 : 15, 8),
                 Size = new System.Drawing.Size(430, 25),
                 Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Bold),
                 ForeColor = System.Drawing.Color.White
